@@ -7,7 +7,16 @@ A web application for geochemistry data visualization and analysis.
 - Python 3.8+
 - Node.js 18+
 
-## Installation
+## Quick Start (Windows)
+
+Double-click `start.bat` or run:
+```bash
+start.bat
+```
+
+This starts both backend and frontend automatically. Open `http://localhost:5173` in your browser.
+
+## Manual Installation
 
 ### Backend
 
