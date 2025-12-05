@@ -3,10 +3,11 @@
  * Comprehensive UI for compositional data transformations based on GeoCoDA workflow
  */
 
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import Plot from 'react-plotly.js';
 import { useAppStore } from '../../store/appStore';
 import { useTransformationStore } from '../../store/transformationStore';
+import { TransformationResult } from '../../types/compositional';
 import { TransformationType, ZeroHandlingStrategy } from '../../types/compositional';
 import { PREDEFINED_AMALGAMATIONS } from '../../utils/logratioTransforms';
 
@@ -61,7 +62,7 @@ const InfoTooltip: React.FC<{ text: string }> = ({ text }) => (
 // ============================================================================
 
 export const TransformationManager: React.FC = () => {
-  const { data, columns } = useAppStore();
+  const { data, columns, addColumn } = useAppStore();
   const {
     activeTransformation,
     selectedColumns,
@@ -122,13 +123,26 @@ export const TransformationManager: React.FC = () => {
     }
   }, [numericColumns, selectedColumns.length, setSelectedColumns]);
 
+  // Add transformed columns to main data store
+  const addTransformedColumnsToStore = useCallback((result: TransformationResult) => {
+    // Add each transformed column to the main data store
+    result.columnNames.forEach((colName, colIndex) => {
+      const values = result.values.map(row => row[colIndex]);
+      addColumn(colName, values, 'numeric', 'Transformed');
+    });
+    console.log(`[Transform] Added ${result.columnNames.length} transformed columns to data store`);
+  }, [addColumn]);
+
   // Handle transformation execution
   const handleExecute = async () => {
     if (selectedColumns.length < 2) {
       alert('Please select at least 2 columns for transformation');
       return;
     }
-    await executeTransformation(data, selectedColumns);
+    const result = await executeTransformation(data, selectedColumns);
+    if (result) {
+      addTransformedColumnsToStore(result);
+    }
   };
 
   // Handle variance decomposition
@@ -542,14 +556,15 @@ export const TransformationManager: React.FC = () => {
               marginTop: '16px',
               padding: '12px',
               background: '#f0fdf4',
-              borderRadius: '4px'
+              borderRadius: '4px',
+              border: '1px solid #86efac'
             }}>
-              <div style={{ fontWeight: 500, marginBottom: '8px' }}>
-                Transformation Complete
+              <div style={{ fontWeight: 500, marginBottom: '8px', color: '#166534' }}>
+                ✓ Transformation Complete - Columns Added to Data
               </div>
               <div style={{ fontSize: '13px' }}>
                 <div>Type: {currentResult.config.type.toUpperCase()}</div>
-                <div>Output columns: {currentResult.columnNames.length}</div>
+                <div>New columns: {currentResult.columnNames.join(', ')}</div>
                 <div>Samples: {currentResult.values.length}</div>
                 {currentResult.zerosReplaced > 0 && (
                   <div>Zeros replaced: {currentResult.zerosReplaced}</div>
@@ -557,6 +572,17 @@ export const TransformationManager: React.FC = () => {
                 {currentResult.procrustesCorrelation && (
                   <div>Procrustes correlation: {currentResult.procrustesCorrelation.toFixed(3)}</div>
                 )}
+              </div>
+              <div style={{
+                marginTop: '8px',
+                padding: '8px',
+                background: '#dcfce7',
+                borderRadius: '4px',
+                fontSize: '12px',
+                color: '#166534'
+              }}>
+                💡 These columns are now available in Plots, Correlation Matrix, and other analyses.
+                Look for columns with "Transformed" role or names like "CLR_*".
               </div>
             </div>
           )}

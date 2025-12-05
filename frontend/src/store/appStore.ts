@@ -67,7 +67,7 @@ interface AppState {
     updatePlotSettings: (plotId: string, settings: Partial<PlotSettings>) => void;
 
     // Data actions
-    addColumn: (name: string, values: any[]) => void;
+    addColumn: (name: string, values: any[], colType?: string, role?: string) => void;
 }
 
 type CombinedState = AppState & AttributeState;
@@ -164,23 +164,24 @@ export const useAppStore = create<CombinedState>()((set, get, api) => ({
     setStatsSelectedColumns: (columns) => set({ statsSelectedColumns: columns }),
     setCorrelationSelectedColumns: (columns) => set({ correlationSelectedColumns: columns }),
 
-    addColumn: (name, values) => {
+    addColumn: (name, values, colType = 'categorical', role = 'Classification') => {
         set((state) => {
             const newData = state.data.map((row, i) => ({
                 ...row,
                 [name]: values[i]
             }));
 
-            const newColumn = {
+            const newColumn: ColumnInfo = {
                 name: name,
-                type: 'categorical',
-                role: 'Classification',
-                alias: null
+                type: colType,
+                role: role,
+                alias: null,
+                priority: 5
             };
 
             const columnExists = state.columns.some(c => c.name === name);
             const newColumns = columnExists
-                ? state.columns
+                ? state.columns.map(c => c.name === name ? { ...c, ...newColumn } : c)
                 : [...state.columns, newColumn];
 
             return {
