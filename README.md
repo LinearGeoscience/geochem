@@ -10,6 +10,7 @@ A web application for geochemistry data visualization and analysis.
 ## Setup (First Time Only)
 
 ```bash
+npm install
 npm run setup
 ```
 
