@@ -51,7 +51,7 @@ export const DataImport: React.FC = () => {
             const validExtensions = ['.xlsx', '.xls', '.csv', '.gas'];
             const fileExt = file.name.substring(file.name.lastIndexOf('.')).toLowerCase();
             if (!validExtensions.includes(fileExt)) {
-                useAppStore.setState({ error: `Invalid file type. Please select an Excel (.xlsx, .xls), CSV, or ioGAS (.gas) file.` });
+                useAppStore.setState({ error: `Invalid file type. Please select an Excel (.xlsx, .xls), CSV, or .gas project file.` });
                 return;
             }
 
@@ -168,14 +168,14 @@ export const DataImport: React.FC = () => {
 
             if (!response.ok) {
                 const error = await response.json();
-                throw new Error(error.detail || 'Failed to upload ioGAS file');
+                throw new Error(error.detail || 'Failed to upload .gas file');
             }
 
             const result = await response.json();
             useAppStore.setState({ uploadProgress: 90 });
 
             if (!result.success) {
-                throw new Error(result.error || 'Failed to parse ioGAS file');
+                throw new Error(result.error || 'Failed to parse .gas file');
             }
 
             // Update the store with parsed data
@@ -191,7 +191,6 @@ export const DataImport: React.FC = () => {
             const iogasMetadata = result.iogas_metadata || {};
             const specialCols = iogasMetadata.special_columns || {};
             const statsLines = [
-                `ioGAS Version: ${iogasMetadata.version || 'Unknown'}`,
                 `Rows: ${result.rows}`,
                 `Columns: ${result.columns}`,
             ];
@@ -211,7 +210,7 @@ export const DataImport: React.FC = () => {
         } catch (err: any) {
             console.error('[ioGAS] Processing error:', err);
             useAppStore.setState({
-                error: `Failed to process ioGAS file: ${err.message}`,
+                error: `Failed to process .gas file: ${err.message}`,
                 isLoading: false,
                 uploadProgress: 0
             });
@@ -342,7 +341,7 @@ export const DataImport: React.FC = () => {
                 {tab === 0 ? (
                     <Box sx={{ my: 3 }}>
                         <Typography variant="body2" color="text.secondary" sx={{ mb: 2, textAlign: 'center' }}>
-                            Upload a single flat file containing your data (Excel, CSV, or ioGAS .gas format).
+                            Upload a single flat file containing your data (Excel, CSV, or .gas project format).
                         </Typography>
 
                         {/* Vanta PXRF Options */}
@@ -464,7 +463,7 @@ export const DataImport: React.FC = () => {
                                 </Button>
                             </label>
                             <Typography variant="caption" display="block" color="text.secondary" sx={{ mt: 1 }}>
-                                Supports: Excel (.xlsx, .xls), CSV, ioGAS (.gas)
+                                Supports: Excel (.xlsx, .xls), CSV, .gas project files
                             </Typography>
                         </Box>
 
@@ -481,7 +480,7 @@ export const DataImport: React.FC = () => {
                         {/* ioGAS Import Stats */}
                         {iogasImportStats && (
                             <Alert severity="success" sx={{ mt: 2 }} icon={<FolderOpen />}>
-                                <Typography variant="subtitle2">ioGAS Project Imported Successfully</Typography>
+                                <Typography variant="subtitle2">Project File Imported Successfully</Typography>
                                 <Typography variant="caption" component="pre" sx={{ whiteSpace: 'pre-wrap', fontFamily: 'monospace' }}>
                                     {iogasImportStats}
                                 </Typography>

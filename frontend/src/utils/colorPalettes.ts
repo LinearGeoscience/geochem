@@ -1,5 +1,5 @@
 // Color palette definitions for geochemical data visualization
-// Inspired by ioGAS, matplotlib, and scientific visualization best practices
+// Inspired by matplotlib and scientific visualization best practices
 
 export interface ColorPalette {
     name: string;

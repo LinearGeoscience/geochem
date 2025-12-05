@@ -48,3 +48,10 @@ _ul
 
 # Claude Code
 .claude/
+
+# Documentation files
+*.md
+!README.md
+*.pdf
+*.doc
+*.docx
