@@ -50,6 +50,7 @@ _ul
 .claude/
 
 # Documentation files
+docs/
 *.md
 !README.md
 *.pdf
