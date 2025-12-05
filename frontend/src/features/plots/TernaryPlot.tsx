@@ -17,7 +17,8 @@ interface TernaryPlotProps {
 }
 
 export const TernaryPlot: React.FC<TernaryPlotProps> = ({ plotId }) => {
-    const { data, columns, lockAxes, getPlotSettings, updatePlotSettings } = useAppStore();
+    const { data, columns, lockAxes, getPlotSettings, updatePlotSettings, getFilteredColumns } = useAppStore();
+    const filteredColumns = getFilteredColumns();
     useAttributeStore(); // Subscribe to changes
 
     // Get stored settings or defaults
@@ -56,7 +57,7 @@ export const TernaryPlot: React.FC<TernaryPlotProps> = ({ plotId }) => {
 
     const numericColumns = useMemo(() =>
         sortColumnsByPriority(
-            columns.filter(c => c && c.name && (c.type === 'numeric' || c.type === 'float' || c.type === 'integer'))
+            filteredColumns.filter(c => c && c.name && (c.type === 'numeric' || c.type === 'float' || c.type === 'integer'))
         ),
         [columns]
     );

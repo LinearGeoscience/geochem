@@ -1,8 +1,8 @@
 import React, { useState, useCallback } from 'react';
-import { Box, Paper, Typography, FormControl, InputLabel, Select, MenuItem, OutlinedInput, Chip, ToggleButtonGroup, ToggleButton, CircularProgress, Button, Stack } from '@mui/material';
+import { Box, Paper, Typography, FormControl, InputLabel, Select, MenuItem, OutlinedInput, Chip, ToggleButtonGroup, ToggleButton, CircularProgress, Button, Stack, Alert } from '@mui/material';
 import { SelectChangeEvent } from '@mui/material';
 import Plot from 'react-plotly.js';
-import { useAppStore } from '../../store/appStore';
+import { useAppStore, COLUMN_FILTER_LABELS } from '../../store/appStore';
 import { useAttributeStore } from '../../store/attributeStore';
 import { getStyleArrays, sortColumnsByPriority } from '../../utils/attributeUtils';
 
@@ -54,7 +54,8 @@ const spearmanCorrelation = (x: number[], y: number[]): number => {
 };
 
 export const CorrelationMatrix: React.FC = () => {
-    const { columns, data, correlationSelectedColumns, setCorrelationSelectedColumns } = useAppStore();
+    const { data, correlationSelectedColumns, setCorrelationSelectedColumns, getFilteredColumns, columnFilter } = useAppStore();
+    const filteredColumns = getFilteredColumns();
     useAttributeStore(); // Subscribe to changes
     const [method, setMethod] = useState<'pearson' | 'spearman'>('pearson');
     const [correlationData, setCorrelationData] = useState<{ columns: string[], matrix: number[][] } | null>(null);
@@ -141,7 +142,7 @@ export const CorrelationMatrix: React.FC = () => {
     };
 
     const numericColumns = sortColumnsByPriority(
-        columns.filter(c => c.type === 'numeric' || c.type === 'float' || c.type === 'integer')
+        filteredColumns.filter(c => c.type === 'numeric' || c.type === 'float' || c.type === 'integer')
     );
 
     const handleSelectAll = () => {
@@ -155,6 +156,13 @@ export const CorrelationMatrix: React.FC = () => {
     return (
         <Box sx={{ p: 3 }}>
             <Typography variant="h5" gutterBottom>Correlation Matrix</Typography>
+
+            {columnFilter !== 'all' && (
+                <Alert severity="info" sx={{ mb: 2 }}>
+                    Showing <strong>{COLUMN_FILTER_LABELS[columnFilter]}</strong> columns only.
+                    Change the filter in the top toolbar to see other columns.
+                </Alert>
+            )}
 
             <Box sx={{ display: 'flex', gap: 2, mb: 3, flexWrap: 'wrap', alignItems: 'flex-start' }}>
                 <Stack spacing={1} sx={{ minWidth: 300, maxWidth: 600, flexGrow: 1 }}>

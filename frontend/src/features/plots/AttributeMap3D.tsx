@@ -26,7 +26,8 @@ interface AttributeMap3DProps {
 }
 
 export const AttributeMap3D: React.FC<AttributeMap3DProps> = ({ plotId }) => {
-    const { data, columns, lockAxes, getPlotSettings, updatePlotSettings } = useAppStore();
+    const { data, columns, lockAxes, getPlotSettings, updatePlotSettings, getFilteredColumns } = useAppStore();
+    const filteredColumns = getFilteredColumns();
     useAttributeStore(); // Subscribe to changes
 
     // Get stored settings or defaults
@@ -103,7 +104,7 @@ export const AttributeMap3D: React.FC<AttributeMap3DProps> = ({ plotId }) => {
     }, [columns, storedSettings]);
 
     const numericColumns = sortColumnsByPriority(
-        columns.filter(c => c && c.name && (c.type === 'numeric' || c.type === 'float' || c.type === 'integer'))
+        filteredColumns.filter(c => c && c.name && (c.type === 'numeric' || c.type === 'float' || c.type === 'integer'))
     );
 
     // Calculate data ranges for each axis

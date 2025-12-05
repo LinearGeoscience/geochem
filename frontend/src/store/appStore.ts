@@ -8,7 +8,22 @@ interface ColumnInfo {
     role: string | null;
     alias: string | null;
     priority?: number; // Lower = higher priority in dropdowns (1-10)
+    transformationType?: 'raw' | 'clr' | 'alr' | 'ilr' | 'plr' | 'slr' | 'chipower' | null; // Which transformation created this column
 }
+
+// Column filter options
+export type ColumnFilterType = 'all' | 'raw' | 'clr' | 'alr' | 'ilr' | 'plr' | 'slr' | 'chipower';
+
+export const COLUMN_FILTER_LABELS: Record<ColumnFilterType, string> = {
+    all: 'All Columns',
+    raw: 'Raw Data',
+    clr: 'CLR Transformed',
+    alr: 'ALR Transformed',
+    ilr: 'ILR Transformed',
+    plr: 'PLR Transformed',
+    slr: 'SLR Transformed',
+    chipower: 'Chi-Power Transformed'
+};
 
 type PlotType = 'scatter' | 'ternary' | 'spider' | 'map' | 'map3d' | 'downhole' | 'histogram' | 'clr';
 
@@ -31,6 +46,12 @@ interface AppState {
     uploadProgress: number; // 0-100
     error: string | null;
     currentView: 'import' | 'data' | 'columns' | 'plots' | 'analysis' | 'settings';
+
+    // Column filtering by transformation type
+    columnFilter: ColumnFilterType;
+    availableFilters: ColumnFilterType[]; // Which filters have data
+    setColumnFilter: (filter: ColumnFilterType) => void;
+    getFilteredColumns: () => ColumnInfo[];
 
     // Multi-plot state
     plots: PlotInstance[];
@@ -67,7 +88,7 @@ interface AppState {
     updatePlotSettings: (plotId: string, settings: Partial<PlotSettings>) => void;
 
     // Data actions
-    addColumn: (name: string, values: any[], colType?: string, role?: string) => void;
+    addColumn: (name: string, values: any[], colType?: string, role?: string, transformationType?: ColumnInfo['transformationType']) => void;
 }
 
 type CombinedState = AppState & AttributeState;
@@ -80,6 +101,21 @@ export const useAppStore = create<CombinedState>()((set, get, api) => ({
     uploadProgress: 0,
     error: null,
     currentView: 'import',
+
+    // Column filtering
+    columnFilter: 'all' as ColumnFilterType,
+    availableFilters: ['all', 'raw'] as ColumnFilterType[],
+
+    setColumnFilter: (filter) => set({ columnFilter: filter }),
+
+    getFilteredColumns: () => {
+        const { columns, columnFilter } = get();
+        if (columnFilter === 'all') return columns;
+        if (columnFilter === 'raw') {
+            return columns.filter(c => !c.transformationType || c.transformationType === 'raw');
+        }
+        return columns.filter(c => c.transformationType === columnFilter);
+    },
 
     plots: [],
     activePlotId: null,
@@ -164,7 +200,7 @@ export const useAppStore = create<CombinedState>()((set, get, api) => ({
     setStatsSelectedColumns: (columns) => set({ statsSelectedColumns: columns }),
     setCorrelationSelectedColumns: (columns) => set({ correlationSelectedColumns: columns }),
 
-    addColumn: (name, values, colType = 'categorical', role = 'Classification') => {
+    addColumn: (name, values, colType = 'categorical', role = 'Classification', transformationType = null) => {
         set((state) => {
             const newData = state.data.map((row, i) => ({
                 ...row,
@@ -176,7 +212,8 @@ export const useAppStore = create<CombinedState>()((set, get, api) => ({
                 type: colType,
                 role: role,
                 alias: null,
-                priority: 5
+                priority: 5,
+                transformationType: transformationType
             };
 
             const columnExists = state.columns.some(c => c.name === name);
@@ -184,9 +221,16 @@ export const useAppStore = create<CombinedState>()((set, get, api) => ({
                 ? state.columns.map(c => c.name === name ? { ...c, ...newColumn } : c)
                 : [...state.columns, newColumn];
 
+            // Update available filters if this is a new transformation type
+            let newAvailableFilters = [...state.availableFilters];
+            if (transformationType && !newAvailableFilters.includes(transformationType)) {
+                newAvailableFilters.push(transformationType);
+            }
+
             return {
                 data: newData,
-                columns: newColumns
+                columns: newColumns,
+                availableFilters: newAvailableFilters
             };
         });
     },

@@ -34,7 +34,8 @@ interface HistogramPlotProps {
 }
 
 export const HistogramPlot: React.FC<HistogramPlotProps> = ({ plotId }) => {
-    const { data, columns, lockAxes, getPlotSettings, updatePlotSettings } = useAppStore();
+    const { data, columns, lockAxes, getPlotSettings, updatePlotSettings, getFilteredColumns } = useAppStore();
+    const filteredColumns = getFilteredColumns();
     useAttributeStore(); // Subscribe to style changes
 
     // Get stored settings or defaults
@@ -79,18 +80,18 @@ export const HistogramPlot: React.FC<HistogramPlotProps> = ({ plotId }) => {
     };
 
     const numericColumns = sortColumnsByPriority(
-        columns.filter(c => c && c.name && (c.type === 'numeric' || c.type === 'float' || c.type === 'integer'))
+        filteredColumns.filter(c => c && c.name && (c.type === 'numeric' || c.type === 'float' || c.type === 'integer'))
     );
 
     // Include all non-numeric columns as potential category options
     const categoricalColumns = useMemo(() =>
-        columns.filter(c =>
+        filteredColumns.filter(c =>
             c.type === 'string' ||
             c.type === 'category' ||
             c.type === 'text' ||
             (c.type !== 'numeric' && c.type !== 'float' && c.type !== 'integer')
         ),
-        [columns]
+        [filteredColumns]
     );
 
     // Get visible data based on attribute filters

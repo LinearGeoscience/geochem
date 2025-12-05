@@ -125,12 +125,13 @@ export const TransformationManager: React.FC = () => {
 
   // Add transformed columns to main data store
   const addTransformedColumnsToStore = useCallback((result: TransformationResult) => {
-    // Add each transformed column to the main data store
+    // Add each transformed column to the main data store with transformation type
+    const transformType = result.config.type as 'clr' | 'alr' | 'ilr' | 'plr' | 'slr' | 'chipower';
     result.columnNames.forEach((colName, colIndex) => {
       const values = result.values.map(row => row[colIndex]);
-      addColumn(colName, values, 'numeric', 'Transformed');
+      addColumn(colName, values, 'numeric', 'Transformed', transformType);
     });
-    console.log(`[Transform] Added ${result.columnNames.length} transformed columns to data store`);
+    console.log(`[Transform] Added ${result.columnNames.length} ${transformType.toUpperCase()} columns to data store`);
   }, [addColumn]);
 
   // Handle transformation execution

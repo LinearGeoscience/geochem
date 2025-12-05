@@ -49,7 +49,8 @@ interface CLRPlotProps {
 }
 
 export const CLRPlot: React.FC<CLRPlotProps> = ({ plotId }) => {
-    const { data, columns, getPlotSettings, updatePlotSettings } = useAppStore();
+    const { data, columns, getPlotSettings, updatePlotSettings, getFilteredColumns } = useAppStore();
+    const filteredColumns = getFilteredColumns();
     useAttributeStore(); // Subscribe to style changes
 
     // Get stored settings or defaults
@@ -85,7 +86,7 @@ export const CLRPlot: React.FC<CLRPlotProps> = ({ plotId }) => {
 
     // Get numeric columns (compositional data), sorted by priority
     const numericColumns = useMemo(() =>
-        sortColumnsByPriority(columns.filter(c => c && c.name && (c.type === 'numeric' || c.type === 'float' || c.type === 'integer'))),
+        sortColumnsByPriority(filteredColumns.filter(c => c && c.name && (c.type === 'numeric' || c.type === 'float' || c.type === 'integer'))),
         [columns]
     );
 

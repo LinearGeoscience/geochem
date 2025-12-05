@@ -232,7 +232,8 @@ interface DownholePlotProps {
 }
 
 export const DownholePlot: React.FC<DownholePlotProps> = ({ plotId }) => {
-    const { data, columns, lockAxes, getPlotSettings, updatePlotSettings } = useAppStore();
+    const { data, columns, lockAxes, getPlotSettings, updatePlotSettings, getFilteredColumns } = useAppStore();
+    const filteredColumns = getFilteredColumns();
     useAttributeStore(); // Subscribe to style changes
 
     // Get stored settings or defaults
@@ -309,12 +310,12 @@ export const DownholePlot: React.FC<DownholePlotProps> = ({ plotId }) => {
 
     // Get column lists (sorted by priority)
     const numericColumns = useMemo(
-        () => sortColumnsByPriority(columns.filter(c => c && c.name && (c.type === 'numeric' || c.type === 'float' || c.type === 'integer'))),
+        () => sortColumnsByPriority(filteredColumns.filter(c => c && c.name && (c.type === 'numeric' || c.type === 'float' || c.type === 'integer'))),
         [columns]
     );
 
     const categoricalColumns = useMemo(
-        () => columns.filter(c => c && c.name && (c.type === 'categorical' || c.type === 'text')),
+        () => filteredColumns.filter(c => c && c.name && (c.type === 'categorical' || c.type === 'text')),
         [columns]
     );
 

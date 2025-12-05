@@ -23,7 +23,8 @@ interface ScatterPlotProps {
 }
 
 export const ScatterPlot: React.FC<ScatterPlotProps> = ({ plotId }) => {
-    const { data, columns, setSelection, lockAxes, getPlotSettings, updatePlotSettings } = useAppStore();
+    const { data, columns, setSelection, lockAxes, getPlotSettings, updatePlotSettings, getFilteredColumns } = useAppStore();
+    const filteredColumns = getFilteredColumns();
     const { color } = useAttributeStore();
 
     // Get stored settings or defaults
@@ -108,7 +109,7 @@ export const ScatterPlot: React.FC<ScatterPlotProps> = ({ plotId }) => {
     }, [columns, storedSettings]);
 
     const numericColumns = sortColumnsByPriority(
-        columns.filter(c => c && c.name && (c.type === 'numeric' || c.type === 'float' || c.type === 'integer'))
+        filteredColumns.filter(c => c && c.name && (c.type === 'numeric' || c.type === 'float' || c.type === 'integer'))
     );
 
     // Check if axes match TAS for any Y-axis
