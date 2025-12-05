@@ -319,6 +319,7 @@ export const ProjectManager: React.FC<ProjectManagerProps> = ({ variant = 'toolb
                 {/* Action buttons */}
                 <Button
                     size="small"
+                    color="inherit"
                     startIcon={<Add />}
                     onClick={() => checkUnsavedChanges('new')}
                     disabled={isLoading}
@@ -329,7 +330,7 @@ export const ProjectManager: React.FC<ProjectManagerProps> = ({ variant = 'toolb
                     size="small"
                     startIcon={isLoading ? <CircularProgress size={16} /> : <Save />}
                     onClick={handleSave}
-                    variant={isDirty ? 'contained' : 'outlined'}
+                    variant={isDirty ? 'contained' : 'text'}
                     color={isDirty ? 'primary' : 'inherit'}
                     disabled={isLoading}
                 >
@@ -337,18 +338,20 @@ export const ProjectManager: React.FC<ProjectManagerProps> = ({ variant = 'toolb
                 </Button>
                 <Button
                     size="small"
+                    color="inherit"
                     startIcon={<FolderOpen />}
                     onClick={() => checkUnsavedChanges('load')}
                     disabled={isLoading}
                 >
                     Open
                 </Button>
-                <IconButton size="small" onClick={() => setSettingsOpen(true)}>
+                <IconButton size="small" color="inherit" onClick={() => setSettingsOpen(true)}>
                     <Settings fontSize="small" />
                 </IconButton>
                 {recentProjects.length > 0 && (
                     <Button
                         size="small"
+                        color="inherit"
                         startIcon={<History />}
                         onClick={() => setRecentProjectsOpen(true)}
                     >
