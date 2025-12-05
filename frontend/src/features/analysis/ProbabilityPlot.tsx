@@ -1,0 +1,233 @@
+import React, { useState } from 'react';
+import { Box, Paper, Typography, FormControl, InputLabel, Select, MenuItem, OutlinedInput, Chip, ToggleButtonGroup, ToggleButton, Button, Stack, Grid } from '@mui/material';
+import { SelectChangeEvent } from '@mui/material';
+import Plot from 'react-plotly.js';
+import { useAppStore } from '../../store/appStore';
+import { ExpandablePlotWrapper } from '../../components/ExpandablePlotWrapper';
+import { useAttributeStore } from '../../store/attributeStore';
+import { getStyleArrays, sortColumnsByPriority } from '../../utils/attributeUtils';
+
+export const ProbabilityPlot: React.FC = () => {
+    const { columns, data } = useAppStore();
+    useAttributeStore(); // Subscribe to changes
+    const [selectedColumns, setSelectedColumns] = useState<string[]>([]);
+    const [plotType, setPlotType] = useState<'probability' | 'cumulative'>('probability');
+    const [xAxisType, setXAxisType] = useState<'nscore' | 'probability'>('nscore');
+
+    const numericColumns = sortColumnsByPriority(
+        columns.filter(c => c.type === 'numeric' || c.type === 'float' || c.type === 'integer')
+    );
+
+    // Get style arrays for visibility and colors
+    const styleArrays = getStyleArrays(data);
+
+    const handleColumnChange = (event: SelectChangeEvent<typeof selectedColumns>) => {
+        const value = event.target.value;
+        setSelectedColumns(typeof value === 'string' ? value.split(',') : value);
+    };
+
+    const handleSelectAll = () => {
+        setSelectedColumns(numericColumns.map(c => c.name));
+    };
+
+    const handleClearAll = () => {
+        setSelectedColumns([]);
+    };
+
+    const handlePlotTypeChange = (_: React.MouseEvent<HTMLElement>, newType: 'probability' | 'cumulative' | null) => {
+        if (newType !== null) {
+            setPlotType(newType);
+        }
+    };
+
+    const handleXAxisChange = (_: React.MouseEvent<HTMLElement>, newAxis: 'nscore' | 'probability' | null) => {
+        if (newAxis !== null) {
+            setXAxisType(newAxis);
+        }
+    };
+
+    // Calculate normal probability plot data for a single column
+    const getColumnPlotData = (columnName: string) => {
+        // Get values, colors, and sort - only include visible data points
+        const valuesWithColors: { value: number; color: string }[] = [];
+        for (let i = 0; i < data.length; i++) {
+            if (styleArrays.visible[i]) {
+                const v = data[i][columnName];
+                if (v != null && !isNaN(v)) {
+                    valuesWithColors.push({ value: Number(v), color: styleArrays.colors[i] });
+                }
+            }
+        }
+
+        // Sort by value
+        valuesWithColors.sort((a, b) => a.value - b.value);
+        const sorted = valuesWithColors.map(v => v.value);
+        const colors = valuesWithColors.map(v => v.color);
+        const n = sorted.length;
+
+        if (plotType === 'probability') {
+            // Q-Q plot: Theoretical quantiles vs observed values
+            const theoreticalQuantiles = sorted.map((_, i) => {
+                const p = (i + 0.5) / n;
+                return inverseNormalCDF(p);
+            });
+
+            const probabilities = sorted.map((_, i) => ((i + 0.5) / n) * 100);
+
+            return {
+                x: xAxisType === 'nscore' ? theoreticalQuantiles : probabilities,
+                y: sorted,
+                mode: 'markers',
+                type: 'scatter',
+                marker: { size: 6, color: colors, line: { width: 0 } },
+                name: columnName
+            };
+        } else {
+            // Cumulative frequency distribution
+            const cumulative = sorted.map((_, i) => ((i + 1) / n) * 100);
+
+            return {
+                x: sorted,
+                y: cumulative,
+                mode: 'lines+markers',
+                type: 'scatter',
+                line: { color: colors[0] || '#1976d2', width: 2 },
+                marker: { size: 4, color: colors, line: { width: 0 } },
+                name: columnName
+            };
+        }
+    };
+
+    // Approximation of inverse normal CDF
+    const inverseNormalCDF = (p: number): number => {
+        if (p <= 0 || p >= 1) return p < 0.5 ? -6 : 6;
+
+        const c0 = 2.515517;
+        const c1 = 0.802853;
+        const c2 = 0.010328;
+        const d1 = 1.432788;
+        const d2 = 0.189269;
+        const d3 = 0.001308;
+
+        const t = p < 0.5 ? Math.sqrt(-2 * Math.log(p)) : Math.sqrt(-2 * Math.log(1 - p));
+        const numerator = c0 + c1 * t + c2 * t * t;
+        const denominator = 1 + d1 * t + d2 * t * t + d3 * t * t * t;
+        const z = t - numerator / denominator;
+
+        return p < 0.5 ? -z : z;
+    };
+
+    return (
+        <Box sx={{ p: 3 }}>
+            <Typography variant="h5" gutterBottom>Probability Plot</Typography>
+
+            <Box sx={{ display: 'flex', gap: 2, mb: 3, flexWrap: 'wrap', alignItems: 'flex-start' }}>
+                <Stack spacing={1} sx={{ minWidth: 300, maxWidth: 600, flexGrow: 1 }}>
+                    <FormControl>
+                        <InputLabel>Select Columns</InputLabel>
+                        <Select
+                            multiple
+                            value={selectedColumns}
+                            onChange={handleColumnChange}
+                            input={<OutlinedInput label="Select Columns" />}
+                            renderValue={(selected) => (
+                                <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5 }}>
+                                    {selected.map((value) => (
+                                        <Chip key={value} label={value} size="small" />
+                                    ))}
+                                </Box>
+                            )}
+                        >
+                            {numericColumns.map((col) => (
+                                <MenuItem key={col.name} value={col.name}>
+                                    {col.alias || col.name}
+                                </MenuItem>
+                            ))}
+                        </Select>
+                    </FormControl>
+                    <Box sx={{ display: 'flex', gap: 1 }}>
+                        <Button size="small" variant="outlined" onClick={handleSelectAll}>
+                            Select All
+                        </Button>
+                        <Button size="small" variant="outlined" onClick={handleClearAll}>
+                            Clear All
+                        </Button>
+                    </Box>
+                </Stack>
+
+                <ToggleButtonGroup
+                    value={plotType}
+                    exclusive
+                    onChange={handlePlotTypeChange}
+                    size="small"
+                >
+                    <ToggleButton value="probability">Probability Plot</ToggleButton>
+                    <ToggleButton value="cumulative">Cumulative Frequency</ToggleButton>
+                </ToggleButtonGroup>
+
+                {plotType === 'probability' && (
+                    <ToggleButtonGroup
+                        value={xAxisType}
+                        exclusive
+                        onChange={handleXAxisChange}
+                        size="small"
+                    >
+                        <ToggleButton value="nscore">N-Score (Std Dev)</ToggleButton>
+                        <ToggleButton value="probability">Probability (%)</ToggleButton>
+                    </ToggleButtonGroup>
+                )}
+            </Box>
+
+            {selectedColumns.length > 0 && data.length > 0 ? (
+                <Grid container spacing={2}>
+                    {selectedColumns.map((columnName) => {
+                        const plotData = getColumnPlotData(columnName);
+                        return (
+                            <Grid item xs={12} sm={6} lg={4} key={columnName}>
+                                <Paper sx={{ p: 1 }}>
+                                    <ExpandablePlotWrapper>
+                                        <Plot
+                                            data={[plotData as any]}
+                                            layout={{
+                                                title: { text: columnName, font: { size: 14 } },
+                                                autosize: true,
+                                                height: 400,
+                                                margin: { l: 50, r: 30, t: 40, b: 50 },
+                                                xaxis: {
+                                                    title: {
+                                                        text: plotType === 'probability'
+                                                            ? (xAxisType === 'nscore' ? 'Theoretical Quantiles' : 'Probability (%)')
+                                                            : 'Value',
+                                                        font: { size: 11 }
+                                                    },
+                                                    gridcolor: '#e0e0e0'
+                                                },
+                                                yaxis: {
+                                                    title: {
+                                                        text: plotType === 'probability' ? 'Value' : 'Cumulative Frequency (%)',
+                                                        font: { size: 11 }
+                                                    },
+                                                    gridcolor: '#e0e0e0'
+                                                },
+                                                plot_bgcolor: '#fafafa',
+                                                hovermode: 'closest',
+                                                showlegend: false
+                                            }}
+                                            config={{ displayModeBar: true, displaylogo: false }}
+                                            style={{ width: '100%' }}
+                                            useResizeHandler={true}
+                                        />
+                                    </ExpandablePlotWrapper>
+                                </Paper>
+                            </Grid>
+                        );
+                    })}
+                </Grid>
+            ) : (
+                <Typography color="text.secondary">
+                    Select one or more columns to display probability plots
+                </Typography>
+            )}
+        </Box>
+    );
+};

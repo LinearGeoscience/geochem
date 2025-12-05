@@ -1,0 +1,789 @@
+/**
+ * Transformation Manager Component
+ * Comprehensive UI for compositional data transformations based on GeoCoDA workflow
+ */
+
+import React, { useState, useEffect, useMemo } from 'react';
+import Plot from 'react-plotly.js';
+import { useAppStore } from '../../store/appStore';
+import { useTransformationStore } from '../../store/transformationStore';
+import { TransformationType, ZeroHandlingStrategy } from '../../types/compositional';
+import { PREDEFINED_AMALGAMATIONS } from '../../utils/logratioTransforms';
+
+// ============================================================================
+// TYPES
+// ============================================================================
+
+interface TabProps {
+  active: boolean;
+  onClick: () => void;
+  children: React.ReactNode;
+}
+
+// ============================================================================
+// SUB-COMPONENTS
+// ============================================================================
+
+const Tab: React.FC<TabProps> = ({ active, onClick, children }) => (
+  <button
+    onClick={onClick}
+    style={{
+      padding: '8px 16px',
+      border: 'none',
+      borderBottom: active ? '2px solid #3b82f6' : '2px solid transparent',
+      background: 'none',
+      color: active ? '#3b82f6' : '#6b7280',
+      fontWeight: active ? 600 : 400,
+      cursor: 'pointer',
+      fontSize: '14px'
+    }}
+  >
+    {children}
+  </button>
+);
+
+const InfoTooltip: React.FC<{ text: string }> = ({ text }) => (
+  <span
+    title={text}
+    style={{
+      marginLeft: '4px',
+      cursor: 'help',
+      color: '#9ca3af',
+      fontSize: '12px'
+    }}
+  >
+    ⓘ
+  </span>
+);
+
+// ============================================================================
+// MAIN COMPONENT
+// ============================================================================
+
+export const TransformationManager: React.FC = () => {
+  const { data, columns } = useAppStore();
+  const {
+    activeTransformation,
+    selectedColumns,
+    zeroStrategy,
+    customZeroValue,
+    alrReference,
+    numeratorAmalgamation,
+    denominatorAmalgamation,
+    chiPowerLambda,
+    currentResult,
+    varianceResult,
+    procrustesResult,
+    pcaResult,
+    zeroSummary,
+    isProcessing,
+    error,
+    setActiveTransformation,
+    setSelectedColumns,
+    setZeroStrategy,
+    setCustomZeroValue,
+    setALRReference,
+    setNumeratorAmalgamation,
+    setDenominatorAmalgamation,
+    setChiPowerLambda,
+    executeTransformation,
+    runVarianceDecomposition,
+    runProcrustesAnalysis,
+    runPCA,
+    analyzeZeros,
+    clearResults,
+    getAllAmalgamations
+  } = useTransformationStore();
+
+  const [activeTab, setActiveTab] = useState<'transform' | 'variance' | 'pca' | 'zeros'>('transform');
+  const [groupColumn, setGroupColumn] = useState<string>('');
+
+  // Get numeric columns
+  const numericColumns = useMemo(() =>
+    columns.filter(col => col.type === 'numeric').map(col => col.name),
+    [columns]
+  );
+
+  // Get categorical columns for grouping
+  const categoricalColumns = useMemo(() =>
+    columns.filter(col => col.type === 'categorical' || col.type === 'text').map(col => col.name),
+    [columns]
+  );
+
+  // Auto-select columns on mount
+  useEffect(() => {
+    if (selectedColumns.length === 0 && numericColumns.length > 0) {
+      // Auto-select element/oxide columns
+      const elementPattern = /^(Si|Ti|Al|Fe|Mn|Mg|Ca|Na|K|P|Cr|Ni|Co|V|Zr|Nb|Y|La|Ce|Nd|Sm|Eu|Gd|Dy|Er|Yb|Lu|Ba|Sr|Rb|Th|U|Pb|Zn|Cu|As|Sb|Au|Ag)/i;
+      const autoSelected = numericColumns.filter(col => elementPattern.test(col)).slice(0, 15);
+      if (autoSelected.length >= 3) {
+        setSelectedColumns(autoSelected);
+      }
+    }
+  }, [numericColumns, selectedColumns.length, setSelectedColumns]);
+
+  // Handle transformation execution
+  const handleExecute = async () => {
+    if (selectedColumns.length < 2) {
+      alert('Please select at least 2 columns for transformation');
+      return;
+    }
+    await executeTransformation(data, selectedColumns);
+  };
+
+  // Handle variance decomposition
+  const handleVarianceDecomposition = () => {
+    if (selectedColumns.length < 2) return;
+    const groups = groupColumn ? data.map(row => String(row[groupColumn] ?? '')) : undefined;
+    runVarianceDecomposition(data, selectedColumns, groups);
+  };
+
+  // Handle Procrustes analysis
+  const handleProcrustesAnalysis = () => {
+    if (selectedColumns.length < 3) return;
+    runProcrustesAnalysis(data, selectedColumns);
+  };
+
+  // Handle PCA
+  const handlePCA = () => {
+    if (selectedColumns.length < 2) return;
+    runPCA(data, selectedColumns);
+  };
+
+  // Handle zero analysis
+  const handleZeroAnalysis = () => {
+    if (selectedColumns.length < 1) return;
+    analyzeZeros(data, selectedColumns);
+  };
+
+  // Render transformation options based on type
+  const renderTransformationOptions = () => {
+    switch (activeTransformation) {
+      case 'alr':
+        return (
+          <div style={{ marginTop: '16px' }}>
+            <label style={{ display: 'block', marginBottom: '8px', fontWeight: 500 }}>
+              Reference Element
+              <InfoTooltip text="ALR uses a fixed reference element as denominator. Use Procrustes analysis to find the optimal reference." />
+            </label>
+            <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+              <select
+                value={alrReference}
+                onChange={(e) => setALRReference(e.target.value)}
+                style={{
+                  flex: 1,
+                  padding: '8px',
+                  borderRadius: '4px',
+                  border: '1px solid #d1d5db'
+                }}
+              >
+                <option value="">Select reference...</option>
+                {selectedColumns.map(col => (
+                  <option key={col} value={col}>{col}</option>
+                ))}
+              </select>
+              <button
+                onClick={handleProcrustesAnalysis}
+                disabled={selectedColumns.length < 3 || isProcessing}
+                style={{
+                  padding: '8px 12px',
+                  borderRadius: '4px',
+                  border: 'none',
+                  background: '#10b981',
+                  color: 'white',
+                  cursor: 'pointer',
+                  fontSize: '12px'
+                }}
+              >
+                Find Optimal
+              </button>
+            </div>
+
+            {procrustesResult && (
+              <div style={{
+                marginTop: '12px',
+                padding: '12px',
+                background: '#f0fdf4',
+                borderRadius: '4px',
+                fontSize: '13px'
+              }}>
+                <div style={{ fontWeight: 500, marginBottom: '8px' }}>
+                  Procrustes Analysis Results
+                </div>
+                <div>
+                  Optimal: <strong>{procrustesResult.referenceElement}</strong> (r = {procrustesResult.correlation.toFixed(3)})
+                </div>
+                <div style={{ marginTop: '8px', fontSize: '12px', color: '#6b7280' }}>
+                  Top 5: {procrustesResult.rankings.slice(0, 5).map(r =>
+                    `${r.element} (${r.correlation.toFixed(3)})`
+                  ).join(', ')}
+                </div>
+              </div>
+            )}
+          </div>
+        );
+
+      case 'slr':
+        const amalgamations = getAllAmalgamations();
+        return (
+          <div style={{ marginTop: '16px' }}>
+            <div style={{ marginBottom: '16px' }}>
+              <label style={{ display: 'block', marginBottom: '8px', fontWeight: 500 }}>
+                Numerator Group (Sum)
+                <InfoTooltip text="Elements to sum in the numerator of the SLR ratio" />
+              </label>
+              <select
+                onChange={(e) => {
+                  const selected = amalgamations.find(a => a.id === e.target.value);
+                  if (selected) {
+                    const matched = numericColumns.filter(col =>
+                      selected.elements.some(elem =>
+                        col.toLowerCase().includes(elem.toLowerCase())
+                      )
+                    );
+                    setNumeratorAmalgamation(matched);
+                  }
+                }}
+                style={{
+                  width: '100%',
+                  padding: '8px',
+                  borderRadius: '4px',
+                  border: '1px solid #d1d5db',
+                  marginBottom: '8px'
+                }}
+              >
+                <option value="">Select preset amalgamation...</option>
+                {amalgamations.map(a => (
+                  <option key={a.id} value={a.id}>{a.name} - {a.description}</option>
+                ))}
+              </select>
+              <div style={{ fontSize: '12px', color: '#6b7280' }}>
+                Selected: {numeratorAmalgamation.join(', ') || 'None'}
+              </div>
+            </div>
+
+            <div>
+              <label style={{ display: 'block', marginBottom: '8px', fontWeight: 500 }}>
+                Denominator Group (Sum)
+                <InfoTooltip text="Elements to sum in the denominator of the SLR ratio" />
+              </label>
+              <select
+                onChange={(e) => {
+                  const selected = amalgamations.find(a => a.id === e.target.value);
+                  if (selected) {
+                    const matched = numericColumns.filter(col =>
+                      selected.elements.some(elem =>
+                        col.toLowerCase().includes(elem.toLowerCase())
+                      )
+                    );
+                    setDenominatorAmalgamation(matched);
+                  }
+                }}
+                style={{
+                  width: '100%',
+                  padding: '8px',
+                  borderRadius: '4px',
+                  border: '1px solid #d1d5db',
+                  marginBottom: '8px'
+                }}
+              >
+                <option value="">Select preset amalgamation...</option>
+                {amalgamations.map(a => (
+                  <option key={a.id} value={a.id}>{a.name} - {a.description}</option>
+                ))}
+              </select>
+              <div style={{ fontSize: '12px', color: '#6b7280' }}>
+                Selected: {denominatorAmalgamation.join(', ') || 'None'}
+              </div>
+            </div>
+          </div>
+        );
+
+      case 'chipower':
+        return (
+          <div style={{ marginTop: '16px' }}>
+            <label style={{ display: 'block', marginBottom: '8px', fontWeight: 500 }}>
+              Lambda (λ) Parameter
+              <InfoTooltip text="Power parameter. λ=0 gives LRA, λ=0.25 (fourth-root) is default for data with zeros" />
+            </label>
+            <input
+              type="range"
+              min="0"
+              max="1"
+              step="0.05"
+              value={chiPowerLambda}
+              onChange={(e) => setChiPowerLambda(parseFloat(e.target.value))}
+              style={{ width: '100%' }}
+            />
+            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '12px', color: '#6b7280' }}>
+              <span>0 (LRA)</span>
+              <span>λ = {chiPowerLambda.toFixed(2)}</span>
+              <span>1 (Linear)</span>
+            </div>
+          </div>
+        );
+
+      default:
+        return null;
+    }
+  };
+
+  return (
+    <div style={{ padding: '16px', height: '100%', overflow: 'auto' }}>
+      <h2 style={{ margin: '0 0 16px 0', fontSize: '18px' }}>
+        Compositional Data Transformations
+      </h2>
+
+      {/* Tabs */}
+      <div style={{ borderBottom: '1px solid #e5e7eb', marginBottom: '16px' }}>
+        <Tab active={activeTab === 'transform'} onClick={() => setActiveTab('transform')}>
+          Transform
+        </Tab>
+        <Tab active={activeTab === 'variance'} onClick={() => setActiveTab('variance')}>
+          Variance Analysis
+        </Tab>
+        <Tab active={activeTab === 'pca'} onClick={() => setActiveTab('pca')}>
+          PCA / LRA
+        </Tab>
+        <Tab active={activeTab === 'zeros'} onClick={() => setActiveTab('zeros')}>
+          Zero Analysis
+        </Tab>
+      </div>
+
+      {/* Error display */}
+      {error && (
+        <div style={{
+          padding: '12px',
+          background: '#fef2f2',
+          border: '1px solid #fecaca',
+          borderRadius: '4px',
+          color: '#dc2626',
+          marginBottom: '16px',
+          fontSize: '13px'
+        }}>
+          {error}
+        </div>
+      )}
+
+      {/* Transform Tab */}
+      {activeTab === 'transform' && (
+        <div>
+          {/* Transformation Type Selection */}
+          <div style={{ marginBottom: '16px' }}>
+            <label style={{ display: 'block', marginBottom: '8px', fontWeight: 500 }}>
+              Transformation Type
+            </label>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '8px' }}>
+              {[
+                { value: 'clr', label: 'CLR', desc: 'Centered Log-Ratio' },
+                { value: 'alr', label: 'ALR', desc: 'Additive Log-Ratio' },
+                { value: 'plr', label: 'PLR', desc: 'Pairwise Log-Ratio' },
+                { value: 'ilr', label: 'ILR', desc: 'Isometric Log-Ratio' },
+                { value: 'slr', label: 'SLR', desc: 'Summed Log-Ratio' },
+                { value: 'chipower', label: 'chiPower', desc: 'Chi-Power Transform' }
+              ].map(t => (
+                <button
+                  key={t.value}
+                  onClick={() => setActiveTransformation(t.value as TransformationType)}
+                  style={{
+                    padding: '12px 8px',
+                    borderRadius: '4px',
+                    border: activeTransformation === t.value
+                      ? '2px solid #3b82f6'
+                      : '1px solid #d1d5db',
+                    background: activeTransformation === t.value ? '#eff6ff' : 'white',
+                    cursor: 'pointer',
+                    textAlign: 'center'
+                  }}
+                >
+                  <div style={{ fontWeight: 600 }}>{t.label}</div>
+                  <div style={{ fontSize: '11px', color: '#6b7280' }}>{t.desc}</div>
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Column Selection */}
+          <div style={{ marginBottom: '16px' }}>
+            <label style={{ display: 'block', marginBottom: '8px', fontWeight: 500 }}>
+              Select Columns ({selectedColumns.length} selected)
+              <InfoTooltip text="Select the compositional columns (elements/oxides) to transform" />
+            </label>
+            <div style={{
+              maxHeight: '150px',
+              overflow: 'auto',
+              border: '1px solid #d1d5db',
+              borderRadius: '4px',
+              padding: '8px'
+            }}>
+              {numericColumns.map(col => (
+                <label
+                  key={col}
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    padding: '4px',
+                    cursor: 'pointer'
+                  }}
+                >
+                  <input
+                    type="checkbox"
+                    checked={selectedColumns.includes(col)}
+                    onChange={(e) => {
+                      if (e.target.checked) {
+                        setSelectedColumns([...selectedColumns, col]);
+                      } else {
+                        setSelectedColumns(selectedColumns.filter(c => c !== col));
+                      }
+                    }}
+                    style={{ marginRight: '8px' }}
+                  />
+                  {col}
+                </label>
+              ))}
+            </div>
+            <div style={{ marginTop: '8px', display: 'flex', gap: '8px' }}>
+              <button
+                onClick={() => setSelectedColumns(numericColumns)}
+                style={{
+                  padding: '4px 8px',
+                  fontSize: '12px',
+                  borderRadius: '4px',
+                  border: '1px solid #d1d5db',
+                  background: 'white',
+                  cursor: 'pointer'
+                }}
+              >
+                Select All
+              </button>
+              <button
+                onClick={() => setSelectedColumns([])}
+                style={{
+                  padding: '4px 8px',
+                  fontSize: '12px',
+                  borderRadius: '4px',
+                  border: '1px solid #d1d5db',
+                  background: 'white',
+                  cursor: 'pointer'
+                }}
+              >
+                Clear
+              </button>
+            </div>
+          </div>
+
+          {/* Zero Handling */}
+          <div style={{ marginBottom: '16px' }}>
+            <label style={{ display: 'block', marginBottom: '8px', fontWeight: 500 }}>
+              Zero Handling Strategy
+              <InfoTooltip text="How to handle zero/missing values before log transformation" />
+            </label>
+            <select
+              value={zeroStrategy}
+              onChange={(e) => setZeroStrategy(e.target.value as ZeroHandlingStrategy)}
+              style={{
+                width: '100%',
+                padding: '8px',
+                borderRadius: '4px',
+                border: '1px solid #d1d5db'
+              }}
+            >
+              <option value="half-min">Half Minimum (½ × min non-zero)</option>
+              <option value="half-dl">Half Detection Limit</option>
+              <option value="small-constant">Small Constant (0.65 × min)</option>
+              <option value="multiplicative">Multiplicative Replacement</option>
+              <option value="custom">Custom Value</option>
+            </select>
+
+            {zeroStrategy === 'custom' && (
+              <input
+                type="number"
+                value={customZeroValue}
+                onChange={(e) => setCustomZeroValue(parseFloat(e.target.value))}
+                step="0.001"
+                min="0"
+                style={{
+                  width: '100%',
+                  padding: '8px',
+                  borderRadius: '4px',
+                  border: '1px solid #d1d5db',
+                  marginTop: '8px'
+                }}
+                placeholder="Enter custom replacement value"
+              />
+            )}
+          </div>
+
+          {/* Transformation-specific options */}
+          {renderTransformationOptions()}
+
+          {/* Execute Button */}
+          <button
+            onClick={handleExecute}
+            disabled={isProcessing || selectedColumns.length < 2}
+            style={{
+              width: '100%',
+              padding: '12px',
+              borderRadius: '4px',
+              border: 'none',
+              background: isProcessing ? '#9ca3af' : '#3b82f6',
+              color: 'white',
+              fontWeight: 600,
+              cursor: isProcessing ? 'not-allowed' : 'pointer',
+              marginTop: '16px'
+            }}
+          >
+            {isProcessing ? 'Processing...' : 'Execute Transformation'}
+          </button>
+
+          {/* Results */}
+          {currentResult && (
+            <div style={{
+              marginTop: '16px',
+              padding: '12px',
+              background: '#f0fdf4',
+              borderRadius: '4px'
+            }}>
+              <div style={{ fontWeight: 500, marginBottom: '8px' }}>
+                Transformation Complete
+              </div>
+              <div style={{ fontSize: '13px' }}>
+                <div>Type: {currentResult.config.type.toUpperCase()}</div>
+                <div>Output columns: {currentResult.columnNames.length}</div>
+                <div>Samples: {currentResult.values.length}</div>
+                {currentResult.zerosReplaced > 0 && (
+                  <div>Zeros replaced: {currentResult.zerosReplaced}</div>
+                )}
+                {currentResult.procrustesCorrelation && (
+                  <div>Procrustes correlation: {currentResult.procrustesCorrelation.toFixed(3)}</div>
+                )}
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Variance Tab */}
+      {activeTab === 'variance' && (
+        <div>
+          <p style={{ fontSize: '13px', color: '#6b7280', marginBottom: '16px' }}>
+            Analyze variance contributions of pairwise logratios (PLRs) to identify the most
+            important element ratios for your data.
+          </p>
+
+          {/* Group selection for between-group variance */}
+          <div style={{ marginBottom: '16px' }}>
+            <label style={{ display: 'block', marginBottom: '8px', fontWeight: 500 }}>
+              Group Column (optional)
+              <InfoTooltip text="Select a categorical column to calculate between-group variance" />
+            </label>
+            <select
+              value={groupColumn}
+              onChange={(e) => setGroupColumn(e.target.value)}
+              style={{
+                width: '100%',
+                padding: '8px',
+                borderRadius: '4px',
+                border: '1px solid #d1d5db'
+              }}
+            >
+              <option value="">None</option>
+              {categoricalColumns.map(col => (
+                <option key={col} value={col}>{col}</option>
+              ))}
+            </select>
+          </div>
+
+          <button
+            onClick={handleVarianceDecomposition}
+            disabled={isProcessing || selectedColumns.length < 2}
+            style={{
+              width: '100%',
+              padding: '12px',
+              borderRadius: '4px',
+              border: 'none',
+              background: isProcessing ? '#9ca3af' : '#3b82f6',
+              color: 'white',
+              fontWeight: 600,
+              cursor: isProcessing ? 'not-allowed' : 'pointer'
+            }}
+          >
+            {isProcessing ? 'Analyzing...' : 'Run Variance Decomposition'}
+          </button>
+
+          {varianceResult && (
+            <div style={{ marginTop: '16px' }}>
+              <h4 style={{ margin: '0 0 12px 0' }}>Top PLRs by Contributed Variance</h4>
+              <table style={{ width: '100%', fontSize: '12px', borderCollapse: 'collapse' }}>
+                <thead>
+                  <tr style={{ background: '#f3f4f6' }}>
+                    <th style={{ padding: '8px', textAlign: 'left' }}>PLR</th>
+                    <th style={{ padding: '8px', textAlign: 'right' }}>Contributed %</th>
+                    <th style={{ padding: '8px', textAlign: 'right' }}>Explained R²</th>
+                    {groupColumn && <th style={{ padding: '8px', textAlign: 'right' }}>Between-Group %</th>}
+                  </tr>
+                </thead>
+                <tbody>
+                  {varianceResult.topByContributed.slice(0, 10).map((v, i) => (
+                    <tr key={i} style={{ borderBottom: '1px solid #e5e7eb' }}>
+                      <td style={{ padding: '8px' }}>{v.plrName}</td>
+                      <td style={{ padding: '8px', textAlign: 'right' }}>{v.contributedVariance.toFixed(2)}%</td>
+                      <td style={{ padding: '8px', textAlign: 'right' }}>{v.explainedVariance.toFixed(1)}%</td>
+                      {groupColumn && (
+                        <td style={{ padding: '8px', textAlign: 'right' }}>
+                          {v.betweenGroupVariance?.toFixed(1) ?? '-'}%
+                        </td>
+                      )}
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* PCA Tab */}
+      {activeTab === 'pca' && (
+        <div>
+          <p style={{ fontSize: '13px', color: '#6b7280', marginBottom: '16px' }}>
+            Logratio Analysis (LRA) - PCA on CLR-transformed data. The biplot shows both
+            samples and variable loadings in reduced dimensions.
+          </p>
+
+          <button
+            onClick={handlePCA}
+            disabled={isProcessing || selectedColumns.length < 2}
+            style={{
+              width: '100%',
+              padding: '12px',
+              borderRadius: '4px',
+              border: 'none',
+              background: isProcessing ? '#9ca3af' : '#3b82f6',
+              color: 'white',
+              fontWeight: 600,
+              cursor: isProcessing ? 'not-allowed' : 'pointer'
+            }}
+          >
+            {isProcessing ? 'Computing...' : 'Run PCA / LRA'}
+          </button>
+
+          {pcaResult && pcaResult.scores.length > 0 && (
+            <div style={{ marginTop: '16px' }}>
+              <div style={{ marginBottom: '8px', fontSize: '13px' }}>
+                PC1: {pcaResult.varianceExplained[0]?.toFixed(1)}% |
+                PC2: {pcaResult.varianceExplained[1]?.toFixed(1)}% |
+                Cumulative: {pcaResult.cumulativeVariance[1]?.toFixed(1)}%
+              </div>
+
+              <Plot
+                data={[
+                  // Samples
+                  {
+                    x: pcaResult.scores.map(s => s[0]),
+                    y: pcaResult.scores.map(s => s[1]),
+                    mode: 'markers',
+                    type: 'scatter',
+                    name: 'Samples',
+                    marker: { size: 6, color: '#3b82f6', opacity: 0.6 }
+                  },
+                  // Loadings (scaled)
+                  {
+                    x: pcaResult.loadings.map(l => l[0] * 3),
+                    y: pcaResult.loadings.map(l => l[1] * 3),
+                    mode: 'markers+text',
+                    type: 'scatter',
+                    name: 'Variables',
+                    text: pcaResult.columns,
+                    textposition: 'top center',
+                    marker: { size: 8, color: '#dc2626', symbol: 'diamond' }
+                  }
+                ]}
+                layout={{
+                  title: 'LRA Biplot',
+                  xaxis: { title: `PC1 (${pcaResult.varianceExplained[0]?.toFixed(1)}%)`, zeroline: true },
+                  yaxis: { title: `PC2 (${pcaResult.varianceExplained[1]?.toFixed(1)}%)`, zeroline: true },
+                  height: 400,
+                  margin: { t: 40, b: 40, l: 50, r: 20 },
+                  showlegend: true,
+                  legend: { x: 1, y: 1 }
+                }}
+                config={{ responsive: true }}
+                style={{ width: '100%' }}
+              />
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Zeros Tab */}
+      {activeTab === 'zeros' && (
+        <div>
+          <p style={{ fontSize: '13px', color: '#6b7280', marginBottom: '16px' }}>
+            Analyze zeros in your data. The GeoCoDA workflow classifies zeros as:
+            structural (element doesn't exist), missing, or below detection limit.
+          </p>
+
+          <button
+            onClick={handleZeroAnalysis}
+            disabled={isProcessing || selectedColumns.length < 1}
+            style={{
+              width: '100%',
+              padding: '12px',
+              borderRadius: '4px',
+              border: 'none',
+              background: isProcessing ? '#9ca3af' : '#3b82f6',
+              color: 'white',
+              fontWeight: 600,
+              cursor: isProcessing ? 'not-allowed' : 'pointer'
+            }}
+          >
+            {isProcessing ? 'Analyzing...' : 'Analyze Zeros'}
+          </button>
+
+          {zeroSummary && (
+            <div style={{ marginTop: '16px' }}>
+              <div style={{
+                padding: '12px',
+                background: '#f3f4f6',
+                borderRadius: '4px',
+                marginBottom: '16px'
+              }}>
+                <div style={{ fontWeight: 500, marginBottom: '8px' }}>Summary</div>
+                <div style={{ fontSize: '13px' }}>
+                  <div>Total zeros/missing: {zeroSummary.totalZeros}</div>
+                  <div>By type: Unknown: {zeroSummary.byType.unknown}, Below DL: {zeroSummary.byType['below-dl']}</div>
+                </div>
+              </div>
+
+              <h4 style={{ margin: '0 0 8px 0', fontSize: '14px' }}>Zeros by Column</h4>
+              <div style={{ maxHeight: '200px', overflow: 'auto' }}>
+                {Object.entries(zeroSummary.byColumn)
+                  .sort((a, b) => b[1] - a[1])
+                  .map(([col, count]) => (
+                    <div
+                      key={col}
+                      style={{
+                        display: 'flex',
+                        justifyContent: 'space-between',
+                        padding: '4px 8px',
+                        borderBottom: '1px solid #e5e7eb',
+                        fontSize: '13px'
+                      }}
+                    >
+                      <span>{col}</span>
+                      <span style={{ color: count > 10 ? '#dc2626' : '#6b7280' }}>
+                        {count} ({((count / data.length) * 100).toFixed(1)}%)
+                      </span>
+                    </div>
+                  ))}
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+};
+
+export default TransformationManager;

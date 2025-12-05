@@ -1,0 +1,15 @@
+fastapi
+uvicorn
+pandas
+numpy
+pydantic
+python-multipart
+scikit-learn
+scipy
+openpyxl
+xlrd
+
+# Performance optimizations
+numba>=0.57.0  # JIT compilation for 2x faster math operations
+pyarrow>=14.0.0  # Faster CSV/Parquet reading and better memory usage
+psutil>=5.9.0  # For memory monitoring
