@@ -127,11 +127,17 @@ export const TransformationManager: React.FC = () => {
   const addTransformedColumnsToStore = useCallback((result: TransformationResult) => {
     // Add each transformed column to the main data store with transformation type
     const transformType = result.config.type as 'clr' | 'alr' | 'ilr' | 'plr' | 'slr' | 'chipower';
+    const prefix = transformType.toUpperCase();
+    const addedColumns: string[] = [];
+
     result.columnNames.forEach((colName, colIndex) => {
+      // Prefix column name with transformation type to avoid overwriting original columns
+      const newColName = colName.startsWith(`${prefix}_`) ? colName : `${prefix}_${colName}`;
       const values = result.values.map(row => row[colIndex]);
-      addColumn(colName, values, 'numeric', 'Transformed', transformType);
+      addColumn(newColName, values, 'numeric', 'Transformed', transformType);
+      addedColumns.push(newColName);
     });
-    console.log(`[Transform] Added ${result.columnNames.length} ${transformType.toUpperCase()} columns to data store`);
+    console.log(`[Transform] Added ${addedColumns.length} columns to data store: ${addedColumns.join(', ')}`);
   }, [addColumn]);
 
   // Handle transformation execution
@@ -552,41 +558,47 @@ export const TransformationManager: React.FC = () => {
           </button>
 
           {/* Results */}
-          {currentResult && (
-            <div style={{
-              marginTop: '16px',
-              padding: '12px',
-              background: '#f0fdf4',
-              borderRadius: '4px',
-              border: '1px solid #86efac'
-            }}>
-              <div style={{ fontWeight: 500, marginBottom: '8px', color: '#166534' }}>
-                ✓ Transformation Complete - Columns Added to Data
-              </div>
-              <div style={{ fontSize: '13px' }}>
-                <div>Type: {currentResult.config.type.toUpperCase()}</div>
-                <div>New columns: {currentResult.columnNames.join(', ')}</div>
-                <div>Samples: {currentResult.values.length}</div>
-                {currentResult.zerosReplaced > 0 && (
-                  <div>Zeros replaced: {currentResult.zerosReplaced}</div>
-                )}
-                {currentResult.procrustesCorrelation && (
-                  <div>Procrustes correlation: {currentResult.procrustesCorrelation.toFixed(3)}</div>
-                )}
-              </div>
+          {currentResult && (() => {
+            const prefix = currentResult.config.type.toUpperCase();
+            const prefixedNames = currentResult.columnNames.map(name =>
+              name.startsWith(`${prefix}_`) ? name : `${prefix}_${name}`
+            );
+            return (
               <div style={{
-                marginTop: '8px',
-                padding: '8px',
-                background: '#dcfce7',
+                marginTop: '16px',
+                padding: '12px',
+                background: '#f0fdf4',
                 borderRadius: '4px',
-                fontSize: '12px',
-                color: '#166534'
+                border: '1px solid #86efac'
               }}>
-                💡 These columns are now available in Plots, Correlation Matrix, and other analyses.
-                Look for columns with "Transformed" role or names like "CLR_*".
+                <div style={{ fontWeight: 500, marginBottom: '8px', color: '#166534' }}>
+                  ✓ Transformation Complete - Columns Added to Data
+                </div>
+                <div style={{ fontSize: '13px' }}>
+                  <div>Type: {prefix}</div>
+                  <div>New columns: {prefixedNames.join(', ')}</div>
+                  <div>Samples: {currentResult.values.length}</div>
+                  {currentResult.zerosReplaced > 0 && (
+                    <div>Zeros replaced: {currentResult.zerosReplaced}</div>
+                  )}
+                  {currentResult.procrustesCorrelation && (
+                    <div>Procrustes correlation: {currentResult.procrustesCorrelation.toFixed(3)}</div>
+                  )}
+                </div>
+                <div style={{
+                  marginTop: '8px',
+                  padding: '8px',
+                  background: '#dcfce7',
+                  borderRadius: '4px',
+                  fontSize: '12px',
+                  color: '#166534'
+                }}>
+                  These columns are now available in Data View, Plots, Correlation Matrix, and other analyses.
+                  Use the filter dropdown in the toolbar to show only {prefix} columns.
+                </div>
               </div>
-            </div>
-          )}
+            );
+          })()}
         </div>
       )}
 
