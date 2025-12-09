@@ -1,6 +1,7 @@
 // Geochemical Calculations - Type Definitions
 
 export type CalculationCategory =
+    | 'unit-conversion'
     | 'element-oxide'
     | 'oxide-element'
     | 'petrochemical-index'

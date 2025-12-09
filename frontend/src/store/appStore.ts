@@ -25,7 +25,7 @@ export const COLUMN_FILTER_LABELS: Record<ColumnFilterType, string> = {
     chipower: 'Chi-Power Transformed'
 };
 
-type PlotType = 'scatter' | 'ternary' | 'spider' | 'map' | 'map3d' | 'downhole' | 'histogram' | 'clr';
+type PlotType = 'scatter' | 'ternary' | 'spider' | 'map' | 'map3d' | 'downhole' | 'histogram' | 'clr' | 'classification';
 
 // Per-plot settings storage
 interface PlotSettings {

@@ -39,6 +39,9 @@ export const PlotManager: React.FC = () => {
                     <Button variant="outlined" startIcon={<AddCircle />} onClick={() => addPlot('clr')} fullWidth size="small">
                         CLR BIPLOT
                     </Button>
+                    <Button variant="outlined" startIcon={<AddCircle />} onClick={() => addPlot('classification')} fullWidth size="small" color="secondary">
+                        CLASSIFICATION
+                    </Button>
                 </Box>
             </Box>
 

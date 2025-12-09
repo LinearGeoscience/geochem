@@ -11,6 +11,7 @@ import { AttributeMap3D } from './features/plots/AttributeMap3D';
 import { DownholePlot } from './features/plots/DownholePlot';
 import { HistogramPlot } from './features/plots/HistogramPlot';
 import { CLRPlot } from './features/plots/CLRPlot';
+import { ClassificationPlot } from './features/plots/ClassificationPlot';
 import { DataView } from './features/data_features/DataView';
 import { ColumnManager } from './features/data_features/ColumnManager';
 import { SelectionManager } from './features/data_features/SelectionManager';
@@ -113,6 +114,7 @@ function App() {
                                                 case 'downhole': return <DownholePlot key={plotId} plotId={plotId} />;
                                                 case 'histogram': return <HistogramPlot key={plotId} plotId={plotId} />;
                                                 case 'clr': return <CLRPlot key={plotId} plotId={plotId} />;
+                                                case 'classification': return <ClassificationPlot key={plotId} plotId={plotId} />;
                                                 default: return null;
                                             }
                                         })()}

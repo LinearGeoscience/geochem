@@ -26,7 +26,8 @@ export const ScatterPlot: React.FC<ScatterPlotProps> = ({ plotId }) => {
     const { data, columns, setSelection, lockAxes, getPlotSettings, updatePlotSettings, getFilteredColumns } = useAppStore();
     const filteredColumns = getFilteredColumns();
     // Subscribe to all attribute state that affects styling to trigger re-renders
-    const { color, shape, size, filter, customEntries, emphasis, globalOpacity } = useAttributeStore();
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    const { color, shape: _shape, size: _size, filter: _filter, customEntries: _customEntries, emphasis: _emphasis, globalOpacity: _globalOpacity } = useAttributeStore();
 
     // Get stored settings or defaults
     const storedSettings = getPlotSettings(plotId);

@@ -49,6 +49,7 @@ import {
     Warning,
     Info,
     Search,
+    SwapHoriz,
 } from '@mui/icons-material';
 import { useCalculationStore } from '../../store/calculationStore';
 import { useAppStore } from '../../store/appStore';
@@ -62,6 +63,7 @@ import { CustomFormulaBuilder } from './CustomFormulaBuilder';
 
 // Category icons
 const CATEGORY_ICONS: Record<CalculationCategory, React.ReactNode> = {
+    'unit-conversion': <SwapHoriz fontSize="small" />,
     'element-oxide': <Science fontSize="small" />,
     'oxide-element': <Science fontSize="small" />,
     'petrochemical-index': <Calculate fontSize="small" />,
@@ -72,6 +74,7 @@ const CATEGORY_ICONS: Record<CalculationCategory, React.ReactNode> = {
 };
 
 const CATEGORY_LABELS: Record<CalculationCategory, string> = {
+    'unit-conversion': 'Unit Conversions',
     'element-oxide': 'Element → Oxide',
     'oxide-element': 'Oxide → Element',
     'petrochemical-index': 'Petrochemical Indices',
@@ -129,6 +132,7 @@ export const CalculationManager: React.FC = () => {
     // Group calculations by category
     const calculationsByCategory = useMemo(() => {
         const grouped: Record<CalculationCategory, CalculationDefinition[]> = {
+            'unit-conversion': [],
             'element-oxide': [],
             'oxide-element': [],
             'petrochemical-index': [],

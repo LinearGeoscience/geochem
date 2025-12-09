@@ -14,6 +14,7 @@ export * from './formulaEvaluator';
 export * from './validation';
 
 // Calculation Functions
+export * from './unitConversion';
 export * from './elementOxide';
 export * from './petrochemical';
 export * from './weathering';
@@ -21,6 +22,7 @@ export * from './reeNormalization';
 export * from './explorationRatios';
 
 // Import all definition generators
+import { generateUnitConversionCalculations } from './unitConversion';
 import { generateElementOxideDefinitions } from './elementOxide';
 import { generatePetrochemicalDefinitions } from './petrochemical';
 import { generateWeatheringDefinitions } from './weathering';
@@ -33,6 +35,7 @@ import { CalculationDefinition, CalculationCategory } from '../../types/calculat
  */
 export function getAllCalculationDefinitions(): CalculationDefinition[] {
     return [
+        ...generateUnitConversionCalculations(),
         ...generateElementOxideDefinitions(),
         ...generatePetrochemicalDefinitions(),
         ...generateWeatheringDefinitions(),
@@ -60,6 +63,7 @@ export function getCalculationById(id: string): CalculationDefinition | undefine
  */
 export function getCalculationCategories(): { category: CalculationCategory; count: number; label: string }[] {
     const categoryLabels: Record<CalculationCategory, string> = {
+        'unit-conversion': 'Unit Conversions',
         'element-oxide': 'Element-Oxide Conversions',
         'oxide-element': 'Oxide-Element Conversions',
         'petrochemical-index': 'Petrochemical Indices',
@@ -71,6 +75,7 @@ export function getCalculationCategories(): { category: CalculationCategory; cou
 
     const allCalcs = getAllCalculationDefinitions();
     const categories: CalculationCategory[] = [
+        'unit-conversion',
         'element-oxide',
         'oxide-element',
         'petrochemical-index',
