@@ -1,0 +1,267 @@
+<?xml version="1.0" encoding="windows-1252"?>
+<GeochemXYDiagram name="Plutonic Rock Classification (Debon and Le Fort, 1983)">
+   <GeochemFunctionAxisX name="P=K-(Na+Ca)" function="(K*21.23)-((N*32.26)+(C*17.83))" log="false"/>
+   <GeochemFunctionAxisY name="Q=Si/3-(K+Na+2Ca/3)" function="((S*16.64)/3)-((K*21.23)+(N*32.26)+((2*(C*17.83))/3))" log="false"/>
+   <Bounds x="-275.90024" y="-49.76218" w="274.428" h="289.1295" />
+   <Comment>Diagram axes correspond to proportions of K-Feldspar and Plagioclase to Quartz. P is calculated from (K - (Na+Ca)), and Q is calculated from ((Si/3) - (K+Na+(2*Ca)/3)). Parameters calculated as oxide percentages converted to millications.</Comment>
+   <Reference>Debon, F. &amp; Le Fort, P. (1983). A chemical and mineralogical classification of common plutonic rocks and associations. Transactions of the Royal Society of Edinburgh, Earth Sciences 73, pp. 135-149</Reference>
+   <Variable letter="K" element="K2O" unit="pct"/>
+   <Variable letter="N" element="Na2O" unit="pct"/>
+   <Variable letter="C" element="CaO" unit="pct"/>
+   <Variable letter="S" element="SiO2" unit="pct"/>
+   <Poly name="Feldspathoidal Rocks" visible="true" closed="true">
+      <Colour r="255" g="0" b="0"/>
+      <LabelAngle angle="0.0" />
+      <LabelPos x="-89.359245" y="-30.708395" />
+      <Boundary3>
+         <Linear>
+            <BezierPoint x="0.0" y="-50.0" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="0.0" y="0.0" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="-170.0" y="0.0" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="-195.0" y="-50.0" sectionEnd="false"/>
+         </Linear>
+      </Boundary3>
+   </Poly>
+   <Poly name="Monzonite" visible="true" closed="true">
+      <Colour r="51" g="255" b="51"/>
+      <LabelAngle angle="0.0" />
+      <LabelPos x="-123.0" y="15.0" />
+      <Boundary3>
+         <Linear>
+            <BezierPoint x="-170.0" y="0.0" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="-142.0" y="37.0" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="-80.0" y="34.0" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="-94.296875" y="0.0" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="-170.0" y="0.0" sectionEnd="false"/>
+         </Linear>
+      </Boundary3>
+   </Poly>
+   <Poly name="Syenite" visible="true" closed="true">
+      <Colour r="51" g="51" b="255"/>
+      <LabelAngle angle="0.0" />
+      <LabelPos x="-43.0" y="14.0" />
+      <Boundary3>
+         <Linear>
+            <BezierPoint x="-80.0" y="34.0" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="0.0" y="31.0" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="0.0" y="0.0" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="-94.296875" y="0.0" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="-80.0" y="34.0" sectionEnd="false"/>
+         </Linear>
+      </Boundary3>
+   </Poly>
+   <Poly name="Monzodiorite" visible="true" closed="true">
+      <Colour r="255" g="0" b="255"/>
+      <LabelAngle angle="0.0" />
+      <LabelPos x="-182.34117" y="16.70274" />
+      <Boundary3>
+         <Linear>
+            <BezierPoint x="-200.0" y="39.0" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="-219.99992" y="0.0011990664" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="-170.0" y="0.0" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="-142.0" y="37.0" sectionEnd="false"/>
+         </Linear>
+      </Boundary3>
+   </Poly>
+   <Poly name="Quartz &lt;br&gt;Monzodiorite" visible="true" closed="true">
+      <Colour r="255" g="255" b="0"/>
+      <LabelAngle angle="0.0" />
+      <LabelPos x="-158.1404" y="55.747204" />
+      <Boundary3>
+         <Linear>
+            <BezierPoint x="-200.0" y="39.0" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="-142.0" y="37.0" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="-101.0" y="103.0" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="-173.0" y="97.0" sectionEnd="false"/>
+         </Linear>
+      </Boundary3>
+   </Poly>
+   <Poly name="Quartz &lt;br&gt;Monzonite" visible="true" closed="true">
+      <Colour r="0" g="204" b="255"/>
+      <LabelAngle angle="0.0" />
+      <LabelPos x="-96.36473" y="52.958313" />
+      <Boundary3>
+         <Linear>
+            <BezierPoint x="-101.0" y="103.0" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="-48.0" y="107.0" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="-80.0" y="34.0" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="-142.0" y="37.0" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="-101.0" y="103.0" sectionEnd="false"/>
+         </Linear>
+      </Boundary3>
+   </Poly>
+   <Poly name="Quartz syenite" visible="true" closed="true">
+      <Colour r="153" g="153" b="0"/>
+      <LabelAngle angle="0.0" />
+      <LabelPos x="-28.857315" y="57.83887" />
+      <Boundary3>
+         <Linear>
+            <BezierPoint x="-80.0" y="34.0" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="-48.0" y="107.0" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="0.0" y="111.0" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="0.0" y="31.0" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="-80.0" y="34.0" sectionEnd="false"/>
+         </Linear>
+      </Boundary3>
+   </Poly>
+   <Poly name="Granodiorite" visible="true" closed="true">
+      <Colour r="255" g="153" b="153"/>
+      <LabelAngle angle="0.0" />
+      <LabelPos x="-125.023544" y="134.53336" />
+      <Boundary3>
+         <Linear>
+            <BezierPoint x="-173.0" y="97.0" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="-118.0" y="240.0" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="-47.0" y="243.0" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="-101.0" y="103.0" sectionEnd="false"/>
+         </Linear>
+      </Boundary3>
+   </Poly>
+   <Poly name="Adamellite" visible="true" closed="true">
+      <Colour r="153" g="153" b="255"/>
+      <LabelAngle angle="0.0" />
+      <LabelPos x="-64.521614" y="134.53336" />
+      <Boundary3>
+         <Linear>
+            <BezierPoint x="-101.0" y="103.0" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="-48.0" y="107.0" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="-21.0" y="244.0" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="-47.0" y="243.0" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="-101.0" y="103.0" sectionEnd="false"/>
+         </Linear>
+      </Boundary3>
+   </Poly>
+   <Poly name="Granite" visible="true" closed="true">
+      <Colour r="255" g="153" b="51"/>
+      <LabelAngle angle="0.0" />
+      <LabelPos x="-17.39379" y="133.83614" />
+      <Boundary3>
+         <Linear>
+            <BezierPoint x="-48.0" y="107.0" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="-21.0" y="244.0" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="0.0" y="245.0" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="0.0" y="111.0" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="-48.0" y="107.0" sectionEnd="false"/>
+         </Linear>
+      </Boundary3>
+   </Poly>
+   <Poly name="Tonalite" visible="true" closed="true">
+      <Colour r="102" g="0" b="51"/>
+      <LabelAngle angle="0.0" />
+      <LabelPos x="-216.09488" y="161.02782" />
+      <Boundary3>
+         <Linear>
+            <BezierPoint x="-173.0" y="97.0" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="-118.0" y="240.0" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="-280.0" y="240.0" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="-280.0" y="90.0" sectionEnd="false"/>
+         </Linear>
+      </Boundary3>
+   </Poly>
+   <Poly name="Quartz Diorite" visible="true" closed="true">
+      <Colour r="102" g="102" b="0"/>
+      <LabelAngle angle="0.0" />
+      <LabelPos x="-234.56389" y="50.169422" />
+      <Boundary3>
+         <Linear>
+            <BezierPoint x="-173.0" y="97.0" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="-200.0" y="39.0" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="-219.99992" y="0.0011990664" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="-280.0" y="0.0" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="-280.0" y="90.0" sectionEnd="false"/>
+         </Linear>
+      </Boundary3>
+   </Poly>
+   <Polygon name="_ v6.1 required to open diagram _" visible="true" >
+      <Point x="30" y="30" />
+      <Point x="200" y="30" />
+      <Point x="200" y="40" />
+      <Point x="30" y="40" />
+   </Polygon>
+</GeochemXYDiagram>

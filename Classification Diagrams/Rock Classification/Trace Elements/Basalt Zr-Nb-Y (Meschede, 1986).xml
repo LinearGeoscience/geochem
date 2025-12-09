@@ -1,0 +1,133 @@
+<?xml version="1.0" encoding="windows-1252"?>
+<GeochemTernaryDiagram name="Basalt Zr-Nb-Y (Meschede 1986)">
+   <GeochemFunctionAxisA name="2Nb" function="2*n" log="false"/>
+   <GeochemFunctionAxisB name="Zr/4" function="z/4" log="false"/>
+   <GeochemFunctionAxisC name="Y" function="y" log="false"/>
+   <Comment>Basalt discrimination diagram. Acronyms are within plate alkali basalts (WPAB), within plate tholeiites (WPT), volcanic arc basalts (VAB)</Comment>
+   <Reference>Meschede, 1986 in Rollinson, Using Geochemical Data, 1993 p.203</Reference>
+   <Variable letter="N" element="Nb" unit="ppm"/>
+   <Variable letter="Z" element="Zr" unit="ppm"/>
+   <Variable letter="Y" element="Y" unit="ppm"/>
+   <Poly name="WPAB" visible="true" closed="true">
+      <Colour r="255" g="0" b="0"/>
+      <LabelAngle angle="0.0" />
+      <LabelPos a="0.6" b="0.2300000000000001" />
+      <Boundary3>
+         <Linear>
+            <BezierPoint x="46.5" y="68.41601" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="55.25" y="48.930435" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="42.0" y="43.30127" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="34.0" y="10.392304" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="30.5" y="29.444864" sectionEnd="false"/>
+         </Linear>
+      </Boundary3>
+   </Poly>
+   <Poly name="WPAB+WPT" visible="true" closed="true">
+      <Colour r="0" g="255" b="0"/>
+      <LabelAngle angle="0.0" />
+      <LabelPos a="0.47" b="0.28" />
+      <Boundary3>
+         <Linear>
+            <BezierPoint x="34.0" y="10.392304" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="42.0" y="43.30127" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="55.25" y="48.930435" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="58.0" y="43.30127" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="45.0" y="30.310888" sectionEnd="false"/>
+         </Linear>
+      </Boundary3>
+   </Poly>
+   <Poly name="E-MORB" visible="true" closed="true">
+      <Colour r="0" g="0" b="255"/>
+      <LabelAngle angle="0.0" />
+      <LabelPos a="0.36067486302286106" b="0.2554784680701594" />
+      <Boundary3>
+         <Linear>
+            <BezierPoint x="45.0" y="30.310888" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="58.0" y="43.30127" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="68.0" y="19.052559" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="54.5" y="20.784609" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="52.0" y="19.052559" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="48.5" y="26.846788" sectionEnd="false"/>
+         </Linear>
+      </Boundary3>
+   </Poly>
+   <Poly name="WPT+VAB" visible="true" closed="true">
+      <Colour r="255" g="0" b="255"/>
+      <LabelAngle angle="0.0" />
+      <LabelPos a="0.192458377832915" b="0.47536076924253845" />
+      <Boundary3>
+         <Linear>
+            <BezierPoint x="45.0" y="30.310888" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="48.5" y="26.846788" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="52.0" y="19.052559" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="45.5" y="2.598076" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="34.0" y="10.392304" sectionEnd="false"/>
+         </Linear>
+      </Boundary3>
+   </Poly>
+   <Poly name="N-MORB" visible="true" closed="true">
+      <Colour r="0" g="255" b="255"/>
+      <LabelAngle angle="0.0" />
+      <LabelPos a="0.12036559846579535" b="0.3287293346583159" />
+      <Boundary3>
+         <Linear>
+            <BezierPoint x="50.0" y="0.0" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="45.5" y="2.598076" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="52.0" y="19.052559" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="54.5" y="20.784609" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="68.0" y="19.052559" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="77.0" y="0.0" sectionEnd="false"/>
+         </Linear>
+      </Boundary3>
+   </Poly>
+   <Polygon name="_ v6.1 required to open diagram _" visible="true" >
+      <TPoint a="0.1" b="0.7" />
+      <TPoint a="0.1" b="0.2" />
+      <TPoint a="0.5" b="0.0" />
+      <TPoint a="0.5" b="0.5" />
+   </Polygon>
+</GeochemTernaryDiagram>

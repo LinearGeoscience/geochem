@@ -1,0 +1,64 @@
+<?xml version="1.0" encoding="windows-1252"?>
+<GeochemTernaryDiagram name="ACF - Prehnite Pumpellyite facies (Ferric and Ferrous Fe)">
+   <GeochemFunctionAxisA name="A = Al2O3 - K2O - Na2O" function="(A/101.94)-(B/94.2)-(C/61.982)" log="false"/>
+   <GeochemFunctionAxisB name="C = CaO" function="D/56.08" log="false"/>
+   <GeochemFunctionAxisC name="F = FeO* + MgO - Fe2O3* - TiO2" function="(E/71.85)+(F/40.32)-(G/159.7)-(H/79.9)" log="false"/>
+   <Comment>ACF diagram for prehnite-pumpellyite metamorphic facies. Diagram calculation uses explicit ferric and ferrous Fe.</Comment>
+   <Reference>Best, Myron G. Igneous and Metamorphic Petrology. Malden, MA : Blackwell Publishers, 2002. (1985)</Reference>
+   <Variable letter="A" element="Al2O3" unit="pct"/>
+   <Variable letter="B" element="K2O" unit="pct"/>
+   <Variable letter="C" element="Na2O" unit="pct"/>
+   <Variable letter="D" element="CaO" unit="pct"/>
+   <Variable letter="E" element="FeO*" unit="pct"/>
+   <Variable letter="F" element="MgO" unit="pct"/>
+   <Variable letter="G" element="Fe2O3*" unit="pct"/>
+   <Variable letter="H" element="TiO2" unit="pct"/>
+   <Poly name="Prehnite - pumpellyite facies" visible="true" closed="true">
+      <Colour r="0" g="255" b="255"/>
+      <LabelAngle angle="0.0" />
+      <LabelPos a="0.19914445181330762" b="0.34798866298223496" />
+      <Boundary3>
+         <Linear>
+            <BezierPoint x="19.893156" y="34.338028" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="14.272533" y="24.713625" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="65.00604" y="0.15480407" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="96.28451" y="6.4354157" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="89.2908" y="18.548872" sectionEnd="false"/>
+         </Linear>
+      </Boundary3>
+   </Poly>
+   <TPointFeature name="Prehnite" visible="true" a="0.33500112045011454" b="0.6649988795498855" pixelRadius="5.0" >
+      <Colour r="0" g="255" b="255"/>
+      <LabelAngle angle="0.0" />
+   </TPointFeature>
+   <TPointFeature name="Epidote" visible="true" a="0.28918962739424536" b="0.5706975501178129" pixelRadius="5.0" >
+      <Colour r="127" g="127" b="0"/>
+      <LabelAngle angle="0.0" />
+   </TPointFeature>
+   <TPointFeature name="Pumpellyite" visible="true" a="0.33527189480256214" b="0.5317624881804651" pixelRadius="5.0" >
+      <Colour r="127" g="0" b="127"/>
+      <LabelAngle angle="0.0" />
+   </TPointFeature>
+   <TPointFeature name="Actinolite" visible="true" a="0.0024555190758300473" b="0.3498287489330941" pixelRadius="5.0" >
+      <Colour r="0" g="127" b="127"/>
+      <LabelAngle angle="0.0" />
+   </TPointFeature>
+   <TPointFeature name="Chlorite" visible="true" a="0.14740375098550867" b="0.0" pixelRadius="5.0" >
+      <Colour r="255" g="127" b="0"/>
+      <LabelAngle angle="0.0" />
+   </TPointFeature>
+   <Polygon name="_ v6.1 required to open diagram _" visible="true" >
+      <TPoint a="0.1" b="0.7" />
+      <TPoint a="0.1" b="0.2" />
+      <TPoint a="0.5" b="0.0" />
+      <TPoint a="0.5" b="0.5" />
+   </Polygon>
+</GeochemTernaryDiagram>

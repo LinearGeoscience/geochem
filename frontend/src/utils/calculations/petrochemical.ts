@@ -2,7 +2,7 @@
 
 import { CalculationDefinition, IndexResult } from '../../types/calculations';
 import { OXIDE_WEIGHTS, COLUMN_PATTERNS } from './constants';
-import { parseNumericValue, safeDivide, wtPercentToMolar } from './formulaEvaluator';
+import { wtPercentToMolar } from './formulaEvaluator';
 import { VALIDATION_RULES } from './validation';
 
 // Molecular weights for common oxides

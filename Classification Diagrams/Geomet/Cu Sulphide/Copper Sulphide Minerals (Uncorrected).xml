@@ -1,0 +1,34 @@
+<?xml version="1.0" encoding="windows-1252"?>
+<GeochemXYDiagram name="Copper Sulphide Minerals (Uncorrected)">
+   <GeochemFunctionAxisX name="S (molar)" function="B" log="false"/>
+   <GeochemFunctionAxisY name="Cu (molar)" function="A" log="false"/>
+   <Comment>Molar diagram for copper sulphide minerals. Different slope values describes different copper sulphide minerals.</Comment>
+   <Variable letter="A" element="Cu-mol" unit="mol/kg"/>
+   <Variable letter="B" element="S-mol" unit="mol/kg"/>
+   <Line name="Cubanite" visible="true" m="0.33" c="0.0" >
+      <Colour r="127" g="127" b="0"/>
+      <LabelAngle angle="0.0" />
+   </Line>
+   <Line name="Chalcopyrite" visible="true" m="0.5" c="0.0" >
+      <Colour r="127" g="0" b="127"/>
+      <LabelAngle angle="0.0" />
+   </Line>
+   <Line name="Covellite" visible="true" m="1.0" c="0.0" >
+      <Colour r="0" g="127" b="127"/>
+      <LabelAngle angle="0.0" />
+   </Line>
+   <Line name="Bornite" visible="true" m="1.25" c="0.0" >
+      <Colour r="255" g="127" b="0"/>
+      <LabelAngle angle="0.0" />
+   </Line>
+   <Line name="Chalcocite" visible="true" m="2.0" c="0.0" >
+      <Colour r="255" g="0" b="127"/>
+      <LabelAngle angle="0.0" />
+   </Line>
+   <Polygon name="_ v6.1 required to open diagram _" visible="true" >
+      <Point x="30" y="30" />
+      <Point x="200" y="30" />
+      <Point x="200" y="40" />
+      <Point x="30" y="40" />
+   </Polygon>
+</GeochemXYDiagram>

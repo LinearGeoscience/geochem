@@ -1,0 +1,70 @@
+<?xml version="1.0" encoding="windows-1252"?>
+<GeochemTernaryDiagram name="ACF - Amphibolite Facies (Total Fe)">
+   <GeochemFunctionAxisA name="A = Al2O3 - K2O - Na2O" function="(A/101.94)-(B/94.2)-(C/61.982)" log="false"/>
+   <GeochemFunctionAxisB name="C = CaO" function="D/56.08" log="false"/>
+   <GeochemFunctionAxisC name="F = FeO + MgO - TiO2" function="(E/71.85)+(F/40.32)-(H/79.9)" log="false"/>
+   <Comment>ACF diagram for amphibolite metamorphic facies. Diagram calculation uses total Fe.</Comment>
+   <Reference>Best, Myron G. Igneous and Metamorphic Petrology. Malden, MA : Blackwell Publishers, 2002. (1985)</Reference>
+   <Variable letter="A" element="Al2O3" unit="pct"/>
+   <Variable letter="B" element="K2O" unit="pct"/>
+   <Variable letter="C" element="Na2O" unit="pct"/>
+   <Variable letter="D" element="CaO" unit="pct"/>
+   <Variable letter="E" element="FeO" unit="pct"/>
+   <Variable letter="F" element="MgO" unit="pct"/>
+   <Variable letter="H" element="TiO2" unit="pct"/>
+   <Poly name="Amphibolite facies" visible="true" closed="true">
+      <Colour r="0" g="0" b="255"/>
+      <LabelAngle angle="0.0" />
+      <LabelPos a="0.15601885325284748" b="0.234480035046284" />
+      <Boundary3>
+         <Linear>
+            <BezierPoint x="25.28256" y="43.298584" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="71.35779" y="0.0034901504" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="87.51585" y="21.623184" sectionEnd="false"/>
+         </Linear>
+      </Boundary3>
+   </Poly>
+   <Poly name="Plagioclase - diopside" visible="true" closed="false">
+      <Colour r="255" g="0" b="255"/>
+      <LabelAngle angle="0.0" />
+      <LabelPos a="0.2500046516113684" b="0.5020419407440105" />
+      <Boundary3>
+         <Linear>
+            <BezierPoint x="24.843372" y="43.029984" sectionEnd="true"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="49.76478" y="0.0034901504" sectionEnd="true"/>
+         </Linear>
+      </Boundary3>
+   </Poly>
+   <TPointFeature name="Garnet" visible="true" a="0.24993436256493856" b="9.253438850216344E-4" pixelRadius="5.0" >
+      <Colour r="0" g="0" b="0"/>
+      <LabelAngle angle="0.0" />
+   </TPointFeature>
+   <TPointFeature name="Hornblende" visible="true" a="0.0024555190758300473" b="0.28757753001976816" pixelRadius="5.0" >
+      <Colour r="255" g="0" b="0"/>
+      <LabelAngle angle="0.0" />
+   </TPointFeature>
+   <TPointFeature name="Plagioclase" visible="true" a="0.5008267073435521" b="0.4966668666095386" pixelRadius="5.0" >
+      <Colour r="0" g="255" b="0"/>
+      <LabelAngle angle="0.0" />
+   </TPointFeature>
+   <TPointFeature name="Diopside" visible="true" a="0.0024555190758300473" b="0.5021455611678269" pixelRadius="5.0" >
+      <Colour r="0" g="0" b="255"/>
+      <LabelAngle angle="0.0" />
+   </TPointFeature>
+   <TPointFeature name="Calcite" visible="true" a="7.48444382944642E-4" b="0.9992515556170554" pixelRadius="5.0" >
+      <Colour r="255" g="0" b="255"/>
+      <LabelAngle angle="0.0" />
+   </TPointFeature>
+   <Polygon name="_ v6.1 required to open diagram _" visible="true" >
+      <TPoint a="0.1" b="0.7" />
+      <TPoint a="0.1" b="0.2" />
+      <TPoint a="0.5" b="0.0" />
+      <TPoint a="0.5" b="0.5" />
+   </Polygon>
+</GeochemTernaryDiagram>

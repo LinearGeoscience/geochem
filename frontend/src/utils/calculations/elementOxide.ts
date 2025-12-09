@@ -1,6 +1,6 @@
 // Element-Oxide Conversion Functions
 
-import { CalculationDefinition, InputDefinition } from '../../types/calculations';
+import { CalculationDefinition } from '../../types/calculations';
 import {
     ELEMENT_OXIDE_CONVERSIONS,
     IRON_OXIDE_CONVERSIONS,

@@ -1,0 +1,92 @@
+<?xml version="1.0" encoding="windows-1252"?>
+<GeochemXYDiagram name="Regolith Classification (McQueen 2006)">
+   <GeochemFunctionAxisX name="K/Al wt." function="k/a" log="false"/>
+   <GeochemFunctionAxisY name="Mg/Al wt." function="m/a" log="false"/>
+   <Comment>Three types of regolith from Cobar, NSW are used to define the saprolite, clays and younger alluvium and colluvium fields</Comment>
+   <Reference>McQueen K.G., 2006. Unravelling the regolith with geochemistry. In Fitzpatrick R.W. and Shand P. (Eds) Regolith 2006-Consolidation and Dispersion of Ideas, CRC LEME, Perth Western Australia, pp230-235</Reference>
+   <Variable letter="M" element="Mg" unit="pct"/>
+   <Variable letter="K" element="K" unit="pct"/>
+   <Variable letter="A" element="Al" unit="pct"/>
+   <Poly name="Sap on mafic" visible="true" closed="true">
+      <Colour r="0" g="255" b="0"/>
+      <LabelAngle angle="0.0" />
+      <LabelPos x="0.27469647" y="0.13064466" />
+      <Boundary3>
+         <Linear>
+            <BezierPoint x="0.15" y="0.06" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="0.4" y="0.06" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="0.4" y="0.2" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="0.15" y="0.2" sectionEnd="false"/>
+         </Linear>
+      </Boundary3>
+   </Poly>
+   <Poly name="Sap on siltstone/sandstone" visible="true" closed="true">
+      <Colour r="255" g="0" b="0"/>
+      <LabelAngle angle="0.0" />
+      <LabelPos x="0.37574443" y="0.023661016" />
+      <Boundary3>
+         <Linear>
+            <BezierPoint x="0.15" y="0.0" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="0.6" y="0.0" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="0.6" y="0.06" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="0.15" y="0.06" sectionEnd="false"/>
+         </Linear>
+      </Boundary3>
+   </Poly>
+   <Poly name="Transported clays" visible="true" closed="true">
+      <Colour r="0" g="0" b="255"/>
+      <LabelAngle angle="0.0" />
+      <LabelPos x="0.053100042" y="0.05575611" />
+      <Boundary3>
+         <Linear>
+            <BezierPoint x="0.0" y="0.0" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="0.15" y="0.0" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="0.15" y="0.15" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="0.0" y="0.15" sectionEnd="false"/>
+         </Linear>
+      </Boundary3>
+   </Poly>
+   <Poly name="Younger alluvium/colluvium" visible="true" closed="true">
+      <Colour r="125" g="125" b="0"/>
+      <LabelAngle angle="0.0" />
+      <LabelPos x="0.16212548" y="0.25027186" />
+      <Boundary3>
+         <Linear>
+            <BezierPoint x="0.1" y="0.05" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="0.225" y="0.05" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="0.225" y="0.45" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="0.1" y="0.45" sectionEnd="false"/>
+         </Linear>
+      </Boundary3>
+   </Poly>
+   <Polygon name="_ v6.1 required to open diagram _" visible="true" >
+      <Point x="30" y="30" />
+      <Point x="200" y="30" />
+      <Point x="200" y="40" />
+      <Point x="30" y="40" />
+   </Polygon>
+</GeochemXYDiagram>

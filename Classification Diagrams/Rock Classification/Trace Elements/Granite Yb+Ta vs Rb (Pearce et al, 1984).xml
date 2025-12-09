@@ -1,0 +1,120 @@
+<?xml version="1.0" encoding="windows-1252"?>
+<GeochemXYDiagram name="Granite Yb+Ta vs Rb(Pearce et al 1984)">
+   <GeochemFunctionAxisX name="Yb+Ta" function="y+t" log="true"/>
+   <GeochemFunctionAxisY name="Rb" function="r" log="true"/>
+   <Comment>Granite discrimination diagram</Comment>
+   <Reference>Pearce et al, 1984, in Rollinson, Using Geochemical Data, 1993, p.203</Reference>
+   <Variable letter="R" element="Rb" unit="ppm"/>
+   <Variable letter="T" element="Ta" unit="ppm"/>
+   <Variable letter="Y" element="Yb" unit="ppm"/>
+   <Poly name="" visible="true" closed="false">
+      <Colour r="0" g="0" b="0"/>
+      <LabelAngle angle="0.0" />
+      <LabelPos x="1.7270076" y="170.40852" />
+      <Boundary3>
+         <Linear>
+            <BezierPoint x="0.5" y="140.0" sectionEnd="true"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="6.0" y="200.0" sectionEnd="true"/>
+         </Linear>
+      </Boundary3>
+   </Poly>
+   <Poly name="" visible="true" closed="false">
+      <Colour r="0" g="0" b="0"/>
+      <LabelAngle angle="0.0" />
+      <LabelPos x="17.19812" y="637.7225" />
+      <Boundary3>
+         <Linear>
+            <BezierPoint x="6.0" y="200.0" sectionEnd="true"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="50.0" y="2000.0" sectionEnd="true"/>
+         </Linear>
+      </Boundary3>
+   </Poly>
+   <Poly name="" visible="true" closed="false">
+      <Colour r="0" g="0" b="0"/>
+      <LabelAngle angle="0.0" />
+      <LabelPos x="5.973001" y="14.350038" />
+      <Boundary3>
+         <Linear>
+            <BezierPoint x="6.0" y="200.0" sectionEnd="true"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="6.0" y="1.0" sectionEnd="true"/>
+         </Linear>
+      </Boundary3>
+   </Poly>
+   <Poly name="" visible="true" closed="false">
+      <Colour r="0" g="0" b="0"/>
+      <LabelAngle angle="0.0" />
+      <LabelPos x="34.320168" y="56.738037" />
+      <Boundary3>
+         <Linear>
+            <BezierPoint x="6.0" y="8.0" sectionEnd="true"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="200.0" y="400.0" sectionEnd="true"/>
+         </Linear>
+      </Boundary3>
+   </Poly>
+   <Poly name="syn-COLG" visible="true" closed="false">
+      <Colour r="255" g="255" b="255"/>
+      <LabelAngle angle="0.0" />
+      <LabelPos x="3.4463758" y="937.1253" />
+      <Boundary3>
+         <Linear>
+            <BezierPoint x="3.0" y="1778.0" sectionEnd="true"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="4.0" y="1778.0" sectionEnd="true"/>
+         </Linear>
+      </Boundary3>
+   </Poly>
+   <Poly name="ORG" visible="true" closed="false">
+      <Colour r="255" g="255" b="255"/>
+      <LabelAngle angle="0.0" />
+      <LabelPos x="112.18954" y="5.6348014" />
+      <Boundary3>
+         <Linear>
+            <BezierPoint x="100.0" y="5.6" sectionEnd="true"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="125.8925" y="5.6" sectionEnd="true"/>
+         </Linear>
+      </Boundary3>
+   </Poly>
+   <Poly name="VAG" visible="true" closed="false">
+      <Colour r="255" g="255" b="255"/>
+      <LabelAngle angle="0.0" />
+      <LabelPos x="1.1154627" y="3.192345" />
+      <Boundary3>
+         <Linear>
+            <BezierPoint x="1.0" y="3.16" sectionEnd="true"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="1.25" y="3.16" sectionEnd="true"/>
+         </Linear>
+      </Boundary3>
+   </Poly>
+   <Poly name="WPG" visible="true" closed="false">
+      <Colour r="255" g="255" b="255"/>
+      <LabelAngle angle="0.0" />
+      <LabelPos x="56.21911" y="571.3076" />
+      <Boundary3>
+         <Linear>
+            <BezierPoint x="56.2" y="562.34" sectionEnd="true"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="57.54" y="562.34" sectionEnd="true"/>
+         </Linear>
+      </Boundary3>
+   </Poly>
+   <Polygon name="_ v6.1 required to open diagram _" visible="true" >
+      <Point x="30" y="30" />
+      <Point x="200" y="30" />
+      <Point x="200" y="40" />
+      <Point x="30" y="40" />
+   </Polygon>
+</GeochemXYDiagram>

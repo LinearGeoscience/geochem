@@ -13,7 +13,6 @@ import {
     FormControl,
     InputLabel,
     List,
-    ListItem,
     ListItemButton,
     ListItemText,
     ListItemIcon,
@@ -26,15 +25,12 @@ import {
     AccordionSummary,
     AccordionDetails,
     IconButton,
-    Tooltip,
     Table,
     TableBody,
     TableCell,
     TableHead,
     TableRow,
     LinearProgress,
-    FormControlLabel,
-    Switch,
 } from '@mui/material';
 import {
     ExpandMore,
@@ -107,7 +103,6 @@ export const CalculationManager: React.FC = () => {
     const [outputColumnName, setOutputColumnName] = useState('');
     const [missingValueStrategy, setMissingValueStrategy] = useState<MissingValueStrategy>('skip');
     const [isExecuting, setIsExecuting] = useState(false);
-    const [showPreview, setShowPreview] = useState(false);
 
     // Get column names for dropdowns
     const columnNames = useMemo(() => columns.map(c => c.name), [columns]);

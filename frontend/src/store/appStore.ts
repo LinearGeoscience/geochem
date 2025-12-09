@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import { dataApi } from '../services/api';
+import { dataApi, qgisApi } from '../services/api';
 import { AttributeState, createAttributeSlice } from './attributeSlice';
 
 interface ColumnInfo {
@@ -45,7 +45,7 @@ interface AppState {
     isLoading: boolean;
     uploadProgress: number; // 0-100
     error: string | null;
-    currentView: 'import' | 'data' | 'columns' | 'plots' | 'analysis' | 'settings';
+    currentView: 'import' | 'data' | 'columns' | 'plots' | 'analysis' | 'qaqc' | 'statistics' | 'settings';
 
     // Column filtering by transformation type
     columnFilter: ColumnFilterType;
@@ -78,7 +78,7 @@ interface AppState {
     uploadDrillhole: (collar: File, survey: File, assay: File) => Promise<void>;
     updateColumn: (column: string, role?: string, alias?: string) => Promise<void>;
     updateColumnType: (column: string, newType: string, treatNegativeAsZero?: boolean) => void;
-    setCurrentView: (view: 'import' | 'data' | 'columns' | 'plots' | 'analysis' | 'settings') => void;
+    setCurrentView: (view: 'import' | 'data' | 'columns' | 'plots' | 'analysis' | 'qaqc' | 'statistics' | 'settings') => void;
 
     // Plot actions
     addPlot: (type: PlotType) => void;
@@ -89,6 +89,9 @@ interface AppState {
 
     // Data actions
     addColumn: (name: string, values: any[], colType?: string, role?: string, transformationType?: ColumnInfo['transformationType']) => void;
+
+    // QGIS sync
+    syncToQgis: () => Promise<void>;
 }
 
 type CombinedState = AppState & AttributeState;
@@ -279,12 +282,16 @@ export const useAppStore = create<CombinedState>()((set, get, api) => ({
                     isLoading: false,
                     uploadProgress: 0
                 });
+                // Auto-sync to QGIS
+                get().syncToQgis();
             } else {
                 // Fallback to fetching data separately
                 console.log('[uploadFile] No data in response, fetching separately...');
                 await get().fetchColumns();
                 await get().fetchData();
                 set({ isLoading: false, uploadProgress: 0 });
+                // Auto-sync to QGIS
+                get().syncToQgis();
             }
         } catch (err: any) {
             const message = err.response?.data?.detail || err.message;
@@ -309,12 +316,16 @@ export const useAppStore = create<CombinedState>()((set, get, api) => ({
                     isLoading: false,
                     uploadProgress: 0
                 });
+                // Auto-sync to QGIS
+                get().syncToQgis();
             } else {
                 // Fallback to fetching data separately
                 console.log('[uploadDrillhole] No data in response, fetching separately...');
                 await get().fetchColumns();
                 await get().fetchData();
                 set({ isLoading: false, uploadProgress: 0 });
+                // Auto-sync to QGIS
+                get().syncToQgis();
             }
         } catch (err: any) {
             const message = err.response?.data?.detail || err.message;
@@ -398,5 +409,19 @@ export const useAppStore = create<CombinedState>()((set, get, api) => ({
             console.log(`[updateColumnType] Column "${column}" converted to ${newType}`);
             return { data: newData, columns: newColumns };
         });
+    },
+
+    syncToQgis: async () => {
+        const { data, columns } = get();
+        if (data.length === 0) {
+            console.warn('[syncToQgis] No data to sync');
+            return;
+        }
+        try {
+            const result = await qgisApi.syncData(data, columns);
+            console.log(`[syncToQgis] Synced ${result.rows} rows, ${result.columns} columns to QGIS`);
+        } catch (err) {
+            console.warn('[syncToQgis] Failed to sync (QGIS integration may not be running):', err);
+        }
     }
 }));

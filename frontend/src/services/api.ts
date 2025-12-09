@@ -75,4 +75,38 @@ export const analysisApi = {
     }
 };
 
+export const qgisApi = {
+    /**
+     * Push current data to backend for QGIS sync.
+     * Call this after loading data to make it available to the QGIS plugin.
+     */
+    syncData: async (data: any[], columns: any[]) => {
+        const response = await api.post('/qgis/sync-data', { data, columns });
+        return response.data;
+    },
+
+    /**
+     * Push attribute styling configuration to backend for QGIS sync.
+     * Call this to sync web app styling to QGIS.
+     */
+    syncStyles: async (styles: {
+        color?: any;
+        shape?: any;
+        size?: any;
+        globalOpacity?: number;
+        emphasis?: any;
+    }) => {
+        const response = await api.post('/qgis/sync-styles', styles);
+        return response.data;
+    },
+
+    /**
+     * Check QGIS connection health
+     */
+    health: async () => {
+        const response = await api.get('/qgis/health');
+        return response.data;
+    }
+};
+
 export default api;

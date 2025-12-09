@@ -31,18 +31,14 @@ import {
 import {
     Add,
     Functions,
-    Calculate,
     CheckCircle,
-    Error as ErrorIcon,
     ContentCopy,
     Search,
-    Info,
 } from '@mui/icons-material';
 import { useAppStore } from '../../store/appStore';
 import { useCalculationStore } from '../../store/calculationStore';
 import {
     validateFormula,
-    extractVariables,
     parseFormula,
     evaluateFormula,
     parseNumericValue,

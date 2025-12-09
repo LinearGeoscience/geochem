@@ -9,7 +9,6 @@ import { useAppStore } from '../../store/appStore';
 import { useTransformationStore } from '../../store/transformationStore';
 import { TransformationResult } from '../../types/compositional';
 import { TransformationType, ZeroHandlingStrategy } from '../../types/compositional';
-import { PREDEFINED_AMALGAMATIONS } from '../../utils/logratioTransforms';
 
 // ============================================================================
 // TYPES
@@ -92,7 +91,6 @@ export const TransformationManager: React.FC = () => {
     runProcrustesAnalysis,
     runPCA,
     analyzeZeros,
-    clearResults,
     getAllAmalgamations
   } = useTransformationStore();
 
@@ -127,12 +125,12 @@ export const TransformationManager: React.FC = () => {
   const addTransformedColumnsToStore = useCallback((result: TransformationResult) => {
     // Add each transformed column to the main data store with transformation type
     const transformType = result.config.type as 'clr' | 'alr' | 'ilr' | 'plr' | 'slr' | 'chipower';
-    const prefix = transformType.toUpperCase();
+    const suffix = transformType.toUpperCase();
     const addedColumns: string[] = [];
 
     result.columnNames.forEach((colName, colIndex) => {
-      // Prefix column name with transformation type to avoid overwriting original columns
-      const newColName = colName.startsWith(`${prefix}_`) ? colName : `${prefix}_${colName}`;
+      // Suffix column name with transformation type (e.g., Au_ppm_CLR) to avoid overwriting original columns
+      const newColName = colName.endsWith(`_${suffix}`) ? colName : `${colName}_${suffix}`;
       const values = result.values.map(row => row[colIndex]);
       addColumn(newColName, values, 'numeric', 'Transformed', transformType);
       addedColumns.push(newColName);
@@ -559,9 +557,9 @@ export const TransformationManager: React.FC = () => {
 
           {/* Results */}
           {currentResult && (() => {
-            const prefix = currentResult.config.type.toUpperCase();
-            const prefixedNames = currentResult.columnNames.map(name =>
-              name.startsWith(`${prefix}_`) ? name : `${prefix}_${name}`
+            const suffix = currentResult.config.type.toUpperCase();
+            const suffixedNames = currentResult.columnNames.map(name =>
+              name.endsWith(`_${suffix}`) ? name : `${name}_${suffix}`
             );
             return (
               <div style={{
@@ -575,8 +573,8 @@ export const TransformationManager: React.FC = () => {
                   ✓ Transformation Complete - Columns Added to Data
                 </div>
                 <div style={{ fontSize: '13px' }}>
-                  <div>Type: {prefix}</div>
-                  <div>New columns: {prefixedNames.join(', ')}</div>
+                  <div>Type: {suffix}</div>
+                  <div>New columns: {suffixedNames.join(', ')}</div>
                   <div>Samples: {currentResult.values.length}</div>
                   {currentResult.zerosReplaced > 0 && (
                     <div>Zeros replaced: {currentResult.zerosReplaced}</div>
@@ -594,7 +592,7 @@ export const TransformationManager: React.FC = () => {
                   color: '#166534'
                 }}>
                   These columns are now available in Data View, Plots, Correlation Matrix, and other analyses.
-                  Use the filter dropdown in the toolbar to show only {prefix} columns.
+                  Use the filter dropdown in the toolbar to show only {suffix} columns.
                 </div>
               </div>
             );
@@ -730,18 +728,18 @@ export const TransformationManager: React.FC = () => {
                   {
                     x: pcaResult.loadings.map(l => l[0] * 3),
                     y: pcaResult.loadings.map(l => l[1] * 3),
-                    mode: 'markers+text',
+                    mode: 'markers+text' as any,
                     type: 'scatter',
                     name: 'Variables',
                     text: pcaResult.columns,
-                    textposition: 'top center',
+                    textposition: 'top center' as any,
                     marker: { size: 8, color: '#dc2626', symbol: 'diamond' }
                   }
                 ]}
                 layout={{
-                  title: 'LRA Biplot',
-                  xaxis: { title: `PC1 (${pcaResult.varianceExplained[0]?.toFixed(1)}%)`, zeroline: true },
-                  yaxis: { title: `PC2 (${pcaResult.varianceExplained[1]?.toFixed(1)}%)`, zeroline: true },
+                  title: { text: 'LRA Biplot' } as any,
+                  xaxis: { title: { text: `PC1 (${pcaResult.varianceExplained[0]?.toFixed(1)}%)` } as any, zeroline: true },
+                  yaxis: { title: { text: `PC2 (${pcaResult.varianceExplained[1]?.toFixed(1)}%)` } as any, zeroline: true },
                   height: 400,
                   margin: { t: 40, b: 40, l: 50, r: 20 },
                   showlegend: true,

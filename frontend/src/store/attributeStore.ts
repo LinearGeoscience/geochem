@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
+import { qgisApi } from '../services/api';
 
 // ============================================================================
 // Types
@@ -134,6 +135,9 @@ export interface AttributeState {
 
     // Get entry by name across all sources
     getEntryByName: (name: string) => AttributeEntry | null;
+
+    // QGIS sync
+    syncStylesToQgis: () => Promise<void>;
 }
 
 // ============================================================================
@@ -441,6 +445,23 @@ export const useAttributeStore = create<AttributeState>()(
                     if (entry) return entry;
                 }
                 return null;
+            },
+
+            // QGIS sync - push styles to backend for QGIS plugin
+            syncStylesToQgis: async () => {
+                const state = get();
+                try {
+                    const result = await qgisApi.syncStyles({
+                        color: state.color,
+                        shape: state.shape,
+                        size: state.size,
+                        globalOpacity: state.globalOpacity,
+                        emphasis: state.emphasis,
+                    });
+                    console.log('[syncStylesToQgis] Synced styles:', result);
+                } catch (err) {
+                    console.warn('[syncStylesToQgis] Failed to sync styles:', err);
+                }
             },
         }),
         {

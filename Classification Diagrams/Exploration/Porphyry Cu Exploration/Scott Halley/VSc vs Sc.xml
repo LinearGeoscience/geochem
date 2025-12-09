@@ -1,0 +1,170 @@
+<?xml version="1.0" encoding="windows-1252"?>
+<XYDiagram name="V/Sc vs Sc" variateMode="Multi">
+   <GeochemAxisX element="Sc" unit="ppm" log="false"/>
+   <GeochemFunctionAxisY name="V/Sc" function="A/B" log="false"/>
+   <Bounds x="0.36403534" y="0.31341988" w="20.781431" h="14.952994" />
+   <Comment>V/Sc versus Sc classification diagram</Comment>
+   <Comment>Decreasing V/Sc with decreasing Sc signifies fractional crystallisation of magnetite.</Comment>
+   <Reference>Halley, S. (2020) Mapping magmatic and hydrothermal processes from routine exploration geochemical analyses. Economic Geology v. 115(3)</Reference>
+   <Variable letter="A" element="V" unit="ppm"/>
+   <Variable letter="B" element="Sc" unit="ppm"/>
+   <Poly name="" visible="true" closed="false" endArrow="false">
+      <Colour r="255" g="0" b="0"/>
+      <LabelAngle angle="0.0" />
+      <LabelPos x="5.365216" y="12.96824" />
+      <Boundary3>
+         <Linear>
+            <BezierPoint x="2.648421" y="13.773427" sectionEnd="true"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="4.248608" y="11.605658" sectionEnd="true"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="5.214238" y="10.315954" sectionEnd="true"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="5.931563" y="9.602248" sectionEnd="true"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="6.53853" y="9.08058" sectionEnd="true"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="7.448981" y="8.585907" sectionEnd="true"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="8.387021" y="8.228257" sectionEnd="true"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="9.766493" y="8.089297" sectionEnd="true"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="10.787301" y="8.197541" sectionEnd="true"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="11.532216" y="8.443226" sectionEnd="true"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="11.946057" y="8.881253" sectionEnd="true"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="12.139183" y="9.484056" sectionEnd="true"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="12.166772" y="10.388623" sectionEnd="true"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="11.973647" y="11.074194" sectionEnd="true"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="11.33909" y="12.116733" sectionEnd="true"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="10.814891" y="12.830173" sectionEnd="true"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="10.180334" y="13.571177" sectionEnd="true"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="9.738903" y="14.092617" sectionEnd="true"/>
+         </Linear>
+      </Boundary3>
+   </Poly>
+   <Poly name="Hbl/Cpx fractionation" visible="true" closed="false" endArrow="true">
+      <Colour r="0" g="0" b="0"/>
+      <LabelAngle angle="0.0" />
+      <LabelPos x="3.2300441" y="14.27884" />
+      <Boundary3>
+         <Linear>
+            <BezierPoint x="18.595108" y="8.460919" sectionEnd="true"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="15.523819" y="8.5666485" sectionEnd="true"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="12.829633" y="8.658261" sectionEnd="true"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="11.090785" y="8.717956" sectionEnd="true"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="10.180334" y="8.856271" sectionEnd="true"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="9.352651" y="9.131532" sectionEnd="true"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="8.166306" y="9.626585" sectionEnd="true"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="7.228266" y="10.368006" sectionEnd="true"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="6.455762" y="11.328498" sectionEnd="true"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="5.848794" y="12.343586" sectionEnd="true"/>
+         </Linear>
+      </Boundary3>
+   </Poly>
+   <Poly name="Magnetite fractionation" visible="true" closed="false" endArrow="true">
+      <Colour r="0" g="0" b="0"/>
+      <LabelAngle angle="0.0" />
+      <LabelPos x="3.6303887" y="0.6655115" />
+      <Boundary3>
+         <Linear>
+            <BezierPoint x="17.54671" y="5.830786" sectionEnd="true"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="12.525435" y="5.919933" sectionEnd="true"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="11.33909" y="5.894153" sectionEnd="true"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="9.600956" y="5.512774" sectionEnd="true"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="7.614517" y="4.665728" sectionEnd="true"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="5.931563" y="3.736028" sectionEnd="true"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="5.352185" y="3.270817" sectionEnd="true"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="4.221018" y="1.956586" sectionEnd="true"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="4.088254" y="1.7781638" sectionEnd="true"/>
+         </Linear>
+      </Boundary3>
+   </Poly>
+   <Poly name="Ilmenite fractionation" visible="true" closed="false" endArrow="true">
+      <Colour r="0" g="0" b="0"/>
+      <LabelAngle angle="0.0" />
+      <LabelPos x="2.496079" y="5.992466" />
+      <Boundary3>
+         <Linear>
+            <BezierPoint x="17.905373" y="6.844546" sectionEnd="true"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="1.489665" y="6.867136" sectionEnd="true"/>
+         </Linear>
+      </Boundary3>
+   </Poly>
+   <Label name="Porphyry Cu field" visible="true" x="5.365216" y="12.96824" >
+      <Colour r="255" g="0" b="0"/>
+      <LabelAngle angle="0.0" />
+   </Label>
+   <Label name="Label 2" visible="false" x="6.6996975" y="13.010518" >
+      <Colour r="0" g="255" b="0"/>
+      <LabelAngle angle="0.0" />
+   </Label>
+   <Polygon name="_ v6.1 required to open diagram _" visible="true" >
+      <Point x="30" y="30" />
+      <Point x="200" y="30" />
+      <Point x="200" y="40" />
+      <Point x="30" y="40" />
+   </Polygon>
+</XYDiagram>

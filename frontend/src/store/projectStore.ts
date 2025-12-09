@@ -234,12 +234,24 @@ export const useProjectStore = create<ProjectState>()(
                         console.warn('Project version mismatch, attempting import anyway');
                     }
 
+                    // Compute available filters from columns
+                    const columns = data.appState.columns || [];
+                    const availableFilters: string[] = ['all', 'raw'];
+                    const transformTypes = new Set<string>();
+                    for (const col of columns) {
+                        if (col.transformationType && col.transformationType !== 'raw') {
+                            transformTypes.add(col.transformationType);
+                        }
+                    }
+                    availableFilters.push(...Array.from(transformTypes));
+
                     // Restore app state
                     useAppStore.setState({
                         data: data.appState.data || [],
-                        columns: data.appState.columns || [],
+                        columns: columns,
                         plots: data.appState.plots || [],
                         selectedIndices: data.appState.selectedIndices || [],
+                        availableFilters: availableFilters as any,
                         lockAxes: data.appState.lockAxes || false,
                         activePlotId: data.appState.plots?.[0]?.id || null,
                         currentView: data.appState.data?.length > 0 ? 'plots' : 'import',
@@ -276,6 +288,9 @@ export const useProjectStore = create<ProjectState>()(
                         lastSaved: data.metadata.modified,
                         loadError: null
                     });
+
+                    // Sync to QGIS after loading project
+                    useAppStore.getState().syncToQgis();
 
                     return true;
                 } catch (error) {

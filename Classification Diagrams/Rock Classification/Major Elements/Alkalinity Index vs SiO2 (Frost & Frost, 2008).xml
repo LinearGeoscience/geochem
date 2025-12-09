@@ -1,0 +1,56 @@
+<?xml version="1.0" encoding="windows-1252"?>
+<GeochemXYDiagram name="Alkalinity Index vs SiO2 (Frost and Frost, 2008)">
+   <GeochemAxisX element="SiO2" unit="pct" log="false"/>
+   <GeochemFunctionAxisY name="Alkalinity Index = Al/(Na+K) molar" function="A/(B+C)" log="false"/>
+   <Comment>Distinguish between metaluminous and peralkaline feldspathic igneous rocks.</Comment>
+   <Comment>Alkalinity Index = Al/(Na+K) molar</Comment>
+   <Reference>Frost, B.R. and Frost, C.D., 2008, A geochemical classification for feldspathic igneous rocks.  Journal of Petrology, v. 49, p. 1955-1969.</Reference>
+   <Variable letter="A" element="Al-mol" unit="mol/kg"/>
+   <Variable letter="B" element="Na-mol" unit="mol/kg"/>
+   <Variable letter="C" element="K-mol" unit="mol/kg"/>
+   <Variable letter="D" element="SiO2" unit="pct"/>
+   <Poly name="Peralkaline" visible="true" closed="true">
+      <Colour r="255" g="0" b="0"/>
+      <LabelAngle angle="0.0" />
+      <LabelPos x="62.16899" y="0.49631688" />
+      <Boundary3>
+         <Linear>
+            <BezierPoint x="45.0" y="1.0" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="45.0" y="0.0" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="80.0" y="0.0" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="80.0" y="1.0" sectionEnd="false"/>
+         </Linear>
+      </Boundary3>
+   </Poly>
+   <Poly name="Metaluminous" visible="true" closed="true">
+      <Colour r="0" g="255" b="0"/>
+      <LabelAngle angle="0.0" />
+      <LabelPos x="62.33258" y="2.0872738" />
+      <Boundary3>
+         <Linear>
+            <BezierPoint x="45.0" y="1.0" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="80.0" y="1.0" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="80.0" y="3.25" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="45.0" y="3.25" sectionEnd="false"/>
+         </Linear>
+      </Boundary3>
+   </Poly>
+   <Polygon name="_ v6.1 required to open diagram _" visible="true" >
+      <Point x="30" y="30" />
+      <Point x="200" y="30" />
+      <Point x="200" y="40" />
+      <Point x="30" y="40" />
+   </Polygon>
+</GeochemXYDiagram>

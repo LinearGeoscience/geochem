@@ -34,7 +34,7 @@ interface HistogramPlotProps {
 }
 
 export const HistogramPlot: React.FC<HistogramPlotProps> = ({ plotId }) => {
-    const { data, columns, lockAxes, getPlotSettings, updatePlotSettings, getFilteredColumns } = useAppStore();
+    const { data, lockAxes, getPlotSettings, updatePlotSettings, getFilteredColumns } = useAppStore();
     const filteredColumns = getFilteredColumns();
     useAttributeStore(); // Subscribe to style changes
 

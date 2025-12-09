@@ -84,11 +84,11 @@ class Lexer {
         // Handle variable wrapped in braces {ColumnName}
         if (this.currentChar === '{') {
             this.advance(); // skip {
-            while (this.currentChar !== null && this.currentChar !== '}') {
+            while (this.currentChar !== null && (this.currentChar as string) !== '}') {
                 id += this.currentChar;
                 this.advance();
             }
-            if (this.currentChar === '}') {
+            if ((this.currentChar as string | null) === '}') {
                 this.advance(); // skip }
             }
             return { type: 'VARIABLE', value: id, position: startPos };

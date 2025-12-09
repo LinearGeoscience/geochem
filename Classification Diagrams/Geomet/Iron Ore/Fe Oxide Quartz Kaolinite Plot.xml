@@ -1,0 +1,114 @@
+<?xml version="1.0" encoding="windows-1252"?>
+<GeochemXYDiagram name="Fe Oxide - Quartz - Kaolinite Plot">
+   <GeochemAxisX element="Fe" unit="pct" log="false"/>
+   <GeochemAxisY element="SiO2" unit="pct" log="false"/>
+   <Bounds x="-1.5992689" y="-2.295578" w="79.92487" h="106.59852" />
+   <Comment>This diagram uses SiO2 and Fe data (in pct) to assess mineralogical controls on iron ore grade.</Comment>
+   <Comment>Used to classify the various types of Fe ore based on Fe and clay content.</Comment>
+   <Comment>Qtz = Quartz, Kln = Kaolinite, Other (any other mineral with no Si or Fe present, e.g. Dolomite), Goe = Goethite, Hem = Hematite</Comment>
+   <Reference>In-house classification diagram produced by REFLEX Geochemistry, 2014.</Reference>
+   <Poly name="" visible="true" closed="false">
+      <Colour r="255" g="0" b="0"/>
+      <LabelAngle angle="0.0" />
+      <LabelPos x="34.981712" y="49.781487" />
+      <Boundary3>
+         <Linear>
+            <BezierPoint x="70.06295" y="-0.2643168" sectionEnd="true"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="-0.0020801045" y="99.827286" sectionEnd="true"/>
+         </Linear>
+      </Boundary3>
+   </Poly>
+   <Poly name="" visible="true" closed="false">
+      <Colour r="0" g="255" b="0"/>
+      <LabelAngle angle="0.0" />
+      <LabelPos x="35.07916" y="23.220863" />
+      <Boundary3>
+         <Linear>
+            <BezierPoint x="70.06295" y="-0.2643168" sectionEnd="true"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="0.19281568" y="46.706043" sectionEnd="true"/>
+         </Linear>
+      </Boundary3>
+   </Poly>
+   <Poly name="" visible="true" closed="false">
+      <Colour r="0" g="0" b="255"/>
+      <LabelAngle angle="0.0" />
+      <LabelPos x="31.473589" y="49.781487" />
+      <Boundary3>
+         <Linear>
+            <BezierPoint x="62.85181" y="-0.2643168" sectionEnd="true"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="0.19281568" y="99.827286" sectionEnd="true"/>
+         </Linear>
+      </Boundary3>
+   </Poly>
+   <Poly name="" visible="true" closed="false">
+      <Colour r="255" g="0" b="255"/>
+      <LabelAngle angle="0.0" />
+      <LabelPos x="31.473589" y="23.50045" />
+      <Boundary3>
+         <Linear>
+            <BezierPoint x="62.85181" y="-0.2643168" sectionEnd="true"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="0.09536779" y="46.98563" sectionEnd="true"/>
+         </Linear>
+      </Boundary3>
+   </Poly>
+   <Poly name="" visible="true" closed="false">
+      <Colour r="0" g="255" b="255"/>
+      <LabelAngle angle="0.0" />
+      <LabelPos x="35.17661" y="-0.2643168" />
+      <Boundary3>
+         <Linear>
+            <BezierPoint x="70.1604" y="-0.2643168" sectionEnd="true"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="0.19281568" y="-0.2643168" sectionEnd="true"/>
+         </Linear>
+      </Boundary3>
+   </Poly>
+   <Poly name="" visible="true" closed="false">
+      <Colour r="127" g="127" b="0"/>
+      <LabelAngle angle="0.0" />
+      <LabelPos x="0.07026553" y="49.98798" />
+      <Boundary3>
+         <Linear>
+            <BezierPoint x="0.07026553" y="-0.29257032" sectionEnd="true"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="0.07026553" y="100.26853" sectionEnd="true"/>
+         </Linear>
+      </Boundary3>
+   </Poly>
+   <PointFeature name="Qtz" visible="true" x="-0.1328106" y="100.09764" pixelRadius="5.0" >
+      <Colour r="0" g="127" b="127"/>
+      <LabelAngle angle="0.0" />
+   </PointFeature>
+   <PointFeature name="Kln" visible="true" x="0.052670307" y="46.886745" pixelRadius="5.0" >
+      <Colour r="255" g="127" b="0"/>
+      <LabelAngle angle="0.0" />
+   </PointFeature>
+   <PointFeature name="Other" visible="true" x="0.2381512" y="-0.15477131" pixelRadius="5.0" >
+      <Colour r="255" g="0" b="127"/>
+      <LabelAngle angle="0.0" />
+   </PointFeature>
+   <PointFeature name="Goe" visible="true" x="62.745213" y="-0.15477131" pixelRadius="5.0" >
+      <Colour r="255" g="0" b="0"/>
+      <LabelAngle angle="0.0" />
+   </PointFeature>
+   <PointFeature name="Hem" visible="true" x="70.16445" y="-0.15477131" pixelRadius="5.0" >
+      <Colour r="127" g="0" b="255"/>
+      <LabelAngle angle="0.0" />
+   </PointFeature>
+   <Polygon name="_ v6.1 required to open diagram _" visible="true" >
+      <Point x="30" y="30" />
+      <Point x="200" y="30" />
+      <Point x="200" y="40" />
+      <Point x="30" y="40" />
+   </Polygon>
+</GeochemXYDiagram>

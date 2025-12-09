@@ -1,0 +1,268 @@
+<?xml version="1.0" encoding="windows-1252"?>
+<GeochemTernaryDiagram name="Zr-Al2O3-TiO2 Weathered Rock Type">
+   <GeochemFunctionAxisA name="15 Al2O3 (pct)" function="15*A" log="false"/>
+   <GeochemFunctionAxisB name="Zr (ppm)" function="B" log="false"/>
+   <GeochemFunctionAxisC name="300 TiO2 (pct)" function="300*C" log="false"/>
+   <Comment>This diagram contains observed range of composition for strongly peraluminous granites and clastic sediments and illustrates the geometrical relationship between sedimentary and plutonic composition trends.</Comment>
+   <Comment>ABS - Average bulk sediment, CAS - Calc-alkaline suite, SPG - Strongly peraluminous granite</Comment>
+   <Reference>Sedimentary Fractionations between Al, Ti, and Zr and the genesis of strongly peraluminous granites, Garcia et al. 1994, The Journal of Geology, 1994, v. 102, p 411-422 Fig 9.</Reference>
+   <Variable letter="A" element="Al2O3" unit="pct"/>
+   <Variable letter="B" element="Zr" unit="ppm"/>
+   <Variable letter="C" element="TiO2" unit="pct"/>
+   <Poly name="CAS" visible="true" closed="true">
+      <Colour r="0" g="255" b="0"/>
+      <LabelAngle angle="0.0" />
+      <LabelPos a="0.27536069366507904" b="0.1524048254477548" />
+      <Boundary3>
+         <Linear>
+            <BezierPoint x="61.89528" y="18.337955" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="70.392845" y="17.619993" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="76.09242" y="19.594387" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="78.47589" y="23.722666" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="77.4396" y="27.671453" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="74.641624" y="29.645847" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="69.25292" y="31.440752" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="61.06625" y="34.133106" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="54.537632" y="36.825462" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="49.356194" y="40.77425" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="47.594505" y="43.466606" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="45.729187" y="48.133354" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="43.034836" y="52.800106" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="38.993313" y="52.979595" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="37.024364" y="46.697433" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="37.43888" y="38.79986" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="39.20057" y="32.517693" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="43.034836" y="26.594511" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="52.465057" y="19.95337" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="57.128353" y="19.055916" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="57.128353" y="19.055916" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="61.89528" y="18.337955" sectionEnd="false"/>
+         </Linear>
+      </Boundary3>
+   </Poly>
+   <Poly name="SPG" visible="true" closed="true">
+      <Colour r="0" g="0" b="255"/>
+      <LabelAngle angle="0.0" />
+      <LabelPos a="0.7274118161398185" b="0.17489649223980802" />
+      <Boundary3>
+         <Linear>
+            <BezierPoint x="49.597996" y="55.5124" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="49.551937" y="71.546875" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="49.045307" y="75.93442" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="48.584736" y="76.8917" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="47.387245" y="76.732155" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="45.1765" y="72.10529" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="41.169518" y="55.273083" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="38.805244" y="45.434353" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="38.55961" y="39.797024" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="39.173702" y="35.081524" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="41.4868" y="30.720573" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="45.744537" y="27.387815" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="48.81502" y="26.395079" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="51.680805" y="26.607807" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="53.256985" y="28.132368" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="52.56101" y="32.7415" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="51.312347" y="35.18789" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="50.063683" y="42.101593" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="49.633816" y="49.440754" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="49.37794" y="51.231224" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="49.597996" y="55.5124" sectionEnd="false"/>
+         </Linear>
+      </Boundary3>
+   </Poly>
+   <Poly name="Sandstone and shales" visible="true" closed="true">
+      <Colour r="255" g="0" b="255"/>
+      <LabelAngle angle="0.63474184" />
+      <LabelPos a="0.1232687272249798" b="0.6417602092942781" />
+      <Boundary3>
+         <Linear>
+            <BezierPoint x="12.228934" y="1.2597795" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="13.79488" y="0.35567987" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="16.650429" y="0.08976821" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="19.50598" y="0.6747738" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="24.54157" y="2.482973" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="29.730688" y="6.1525536" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="35.5339" y="11.523969" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="41.682545" y="15.459461" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="54.993088" y="23.19749" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="59.368526" y="26.468204" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="62.63859" y="30.6962" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="66.04683" y="37.39717" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="66.737686" y="43.858826" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="65.72443" y="46.25203" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="63.51368" y="47.36886" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="61.579277" y="47.36886" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="59.368526" y="44.01837" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="53.84166" y="39.072414" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="49.635098" y="37.74286" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="47.54717" y="38.700138" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="44.50739" y="39.497875" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="42.910736" y="38.859688" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="37.307106" y="29.047546" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="35.06565" y="23.782495" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="29.592516" y="16.988453" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="25.416658" y="12.946596" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="19.613445" y="9.38338" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="14.0251665" y="4.9160647" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="11.660894" y="2.9483185" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="11.4766655" y="2.0974011" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="11.4766655" y="2.0974011" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="12.228934" y="1.2597795" sectionEnd="false"/>
+         </Linear>
+      </Boundary3>
+   </Poly>
+   <TPointFeature name="ABS" visible="true" a="0.34999998692353196" b="0.35000000653823404" pixelRadius="5.0" >
+      <Colour r="0" g="0" b="0"/>
+      <LabelAngle angle="0.0" />
+   </TPointFeature>
+   <Polygon name="_ v6.1 required to open diagram _" visible="true" >
+      <TPoint a="0.1" b="0.7" />
+      <TPoint a="0.1" b="0.2" />
+      <TPoint a="0.5" b="0.0" />
+      <TPoint a="0.5" b="0.5" />
+   </Polygon>
+</GeochemTernaryDiagram>

@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="windows-1252"?>
+<GeochemXYDiagram name="Carbonate Ca vs CO2">
+   <GeochemFunctionAxisX name="CO2/Zr (Molar)" function="(CO2/44.0095)/(Zr/123.222)" log="false"/>
+   <GeochemFunctionAxisY name="Ca/Zr (Molar)" function="(Ca/56.0774)/(Zr/123.222)" log="false"/>
+   <Comment>Pearce Element Ratio diagram used to describe sorting of carbonate minerals based on Ca and CO2 contents. Zr used as denominator.</Comment>
+   <Comment>&quot;Sid/Mag&quot; siderite-magnesite, &quot;Dol/Ank&quot; dolomite-ankerite, &quot;Cal&quot; calcite, control lines</Comment>
+   <Reference>Theoretical basis for PER diagrams is described in Stanley C. R., and Madeisky H. E., 1996 Lithogeochemical Exploration for Metasomatic Zones Associated with Hydrothermal Mineral Deposits Using Pearce Element Ratio Analysis</Reference>
+   <Variable letter="CO2" element="CO2" unit="pct"/>
+   <Variable letter="CA" element="CaO" unit="pct"/>
+   <Variable letter="ZR" element="ZrO2" unit="pct"/>
+   <Line name="Cal" visible="true" m="1.0" c="0.0" >
+      <Colour r="0" g="0" b="0"/>
+      <LabelAngle angle="0.0" />
+   </Line>
+   <Line name="Dol/Ank" visible="true" m="0.5" c="0.0" >
+      <Colour r="0" g="0" b="0"/>
+      <LabelAngle angle="0.0" />
+   </Line>
+   <Line name="Sid/Mag" visible="true" m="0.0" c="0.0" >
+      <Colour r="0" g="0" b="0"/>
+      <LabelAngle angle="0.0" />
+   </Line>
+   <Polygon name="_ v6.1 required to open diagram _" visible="true" >
+      <Point x="30" y="30" />
+      <Point x="200" y="30" />
+      <Point x="200" y="40" />
+      <Point x="30" y="40" />
+   </Polygon>
+</GeochemXYDiagram>

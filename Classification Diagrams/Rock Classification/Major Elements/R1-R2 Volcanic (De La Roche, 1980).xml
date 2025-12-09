@@ -1,0 +1,1371 @@
+<?xml version="1.0" encoding="windows-1252"?>
+<GeochemXYDiagram name="R1-R2 Volcanic Chemical Variation Diagram">
+   <GeochemFunctionAxisX name="R1 = 4Si-11(Na+K)-2(Fe+Ti)" function="[4000*(0.016642*Si)]-{11000*[(0.03227*Na)+(0.02123*K)]}-{2000*[(0.0125*Fe)+(0.01252*Ti)]}" log="false"/>
+   <GeochemFunctionAxisY name="R2 = 6Ca+2Mg+Al" function="[6000*(0.01783*Ca)]+[2000*(0.0248*Mg)]+[1000*(0.01962*Al)]" log="false"/>
+   <Comment>Chemical variation diagram which includes major cations, mineralogical network, degree of silica saturation and combined changes in Fe/(Fe+Mg) and (Ab+Or)/An ratios in volcanic igneous rocks. Use FeO (total) or Fe2O3 (total) aliased to FeO or Fe2O3</Comment>
+   <Comment>R1 = 4Si-11(Na+K)-2(Fe+Ti) R2 = 6Ca+2Mg+Al. Parameters calculated as oxide percentages converted to millications.</Comment>
+   <Reference>De la Roche et al, 1980. A classification of volcanic and plutonic rocks using R1 R2 diagram and major element analyses - Its relationships with current nomenclature. Chem. Geol., 29: 183-210</Reference>
+   <Variable letter="SI" element="SiO2" unit="pct"/>
+   <Variable letter="NA" element="Na2O" unit="pct"/>
+   <Variable letter="K" element="K2O" unit="pct"/>
+   <Variable letter="FE" element="Fe2O3" unit="pct"/>
+   <Variable letter="TI" element="TiO2" unit="pct"/>
+   <Variable letter="AL" element="Al2O3" unit="pct"/>
+   <Variable letter="MG" element="MgO" unit="pct"/>
+   <Variable letter="CA" element="CaO" unit="pct"/>
+   <Poly name="Alkali Rhyolite" visible="true" closed="true">
+      <Colour r="255" g="0" b="0"/>
+      <LabelAngle angle="0.0" />
+      <LabelPos x="1991.4207" y="226.05109" />
+      <Boundary3>
+         <Linear>
+            <BezierPoint x="2613.42" y="97.51" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="1432.92" y="147.33" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="1446.06" y="209.96" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="1480.64" y="299.64" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="1542.88" y="385.77" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="1595.44" y="451.25" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="1714.38" y="419.22" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="1854.77" y="392.17" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="2165.28" y="369.4" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="2583.68" y="331.67" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="3051.87" y="291.81" sectionEnd="false"/>
+         </Linear>
+      </Boundary3>
+   </Poly>
+   <Poly name="Quartz Trachyte" visible="true" closed="true">
+      <Colour r="0" g="102" b="0"/>
+      <LabelAngle angle="0.0" />
+      <LabelPos x="1199.4354" y="325.2335" />
+      <Boundary3>
+         <Linear>
+            <BezierPoint x="1432.92" y="147.33" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="1446.06" y="209.96" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="1480.64" y="299.64" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="1542.88" y="385.77" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="1595.44" y="451.25" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="1504.84" y="488.26" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="1407.33" y="543.06" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="1309.82" y="619.93" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="1246.89" y="676.87" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="1192.25" y="759.43" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="1149.38" y="859.07" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="1062.24" y="632.74" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="954.36" y="325.27" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="903.87" y="165.12" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="1432.92" y="147.33" sectionEnd="false"/>
+         </Linear>
+      </Boundary3>
+   </Poly>
+   <Poly name="Trachyte" visible="true" closed="true">
+      <Colour r="255" g="255" b="0"/>
+      <LabelAngle angle="0.0" />
+      <LabelPos x="685.0" y="457.0" />
+      <Boundary3>
+         <Linear>
+            <BezierPoint x="112.03" y="186.48" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="229.6" y="385.77" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="359.61" y="577.94" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="501.38" y="757.3" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="654.22" y="944.48" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="786.31" y="910.32" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="921.85" y="883.27" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="1056.02" y="866.9" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="1149.38" y="859.07" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="1062.24" y="632.74" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="954.36" y="325.27" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="903.87" y="165.12" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="112.03" y="186.48" sectionEnd="false"/>
+         </Linear>
+      </Boundary3>
+   </Poly>
+   <Poly name="Rhyolite" visible="true" closed="true">
+      <Colour r="0" g="204" b="204"/>
+      <LabelAngle angle="0.0" />
+      <LabelPos x="2276.7683" y="418.90576" />
+      <Boundary3>
+         <Linear>
+            <BezierPoint x="3062.93" y="452.37" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="2465.42" y="525.98" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="2139.0" y="567.26" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="2031.12" y="586.48" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="1951.59" y="611.39" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="1834.72" y="646.98" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="1769.02" y="603.56" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="1700.55" y="548.75" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="1639.0" y="494.66" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="1595.44" y="451.25" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="1714.38" y="419.22" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="1854.77" y="392.17" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="2165.28" y="369.4" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="2583.68" y="331.67" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="3051.87" y="291.81" sectionEnd="false"/>
+         </Linear>
+      </Boundary3>
+   </Poly>
+   <Poly name="Quartz Latite" visible="true" closed="true">
+      <Colour r="102" g="255" b="51"/>
+      <LabelAngle angle="0.0" />
+      <LabelPos x="1508.0768" y="644.8212" />
+      <Boundary3>
+         <Linear>
+            <BezierPoint x="1149.38" y="859.07" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="1263.49" y="854.09" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="1378.28" y="858.36" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="1531.81" y="874.73" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="1562.24" y="829.18" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="1611.34" y="778.65" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="1673.58" y="733.1" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="1755.19" y="682.56" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="1834.72" y="646.98" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="1769.02" y="603.56" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="1700.55" y="548.75" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="1639.0" y="494.66" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="1595.44" y="451.25" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="1504.84" y="488.26" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="1407.33" y="543.06" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="1309.82" y="619.93" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="1246.89" y="676.87" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="1192.25" y="759.43" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="1149.38" y="859.07" sectionEnd="false"/>
+         </Linear>
+      </Boundary3>
+   </Poly>
+   <Poly name="Rhyodacite" visible="true" closed="true">
+      <Colour r="255" g="153" b="51"/>
+      <LabelAngle angle="0.0" />
+      <LabelPos x="2525.0" y="690.0" />
+      <Boundary3>
+         <Linear>
+            <BezierPoint x="3062.93" y="452.67" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="2465.42" y="525.98" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="2139.0" y="567.26" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="2031.12" y="586.48" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="1951.59" y="611.39" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="1834.72" y="646.98" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="1964.73" y="713.88" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="2085.75" y="766.55" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="2232.37" y="816.37" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="2426.69" y="869.04" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="2611.34" y="900.36" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="2818.81" y="930.96" sectionEnd="false"/>
+         </Linear>
+      </Boundary3>
+   </Poly>
+   <Poly name="Dacite" visible="true" closed="true">
+      <Colour r="255" g="51" b="255"/>
+      <LabelAngle angle="0.0" />
+      <LabelPos x="2201.064" y="903.79755" />
+      <Boundary3>
+         <Linear>
+            <BezierPoint x="2577.46" y="1229.89" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="2360.3" y="1130.25" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="2161.13" y="1048.4" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="1970.26" y="982.92" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="1854.77" y="944.48" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="1739.28" y="916.73" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="1643.15" y="898.22" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="1531.81" y="874.73" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="1562.24" y="829.18" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="1611.34" y="778.65" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="1673.58" y="733.1" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="1755.19" y="682.56" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="1834.72" y="646.98" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="1964.73" y="713.88" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="2085.75" y="766.55" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="2232.37" y="816.37" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="2426.69" y="869.04" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="2611.34" y="900.36" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="2818.81" y="930.96" sectionEnd="false"/>
+         </Linear>
+      </Boundary3>
+   </Poly>
+   <Poly name="Andesite" visible="true" closed="true">
+      <Colour r="204" g="204" b="255"/>
+      <LabelAngle angle="0.0" />
+      <LabelPos x="2125.0" y="1182.0" />
+      <Boundary3>
+         <Linear>
+            <BezierPoint x="2577.46" y="1229.89" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="2360.3" y="1130.25" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="2161.13" y="1048.4" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="1970.26" y="982.92" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="1854.77" y="944.48" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="1824.34" y="972.95" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="1785.62" y="1020.64" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="1755.19" y="1066.9" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="1728.22" y="1114.59" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="1716.46" y="1177.94" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="1710.24" y="1238.43" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="1842.32" y="1266.19" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="2017.29" y="1322.42" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="2254.5" y="1416.37" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="2484.09" y="1526.69" sectionEnd="false"/>
+         </Linear>
+      </Boundary3>
+   </Poly>
+   <Poly name="Lati Andesite" visible="true" closed="true">
+      <Colour r="102" g="102" b="255"/>
+      <LabelAngle angle="0.0" />
+      <LabelPos x="1590.0" y="1048.0" />
+      <Boundary3>
+         <Linear>
+            <BezierPoint x="1854.77" y="944.48" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="1739.28" y="916.73" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="1643.15" y="898.22" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="1531.81" y="874.73" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="1441.91" y="1020.64" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="1411.48" y="1100.36" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="1396.96" y="1160.85" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="1396.96" y="1210.68" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="1506.22" y="1212.81" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="1710.24" y="1238.43" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="1716.46" y="1177.94" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="1728.22" y="1114.59" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="1755.19" y="1066.9" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="1785.62" y="1020.64" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="1824.34" y="972.95" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="1854.77" y="944.48" sectionEnd="false"/>
+         </Linear>
+      </Boundary3>
+   </Poly>
+   <Poly name="Latite" visible="true" closed="true">
+      <Colour r="255" g="204" b="204"/>
+      <LabelAngle angle="0.0" />
+      <LabelPos x="1286.7867" y="942.36847" />
+      <Boundary3>
+         <Linear>
+            <BezierPoint x="1138.31" y="1243.42" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="1127.25" y="1175.8" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="1123.1" y="1100.36" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="1120.33" y="1012.81" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="1133.47" y="941.64" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="1149.38" y="859.07" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="1263.49" y="854.09" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="1378.28" y="858.36" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="1531.81" y="874.73" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="1441.91" y="1020.64" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="1411.48" y="1100.36" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="1396.96" y="1160.85" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="1396.96" y="1210.68" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="1312.59" y="1215.66" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="1228.22" y="1228.47" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="1138.31" y="1243.42" sectionEnd="false"/>
+         </Linear>
+      </Boundary3>
+   </Poly>
+   <Poly name="Mugearite (Trachy Andesite)" visible="true" closed="true">
+      <Colour r="0" g="0" b="153"/>
+      <LabelAngle angle="0.0" />
+      <LabelPos x="780.1491" y="1135.2231" />
+      <Boundary3>
+         <Linear>
+            <BezierPoint x="708.85" y="1389.32" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="848.55" y="1334.52" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="978.56" y="1282.56" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="1071.92" y="1254.8" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="1138.31" y="1243.42" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="1127.25" y="1175.8" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="1123.1" y="1100.36" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="1120.33" y="1012.81" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="1133.47" y="941.64" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="1149.38" y="859.07" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="1056.02" y="866.9" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="921.85" y="883.27" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="786.31" y="910.32" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="654.22" y="944.48" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="483.4" y="982.92" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="312.59" y="1037.01" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="515.91" y="1212.81" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="708.85" y="1389.32" sectionEnd="false"/>
+         </Linear>
+      </Boundary3>
+   </Poly>
+   <Poly name="Nephelinite" visible="true" closed="true">
+      <Colour r="153" g="153" b="255"/>
+      <LabelAngle angle="0.0" />
+      <LabelPos x="0.97" y="1988.0" />
+      <Boundary3>
+         <Linear>
+            <BezierPoint x="-324.34" y="1432.74" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="-50.48" y="1577.22" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="143.85" y="1682.56" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="611.34" y="1940.93" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="465.42" y="2067.62" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="325.03" y="2210.68" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="254.5" y="2288.26" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="174.97" y="2392.17" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="69.85" y="2550.89" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="22.13" y="2646.98" sectionEnd="false"/>
+         </Linear>
+      </Boundary3>
+   </Poly>
+   <Poly name="Andesi - Basalt" visible="true" closed="true">
+      <Colour r="153" g="255" b="153"/>
+      <LabelAngle angle="0.0" />
+      <LabelPos x="1870.0" y="1397.0" />
+      <Boundary3>
+         <Linear>
+            <BezierPoint x="2443.98" y="1779.36" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="2094.74" y="1637.72" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="1951.59" y="1591.46" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="1799.45" y="1545.91" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="1634.85" y="1513.88" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="1535.27" y="1501.78" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="1484.79" y="1501.78" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="1451.59" y="1438.43" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="1435.68" y="1392.88" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="1419.09" y="1340.93" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="1403.18" y="1269.75" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="1396.96" y="1210.68" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="1506.22" y="1212.81" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="1710.24" y="1238.43" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="1842.32" y="1266.19" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="2017.29" y="1322.42" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="2254.5" y="1416.37" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="2484.09" y="1526.69" sectionEnd="false"/>
+         </Linear>
+      </Boundary3>
+   </Poly>
+   <Poly name="Lati Basalt" visible="true" closed="true">
+      <Colour r="255" g="102" b="102"/>
+      <LabelAngle angle="0.0" />
+      <LabelPos x="1298.4336" y="1300.5271" />
+      <Boundary3>
+         <Linear>
+            <BezierPoint x="1396.96" y="1210.68" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="1312.59" y="1215.66" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="1228.22" y="1228.47" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="1138.31" y="1243.42" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="1170.12" y="1342.35" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="1199.86" y="1422.06" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="1263.49" y="1538.79" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="1360.3" y="1513.88" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="1484.79" y="1501.78" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="1451.59" y="1438.43" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="1435.68" y="1392.88" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="1419.09" y="1340.93" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="1403.18" y="1269.75" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="1396.96" y="1210.68" sectionEnd="false"/>
+         </Linear>
+      </Boundary3>
+   </Poly>
+   <Poly name="Hawaiite (Trachy Basalt)" visible="true" closed="true">
+      <Colour r="0" g="153" b="153"/>
+      <LabelAngle angle="0.0" />
+      <LabelPos x="1010.0" y="1450.0" />
+      <Boundary3>
+         <Linear>
+            <BezierPoint x="1138.31" y="1243.42" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="1170.12" y="1342.35" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="1199.86" y="1422.06" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="1263.49" y="1538.79" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="1172.2" y="1568.68" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="1080.91" y="1609.96" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="991.01" y="1660.5" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="708.85" y="1389.32" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="848.55" y="1334.52" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="978.56" y="1282.56" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="1071.92" y="1254.8" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="1138.31" y="1243.42" sectionEnd="false"/>
+         </Linear>
+      </Boundary3>
+   </Poly>
+   <Poly name="Tholeiite" visible="true" closed="true">
+      <Colour r="102" g="102" b="255"/>
+      <LabelAngle angle="0.0" />
+      <LabelPos x="2201.064" y="1840.5203" />
+      <Boundary3>
+         <Linear>
+            <BezierPoint x="2347.86" y="2113.88" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="2252.42" y="2067.62" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="2161.13" y="2037.01" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="2102.35" y="2022.06" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="2045.64" y="1961.57" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="2006.92" y="1911.03" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="1982.71" y="1854.8" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="1976.49" y="1807.12" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="1986.17" y="1740.21" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="2002.77" y="1700.36" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="2037.34" y="1671.17" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="2094.74" y="1637.72" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="2443.98" y="1779.36" sectionEnd="false"/>
+         </Linear>
+      </Boundary3>
+   </Poly>
+   <Poly name="(Olivine-)Basalt" visible="true" closed="true">
+      <Colour r="153" g="204" b="255"/>
+      <LabelAngle angle="0.0" />
+      <LabelPos x="1676.9559" y="1642.1554" />
+      <Boundary3>
+         <Linear>
+            <BezierPoint x="1652.14" y="2001.42" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="1728.22" y="1987.19" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="1793.91" y="1977.94" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="1883.82" y="1980.07" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="2015.21" y="2003.56" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="2102.35" y="2022.06" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="2045.64" y="1961.57" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="2006.92" y="1911.03" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="1982.71" y="1854.8" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="1976.49" y="1807.12" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="1986.17" y="1740.21" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="2002.77" y="1700.36" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="2037.34" y="1671.17" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="2094.74" y="1637.72" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="1951.59" y="1591.46" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="1799.45" y="1545.91" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="1634.85" y="1513.88" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="1535.27" y="1501.78" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="1484.79" y="1501.78" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="1360.3" y="1513.88" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="1263.49" y="1538.79" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="1338.17" y="1651.96" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="1407.33" y="1745.91" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="1474.41" y="1817.08" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="1598.2" y="1947.33" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="1652.14" y="2001.42" sectionEnd="false"/>
+         </Linear>
+      </Boundary3>
+   </Poly>
+   <Poly name="Alkali Basalt" visible="true" closed="true">
+      <Colour r="102" g="102" b="0"/>
+      <LabelAngle angle="0.0" />
+      <LabelPos x="1350.8444" y="1857.0507" />
+      <Boundary3>
+         <Linear>
+            <BezierPoint x="1652.14" y="2001.42" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="1598.2" y="1947.33" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="1474.41" y="1817.08" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="1407.33" y="1745.91" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="1338.17" y="1651.96" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="1263.49" y="1538.79" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="1172.2" y="1568.68" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="1080.91" y="1609.96" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="991.01" y="1660.5" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="1423.24" y="2096.09" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="1476.49" y="2065.48" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="1529.05" y="2039.15" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="1586.45" y="2017.79" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="1652.14" y="2001.42" sectionEnd="false"/>
+         </Linear>
+      </Boundary3>
+   </Poly>
+   <Poly name="Basanite" visible="true" closed="true">
+      <Colour r="102" g="102" b="102"/>
+      <LabelAngle angle="0.0" />
+      <LabelPos x="1010.0" y="1970.0" />
+      <Boundary3>
+         <Linear>
+            <BezierPoint x="991.01" y="1660.5" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="1423.24" y="2096.09" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="1376.9" y="2130.96" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="1316.04" y="2185.05" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="1261.41" y="2243.42" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="1215.08" y="2307.47" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="771.78" y="2037.01" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="611.34" y="1940.93" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="739.28" y="1829.89" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="869.29" y="1735.94" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="991.01" y="1660.5" sectionEnd="false"/>
+         </Linear>
+      </Boundary3>
+   </Poly>
+   <Poly name="Ankaratrite" visible="true" closed="true">
+      <Colour r="153" g="0" b="153"/>
+      <LabelAngle angle="0.0" />
+      <LabelPos x="769.0" y="2239.0" />
+      <Boundary3>
+         <Linear>
+            <BezierPoint x="1100.97" y="2562.99" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="1123.1" y="2490.39" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="1161.13" y="2400.71" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="1215.08" y="2307.47" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="771.78" y="2037.01" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="611.34" y="1940.93" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="465.42" y="2067.62" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="325.03" y="2210.68" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="254.5" y="2288.26" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="1100.97" y="2562.99" sectionEnd="false"/>
+         </Linear>
+      </Boundary3>
+   </Poly>
+   <Poly name="Picritic Rock" visible="true" closed="true">
+      <Colour r="255" g="102" b="102"/>
+      <LabelAngle angle="0.0" />
+      <LabelPos x="1618.7217" y="2237.2498" />
+      <Boundary3>
+         <Linear>
+            <BezierPoint x="1090.59" y="2628.47" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="1100.97" y="2562.99" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="1123.1" y="2490.39" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="1161.13" y="2400.71" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="1215.08" y="2307.47" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="1261.41" y="2243.42" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="1316.04" y="2185.05" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="1376.9" y="2130.96" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="1423.24" y="2096.09" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="1476.49" y="2065.48" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="1529.05" y="2039.15" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="1586.45" y="2017.79" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="1652.14" y="2001.42" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="1728.22" y="1987.19" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="1793.91" y="1977.94" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="1883.82" y="1980.07" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="2015.21" y="2003.56" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="2102.35" y="2022.06" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="2161.13" y="2037.01" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="2252.42" y="2067.62" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="2347.86" y="2113.88" sectionEnd="false"/>
+         </Linear>
+      </Boundary3>
+   </Poly>
+   <Poly name="Tephrite" visible="true" closed="true">
+      <Colour r="255" g="153" b="255"/>
+      <LabelAngle angle="0.0" />
+      <LabelPos x="611.0" y="1648.0" />
+      <Boundary3>
+         <Linear>
+            <BezierPoint x="-790.46" y="223.49" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="112.03" y="186.48" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="229.6" y="385.77" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="359.61" y="577.94" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="501.38" y="757.3" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="654.22" y="944.48" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="483.4" y="982.92" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="312.59" y="1037.01" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="136.24" y="888.97" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="-147.99" y="657.65" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="-409.41" y="469.75" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="-611.34" y="335.94" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="-790.46" y="223.49" sectionEnd="false"/>
+         </Linear>
+      </Boundary3>
+   </Poly>
+   <Poly name="Phono Tephrite" visible="true" closed="true">
+      <Colour r="255" g="153" b="255"/>
+      <LabelAngle angle="0.0" />
+      <LabelPos x="138.0" y="1352.0" />
+      <Boundary3>
+         <Linear>
+            <BezierPoint x="-324.34" y="1267.62" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="-141.77" y="1194.31" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="69.85" y="1116.73" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="229.6" y="1060.5" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="312.59" y="1037.01" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="136.24" y="888.97" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="-147.99" y="657.65" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="-409.41" y="469.75" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="-611.34" y="335.94" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="-790.46" y="223.49" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="-878.98" y="227.05" sectionEnd="false"/>
+         </Linear>
+      </Boundary3>
+   </Poly>
+   <Poly name="Trachy Phonolite" visible="true" closed="true">
+      <Colour r="153" g="255" b="153"/>
+      <LabelAngle angle="0.0" />
+      <LabelPos x="-64.24697" y="435.43616" />
+      <Boundary3>
+         <Linear>
+            <BezierPoint x="-324.34" y="1267.62" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="-141.77" y="1194.31" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="69.85" y="1116.73" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="229.6" y="1060.5" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="312.59" y="1037.01" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="515.91" y="1212.81" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="708.85" y="1389.32" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="558.78" y="1459.79" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="396.27" y="1537.37" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="229.6" y="1629.18" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="143.85" y="1682.56" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="-50.48" y="1577.22" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="-324.34" y="1432.74" sectionEnd="false"/>
+         </Linear>
+      </Boundary3>
+   </Poly>
+   <Poly name="Phonolite" visible="true" closed="true">
+      <Colour r="153" g="255" b="153"/>
+      <LabelAngle angle="0.0" />
+      <LabelPos x="-297.1838" y="821.1455" />
+      <Boundary3>
+         <Linear>
+            <BezierPoint x="611.34" y="1940.93" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="739.28" y="1829.89" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="869.29" y="1735.94" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="991.01" y="1660.5" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="708.85" y="1389.32" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="558.78" y="1459.79" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="396.27" y="1537.37" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="229.6" y="1629.18" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="143.85" y="1682.56" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="611.34" y="1940.93" sectionEnd="false"/>
+         </Linear>
+      </Boundary3>
+   </Poly>
+   <Poly name="" visible="true" closed="false">
+      <Colour r="0" g="0" b="0"/>
+      <LabelAngle angle="0.0" />
+      <LabelPos x="18.421272" y="1499.8274" />
+      <Boundary3>
+         <Linear>
+            <BezierPoint x="0.0" y="0.0" sectionEnd="true"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="0.0" y="3000.0" sectionEnd="true"/>
+         </Linear>
+      </Boundary3>
+   </Poly>
+   <Poly name="" visible="true" closed="false">
+      <Colour r="0" g="0" b="0"/>
+      <LabelAngle angle="0.0" />
+      <LabelPos x="1762.8552" y="-11.819197" />
+      <Boundary3>
+         <Linear>
+            <BezierPoint x="-1000.0" y="0.0" sectionEnd="true"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="3000.0" y="0.0" sectionEnd="true"/>
+         </Linear>
+      </Boundary3>
+   </Poly>
+   <Poly name="" visible="true" closed="false">
+      <Colour r="0" g="0" b="0"/>
+      <LabelAngle angle="0.0" />
+      <LabelPos x="1500.2523" y="1492.5947" />
+      <Boundary3>
+         <Linear>
+            <BezierPoint x="0.0" y="0.0" sectionEnd="true"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="3000.0" y="3000.0" sectionEnd="true"/>
+         </Linear>
+      </Boundary3>
+   </Poly>
+   <PointFeature name="" visible="true" x="2876.254" y="2876.8748" pixelRadius="10.0" >
+      <Colour r="51" g="255" b="51"/>
+      <LabelAngle angle="0.0" />
+   </PointFeature>
+   <PointFeature name="" visible="true" x="2847.4846" y="2847.7224" pixelRadius="10.0" >
+      <Colour r="51" g="255" b="51"/>
+      <LabelAngle angle="0.0" />
+   </PointFeature>
+   <PointFeature name="" visible="true" x="2352.595" y="2356.081" pixelRadius="10.0" >
+      <Colour r="51" g="255" b="0"/>
+      <LabelAngle angle="0.0" />
+   </PointFeature>
+   <PointFeature name="" visible="true" x="367.57907" y="367.63153" pixelRadius="10.0" >
+      <Colour r="51" g="255" b="0"/>
+      <LabelAngle angle="0.0" />
+   </PointFeature>
+   <PointFeature name="" visible="true" x="358.7585" y="358.8578" pixelRadius="10.0" >
+      <Colour r="51" g="255" b="0"/>
+      <LabelAngle angle="0.0" />
+   </PointFeature>
+   <Label name="An" visible="true" x="2933.1987" y="2866.3516" >
+      <Colour r="0" g="0" b="0"/>
+      <LabelAngle angle="0.0" />
+   </Label>
+   <Label name="Fo" visible="true" x="2877.5999" y="2800.4385" >
+      <Colour r="0" g="0" b="0"/>
+      <LabelAngle angle="0.0" />
+   </Label>
+   <Label name="Hd" visible="true" x="2377.2083" y="2328.9058" >
+      <Colour r="0" g="0" b="0"/>
+      <LabelAngle angle="0.0" />
+   </Label>
+   <Label name="Ab" visible="true" x="412.70828" y="366.72125" >
+      <Colour r="0" g="0" b="0"/>
+      <LabelAngle angle="0.0" />
+   </Label>
+   <Label name="Or" visible="true" x="347.8427" y="285.59735" >
+      <Colour r="0" g="0" b="0"/>
+      <LabelAngle angle="0.0" />
+   </Label>
+   <Polygon name="_ v6.1 required to open diagram _" visible="true" >
+      <Point x="30" y="30" />
+      <Point x="200" y="30" />
+      <Point x="200" y="40" />
+      <Point x="30" y="40" />
+   </Polygon>
+</GeochemXYDiagram>

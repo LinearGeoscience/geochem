@@ -1,8 +1,8 @@
 // Geochemical Data Validation
 
 import { ValidationRule, ValidationResult, ValidationSeverity } from '../../types/calculations';
-import { MAJOR_OXIDES, OXIDE_WEIGHTS } from './constants';
-import { parseNumericValue, wtPercentToMolar } from './formulaEvaluator';
+import { MAJOR_OXIDES } from './constants';
+import { parseNumericValue } from './formulaEvaluator';
 
 /**
  * Run validation rules on calculated data
@@ -242,7 +242,7 @@ export function validateColumnPresence(
  */
 export function analyzeDataQuality(
     values: (number | null)[],
-    columnName: string
+    _columnName: string
 ): {
     total: number;
     valid: number;

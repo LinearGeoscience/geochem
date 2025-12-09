@@ -1,8 +1,7 @@
 // Exploration Pathfinder Element Ratios
 
 import { CalculationDefinition } from '../../types/calculations';
-import { COLUMN_PATTERNS } from './constants';
-import { safeDivide, parseNumericValue } from './formulaEvaluator';
+import { safeDivide } from './formulaEvaluator';
 import { VALIDATION_RULES } from './validation';
 
 /**

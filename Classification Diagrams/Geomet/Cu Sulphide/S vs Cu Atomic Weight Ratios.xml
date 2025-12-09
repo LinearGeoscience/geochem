@@ -1,0 +1,236 @@
+<?xml version="1.0" encoding="windows-1252"?>
+<GeochemXYDiagram name="S vs Cu Atomic Weight Ratio Diagram">
+   <GeochemFunctionAxisX name="S_ppm" function="A*10000" log="false"/>
+   <GeochemAxisY element="Cu" unit="ppm" log="false"/>
+   <Comment>This diagram uses Cu and S data in ppm to classify copper sulphide mineralogy.</Comment>
+   <Comment>Cc = Chalcocite, Bn = Bornite, Cpy = Chalcopyrite,  Py = Pyrite</Comment>
+   <Comment>Mineral field boundaries are defined as halfway between atomic weight ratios of Cu and S in copper sulphide minerals end member.</Comment>
+   <Reference>In-house, REFLEX Geochemistry 2012</Reference>
+   <Variable letter="A" element="S" unit="pct"/>
+   <Poly name="Pyrite/Sulphate" visible="true" closed="true">
+      <Colour r="255" g="255" b="51"/>
+      <LabelAngle angle="0.0" />
+      <LabelPos x="55035.887" y="13051.948" />
+      <Boundary3>
+         <Linear>
+            <BezierPoint x="0.0" y="0.0" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="73152.164" y="35852.21" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="73152.164" y="174.57634" sectionEnd="false"/>
+         </Linear>
+      </Boundary3>
+   </Poly>
+   <Poly name="Cpy &gt; Py" visible="true" closed="true">
+      <Colour r="0" g="255" b="0"/>
+      <LabelAngle angle="0.0" />
+      <LabelPos x="55739.434" y="36462.32" />
+      <Boundary3>
+         <Linear>
+            <BezierPoint x="0.0" y="0.0" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="73152.164" y="58293.277" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="73152.164" y="35852.21" sectionEnd="false"/>
+         </Linear>
+      </Boundary3>
+   </Poly>
+   <Poly name="Cpy" visible="true" closed="true">
+      <Colour r="255" g="153" b="0"/>
+      <LabelAngle angle="0.0" />
+      <LabelPos x="54684.113" y="58595.766" />
+      <Boundary3>
+         <Linear>
+            <BezierPoint x="0.0" y="0.0" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="73152.164" y="88254.445" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="73152.164" y="58293.277" sectionEnd="false"/>
+         </Linear>
+      </Boundary3>
+   </Poly>
+   <Poly name="Cpy &gt; Bn" visible="true" closed="true">
+      <Colour r="255" g="102" b="255"/>
+      <LabelAngle angle="0.0" />
+      <LabelPos x="46065.69" y="66682.984" />
+      <Boundary3>
+         <Linear>
+            <BezierPoint x="0.0" y="0.0" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="48962.99" y="88254.445" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="73152.164" y="88254.445" sectionEnd="false"/>
+         </Linear>
+      </Boundary3>
+   </Poly>
+   <Poly name="Bn &gt; Cpy" visible="true" closed="true">
+      <Colour r="255" g="0" b="51"/>
+      <LabelAngle angle="0.0" />
+      <LabelPos x="34984.863" y="71152.234" />
+      <Boundary3>
+         <Linear>
+            <BezierPoint x="0.0" y="0.0" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="36772.56" y="88254.445" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="48962.99" y="88254.445" sectionEnd="false"/>
+         </Linear>
+      </Boundary3>
+   </Poly>
+   <Poly name="Bornite" visible="true" closed="true">
+      <Colour r="153" g="0" b="153"/>
+      <LabelAngle angle="0.0" />
+      <LabelPos x="30060.049" y="76259.95" />
+      <Boundary3>
+         <Linear>
+            <BezierPoint x="0.0" y="0.0" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="32676.004" y="88254.445" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="36772.56" y="88254.445" sectionEnd="false"/>
+         </Linear>
+      </Boundary3>
+   </Poly>
+   <Poly name="Cc &gt; Bn" visible="true" closed="true">
+      <Colour r="0" g="51" b="153"/>
+      <LabelAngle angle="0.0" />
+      <LabelPos x="28828.846" y="82218.96" />
+      <Boundary3>
+         <Linear>
+            <BezierPoint x="0.0" y="0.0" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="29400.348" y="88254.445" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="32676.004" y="88254.445" sectionEnd="false"/>
+         </Linear>
+      </Boundary3>
+   </Poly>
+   <Poly name="Diginite to Cc" visible="true" closed="true">
+      <Colour r="102" g="102" b="102"/>
+      <LabelAngle angle="0.0" />
+      <LabelPos x="8250.161" y="66470.164" />
+      <Boundary3>
+         <Linear>
+            <BezierPoint x="0.0" y="0.0" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="38.09164" y="88254.445" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="29400.348" y="88254.445" sectionEnd="false"/>
+         </Linear>
+      </Boundary3>
+   </Poly>
+   <Poly name="" visible="true" closed="false">
+      <Colour r="255" g="0" b="0"/>
+      <LabelAngle angle="1.3354259" />
+      <LabelPos x="10360.796" y="40948.51" />
+      <Boundary3>
+         <Linear>
+            <BezierPoint x="0.0" y="0.0" sectionEnd="true"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="22223.793" y="88254.445" sectionEnd="true"/>
+         </Linear>
+      </Boundary3>
+   </Poly>
+   <Poly name="" visible="true" closed="false">
+      <Colour r="0" g="153" b="0"/>
+      <LabelAngle angle="1.215458" />
+      <LabelPos x="30763.594" y="76898.42" />
+      <Boundary3>
+         <Linear>
+            <BezierPoint x="0.0" y="0.0" sectionEnd="true"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="35683.88" y="88254.445" sectionEnd="true"/>
+         </Linear>
+      </Boundary3>
+   </Poly>
+   <Poly name="" visible="true" closed="false">
+      <Colour r="0" g="0" b="255"/>
+      <LabelAngle angle="0.71858865" />
+      <LabelPos x="36498.723" y="36196.48" />
+      <Boundary3>
+         <Linear>
+            <BezierPoint x="0.0" y="0.0" sectionEnd="true"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="72987.25" y="72358.16" sectionEnd="true"/>
+         </Linear>
+      </Boundary3>
+   </Poly>
+   <Poly name="" visible="true" closed="false">
+      <Colour r="255" g="0" b="255"/>
+      <LabelAngle angle="0.0" />
+      <LabelPos x="36131.227" y="193.94461" />
+      <Boundary3>
+         <Linear>
+            <BezierPoint x="0.0" y="0.0" sectionEnd="true"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="72475.4" y="174.57634" sectionEnd="true"/>
+         </Linear>
+      </Boundary3>
+   </Poly>
+   <Label name="Pyrite" visible="true" x="36040.18" y="495.47522" >
+      <Colour r="255" g="0" b="204"/>
+      <LabelAngle angle="0.0" />
+   </Label>
+   <Label name="Chalcopyrite" visible="true" x="36567.836" y="36392.547" >
+      <Colour r="0" g="0" b="255"/>
+      <LabelAngle angle="0.7752816" />
+   </Label>
+   <Label name="Bornite" visible="true" x="25838.78" y="63065.016" >
+      <Colour r="0" g="102" b="0"/>
+      <LabelAngle angle="1.2139319" />
+   </Label>
+   <Label name="Chalcocite" visible="true" x="10509.21" y="41520.332" >
+      <Colour r="255" g="0" b="0"/>
+      <LabelAngle angle="1.3603715" />
+   </Label>
+   <Line name="" visible="false" m="3.0" c="0.0" >
+      <Colour r="0" g="0" b="0"/>
+      <LabelAngle angle="0.0" />
+   </Line>
+   <Line name="" visible="false" m="2.7" c="0.0" >
+      <Colour r="0" g="0" b="0"/>
+      <LabelAngle angle="0.0" />
+   </Line>
+   <Line name="" visible="false" m="2.4" c="0.0" >
+      <Colour r="0" g="0" b="0"/>
+      <LabelAngle angle="0.0" />
+   </Line>
+   <Line name="" visible="false" m="1.8" c="0.0" >
+      <Colour r="0" g="0" b="0"/>
+      <LabelAngle angle="0.0" />
+   </Line>
+   <Line name="" visible="false" m="1.2" c="0.0" >
+      <Colour r="0" g="0" b="0"/>
+      <LabelAngle angle="0.0" />
+   </Line>
+   <Line name="" visible="false" m="0.8" c="0.0" >
+      <Colour r="0" g="0" b="0"/>
+      <LabelAngle angle="0.0" />
+   </Line>
+   <Polygon name="_ v6.1 required to open diagram _" visible="true" >
+      <Point x="30" y="30" />
+      <Point x="200" y="30" />
+      <Point x="200" y="40" />
+      <Point x="30" y="40" />
+   </Polygon>
+</GeochemXYDiagram>

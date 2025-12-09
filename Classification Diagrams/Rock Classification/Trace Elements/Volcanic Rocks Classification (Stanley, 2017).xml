@@ -1,0 +1,207 @@
+<?xml version="1.0" encoding="windows-1252"?>
+<GeochemXYDiagram name="Volcanic Rocks Classification (Stanley 2017)">
+   <GeochemFunctionAxisX name="Zr/TiO2" function="A/B" log="true"/>
+   <GeochemAxisY element="SiO2" unit="pct" log="false"/>
+   <Bounds x="8.5" y="35.0" w="10000.0" h="60.0" />
+   <Comment>Zr/TiO2 axis used to discriminate between melts. Zr/TiO2 axis boundaries as per Hallberg (1984) diagram and polygons named with -H suffix.</Comment>
+   <Comment>SiO2 axis used to assign names to melts. Boundaries along  SiO2 axis loosely defined on Le Maitre et al. (1989) diagram and polygons named with -LeM suffix.</Comment>
+   <Reference>Stanley, C.R. 2017. Molar Element Ratio Analysis of Lithogeochemical Data: A Toolbox for Use in Mineral Exploration and Mining, Exploration 17: Integrating the Geosciences: the Challenge of Discovery. Decennial Mineral Exploration Conference. Toronto, Oct. Paper 33, pp. 471-494.</Reference>
+   <Variable letter="A" element="Zr" unit="ppm"/>
+   <Variable letter="B" element="TiO2" unit="pct"/>
+   <Poly name="Basalt-H" visible="true" closed="true">
+      <Colour r="0" g="0" b="204"/>
+      <LabelAngle angle="95.0" />
+      <LabelPos x="26.402014" y="82.51755" />
+      <Boundary3>
+         <Linear>
+            <BezierPoint x="0.01" y="0.0" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="100.0" y="0.0" sectionEnd="true"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="100.0" y="100.0" sectionEnd="true"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="0.01" y="100.0" sectionEnd="false"/>
+         </Linear>
+      </Boundary3>
+   </Poly>
+   <Poly name="Andesite-H" visible="true" closed="true">
+      <Colour r="255" g="0" b="51"/>
+      <LabelAngle angle="90.0" />
+      <LabelPos x="224.0" y="82.5" />
+      <Boundary3>
+         <Linear>
+            <BezierPoint x="100.0" y="100.0" sectionEnd="true"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="500.0" y="100.0" sectionEnd="true"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="500.0" y="0.0" sectionEnd="true"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="100.0" y="0.0" sectionEnd="true"/>
+         </Linear>
+      </Boundary3>
+   </Poly>
+   <Poly name="Dacite-H" visible="true" closed="true">
+      <Colour r="102" g="255" b="102"/>
+      <LabelAngle angle="90.0" />
+      <LabelPos x="863.0124" y="82.5" />
+      <Boundary3>
+         <Linear>
+            <BezierPoint x="500.0" y="0.0" sectionEnd="true"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="1500.0" y="0.0" sectionEnd="true"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="1500.0" y="100.0" sectionEnd="true"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="500.0" y="100.0" sectionEnd="true"/>
+         </Linear>
+      </Boundary3>
+   </Poly>
+   <Poly name="Rhyolite-H" visible="true" closed="true">
+      <Colour r="255" g="102" b="0"/>
+      <LabelAngle angle="90.0" />
+      <LabelPos x="3984.2273" y="82.5" />
+      <Boundary3>
+         <Linear>
+            <BezierPoint x="1500.0" y="0.0" sectionEnd="true"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="10000.0" y="0.0" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="10000.0" y="100.0" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="1500.0" y="100.0" sectionEnd="true"/>
+         </Linear>
+      </Boundary3>
+   </Poly>
+   <Poly name="Ultramafic-LeM" visible="true" closed="true">
+      <Colour r="102" g="204" b="0"/>
+      <LabelAngle angle="0.0" />
+      <LabelPos x="224.0" y="39.691154" />
+      <Boundary3>
+         <Linear>
+            <BezierPoint x="0.01" y="0.0" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="0.01" y="45.0" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="10000.0" y="45.0" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="10000.0" y="0.0" sectionEnd="false"/>
+         </Linear>
+      </Boundary3>
+   </Poly>
+   <Poly name="Basalt-LeM" visible="true" closed="true">
+      <Colour r="255" g="127" b="0"/>
+      <LabelAngle angle="0.0" />
+      <LabelPos x="224.0" y="47.927002" />
+      <Boundary3>
+         <Linear>
+            <BezierPoint x="10000.0" y="45.0" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="0.01" y="45.0" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="0.01" y="52.0" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="10000.0" y="52.0" sectionEnd="false"/>
+         </Linear>
+      </Boundary3>
+   </Poly>
+   <Poly name="Basaltic&lt;br&gt;andesite-LeM" visible="true" closed="true">
+      <Colour r="0" g="179" b="255"/>
+      <LabelAngle angle="0.0" />
+      <LabelPos x="224.0" y="52.269535" />
+      <Boundary3>
+         <Linear>
+            <BezierPoint x="0.01" y="52.0" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="10000.0" y="52.0" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="10000.0" y="57.0" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="0.01" y="57.0" sectionEnd="false"/>
+         </Linear>
+      </Boundary3>
+   </Poly>
+   <Poly name="Andesite-LeM" visible="true" closed="true">
+      <Colour r="0" g="255" b="77"/>
+      <LabelAngle angle="0.0" />
+      <LabelPos x="224.0" y="58.558727" />
+      <Boundary3>
+         <Linear>
+            <BezierPoint x="0.01" y="57.0" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="0.01" y="62.0" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="10000.0" y="62.0" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="10000.0" y="57.0" sectionEnd="false"/>
+         </Linear>
+      </Boundary3>
+   </Poly>
+   <Poly name="Dacite-LeM" visible="true" closed="true">
+      <Colour r="255" g="102" b="255"/>
+      <LabelAngle angle="0.0" />
+      <LabelPos x="224.0" y="64.99766" />
+      <Boundary3>
+         <Linear>
+            <BezierPoint x="10000.0" y="62.0" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="10000.0" y="69.0" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="0.01" y="69.0" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="0.01" y="62.0" sectionEnd="false"/>
+         </Linear>
+      </Boundary3>
+   </Poly>
+   <Poly name="Rhyolite-LeM" visible="true" closed="true">
+      <Colour r="0" g="153" b="255"/>
+      <LabelAngle angle="0.0" />
+      <LabelPos x="224.0" y="73.982216" />
+      <Boundary3>
+         <Linear>
+            <BezierPoint x="0.01" y="69.0" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="0.01" y="100.0" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="10000.0" y="100.0" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="10000.0" y="69.0" sectionEnd="false"/>
+         </Linear>
+      </Boundary3>
+   </Poly>
+   <Polygon name="_ v6.1 required to open diagram _" visible="true" >
+      <Point x="30" y="30" />
+      <Point x="200" y="30" />
+      <Point x="200" y="40" />
+      <Point x="30" y="40" />
+   </Polygon>
+</GeochemXYDiagram>

@@ -1,0 +1,99 @@
+<?xml version="1.0" encoding="windows-1252"?>
+<XYDiagram name="Komatiite Sc vs Cr Kalgoorlie (Halley, 2021)" variateMode="Multi">
+   <GeochemAxisX element="Cr" unit="ppm" log="false"/>
+   <GeochemAxisY element="Sc" unit="ppm" log="false"/>
+   <Bounds x="-177.53174" y="-2.0249903" w="4320.6587" h="65.951706" />
+   <Comment>Sc vs Cr komatiite classification diagram</Comment>
+   <Comment>Classification field corresponding to Kalgoorlie komatiite composition, Western Australia</Comment>
+   <Comment>Boundary of classification field enclosed around typical data spread of komatiite identified through the GSWA Barcode project.</Comment>
+   <Comment>Classification boundaries defined by Scott Halley in 2021.</Comment>
+   <Reference>Smithies, RH and Lowrey, JR 2020, Eastern Goldfields greenstone geochemical barcoding project: notes to accompany 2020 data release: Geological Survey of Western Australia, Record 2020/6, 4p.</Reference>
+   <Poly name="Kalgoorlie Komatiite" visible="true" closed="true" endArrow="false">
+      <Colour r="255" g="0" b="0"/>
+      <LabelAngle angle="0.011553127" />
+      <LabelPos x="2193.3813" y="17.665127" />
+      <Boundary3>
+         <Linear>
+            <BezierPoint x="2002.4269" y="22.285357" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="2444.6372" y="28.22565" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="2766.2446" y="32.350857" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="3047.6514" y="34.825977" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="3198.4048" y="35.65102" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="3319.0076" y="35.321003" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="3389.3591" y="34.00094" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="3429.56" y="31.525814" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="3429.56" y="29.050692" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="3329.0579" y="26.080544" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="3148.1536" y="23.77043" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="2997.4001" y="20.96529" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="2545.1396" y="16.510069" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="2153.1804" y="12.219857" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="1731.0706" y="6.939595" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="1399.4128" y="3.8044395" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="1198.4082" y="2.1543577" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="1097.9058" y="1.9893495" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="967.25275" y="1.8243413" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="906.95135" y="2.6493824" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="826.5495" y="3.6394312" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="826.5495" y="5.454521" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="906.95135" y="7.4346194" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="1077.8053" y="11.064799" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="1640.6184" y="18.160152" sectionEnd="false"/>
+         </Linear>
+      </Boundary3>
+   </Poly>
+   <Polygon name="_ v6.1 required to open diagram _" visible="true" >
+      <Point x="30" y="30" />
+      <Point x="200" y="30" />
+      <Point x="200" y="40" />
+      <Point x="30" y="40" />
+   </Polygon>
+</XYDiagram>

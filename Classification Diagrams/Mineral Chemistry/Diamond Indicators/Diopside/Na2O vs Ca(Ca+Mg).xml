@@ -1,0 +1,43 @@
+<?xml version="1.0" encoding="windows-1252"?>
+<GeochemXYDiagram name="Na2O vs Ca/(Ca+Mg)">
+   <GeochemFunctionAxisX name="Ca/(Ca+Mg) (molar)" function="(ca)/(ca+mg)" log="false"/>
+   <GeochemFunctionAxisY name="Na2O (pct)" function="na" log="false"/>
+   <Comment>Diagram is used to discriminate Cr-diopsides in xenocrysts and xenoliths in kimberlites from those of other sources</Comment>
+   <Reference>Crabtree D., An overview of the Ontario Geological Survey&apos;s KIM database: Interpretation of Chromite and Cr-diopside Data from Regional Surveys</Reference>
+   <Reference>Indicator mineral methods in mineral exploration Proceedings of a short course presented by:Prospectors and developers Association of Canada, March 2003, Toronto, Canada</Reference>
+   <Reference></Reference>
+   <Variable letter="MG" element="Mg-mol" unit="mol/kg"/>
+   <Variable letter="CA" element="Ca-mol" unit="mol/kg"/>
+   <Variable letter="NA" element="Na2O" unit="pct"/>
+   <Poly name="xenoliths" visible="true" closed="true">
+      <Colour r="255" g="0" b="0"/>
+      <LabelAngle angle="0.0" />
+      <LabelPos x="0.43998685" y="2.8104446" />
+      <Boundary3>
+         <Linear>
+            <BezierPoint x="0.5" y="0.6" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="0.46" y="0.6" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="0.38" y="3.0" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="0.38" y="5.0" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="0.4" y="5.0" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="0.5" y="3.5" sectionEnd="false"/>
+         </Linear>
+      </Boundary3>
+   </Poly>
+   <Polygon name="_ v6.1 required to open diagram _" visible="true" >
+      <Point x="30" y="30" />
+      <Point x="200" y="30" />
+      <Point x="200" y="40" />
+      <Point x="30" y="40" />
+   </Polygon>
+</GeochemXYDiagram>

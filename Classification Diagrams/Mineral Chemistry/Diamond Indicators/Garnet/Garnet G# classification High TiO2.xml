@@ -1,0 +1,155 @@
+<?xml version="1.0" encoding="windows-1252"?>
+<GeochemXYDiagram name="Garnet G#, Hi TiO2">
+   <GeochemFunctionAxisX name="CaO (pct)" function="ca" log="false"/>
+   <GeochemFunctionAxisY name="Cr2O3 (pct)" function="cr" log="false"/>
+   <Comment>Cr2O3 vs CaO wt pct classification applies to samples with more than 4wt% TiO2</Comment>
+   <Reference>Diagram after Grutter et al., 2003, Lithos 77 (2004) p841-857</Reference>
+   <Reference>Graphite-diamond constraint (GDC) -  after Grutter et al., 2006, Jour Pet 47, 801-820, assumed pressure 43kbar</Reference>
+   <Variable letter="CA" element="CaO" unit="pct"/>
+   <Variable letter="CR" element="Cr2O3" unit="pct"/>
+   <Poly name="G0" visible="true" closed="true">
+      <Colour r="255" g="0" b="0"/>
+      <LabelAngle angle="0.0" />
+      <LabelPos x="0.59690166" y="0.25334322" />
+      <Boundary3>
+         <Linear>
+            <BezierPoint x="0.0" y="0.0" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="0.0" y="1.0" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="2.0" y="1.0" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="2.0" y="0.0" sectionEnd="false"/>
+         </Linear>
+      </Boundary3>
+   </Poly>
+   <Poly name="Pyroxenitic G4" visible="true" closed="true">
+      <Colour r="0" g="255" b="0"/>
+      <LabelAngle angle="0.0" />
+      <LabelPos x="2.8168557" y="0.30089152" />
+      <Boundary3>
+         <Linear>
+            <BezierPoint x="3.375" y="0.0" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="3.625" y="1.0" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="2.0" y="1.0" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="2.0" y="0.0" sectionEnd="false"/>
+         </Linear>
+      </Boundary3>
+   </Poly>
+   <Poly name="Eclogitic G3" visible="true" closed="true">
+      <Colour r="0" g="0" b="255"/>
+      <LabelAngle angle="0.0" />
+      <LabelPos x="19.004019" y="0.30089152" />
+      <Boundary3>
+         <Linear>
+            <BezierPoint x="6.0" y="0.0" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="6.25" y="1.0" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="32.0" y="1.0" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="32.0" y="0.0" sectionEnd="false"/>
+         </Linear>
+      </Boundary3>
+   </Poly>
+   <Poly name="Harzburgitic G10" visible="true" closed="true">
+      <Colour r="255" g="0" b="255"/>
+      <LabelAngle angle="0.0" />
+      <LabelPos x="2.9093537" y="11.046805" />
+      <Boundary3>
+         <Linear>
+            <BezierPoint x="0.0" y="22.0" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="0.0" y="1.0" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="3.625" y="1.0" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="8.875" y="22.0" sectionEnd="false"/>
+         </Linear>
+      </Boundary3>
+   </Poly>
+   <Poly name="Lherzolitic G9" visible="true" closed="true">
+      <Colour r="0" g="255" b="255"/>
+      <LabelAngle angle="0.0" />
+      <LabelPos x="7.3492618" y="12.04532" />
+      <Boundary3>
+         <Linear>
+            <BezierPoint x="8.375" y="20.0" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="4.375" y="4.0" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="6.4" y="4.0" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="10.4" y="20.0" sectionEnd="false"/>
+         </Linear>
+      </Boundary3>
+   </Poly>
+   <Poly name="Wehrlitic G12" visible="true" closed="true">
+      <Colour r="127" g="127" b="0"/>
+      <LabelAngle angle="0.0" />
+      <LabelPos x="17.10781" y="10.523774" />
+      <Boundary3>
+         <Linear>
+            <BezierPoint x="10.4" y="20.0" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="6.4" y="4.0" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="7.0" y="4.0" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="6.25" y="1.0" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="28.0" y="1.0" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="28.0" y="20.0" sectionEnd="false"/>
+         </Linear>
+      </Boundary3>
+   </Poly>
+   <Poly name="Pyroxenitic G1" visible="true" closed="true">
+      <Colour r="127" g="0" b="127"/>
+      <LabelAngle angle="0.0" />
+      <LabelPos x="5.1755567" y="2.01263" />
+      <Boundary3>
+         <Linear>
+            <BezierPoint x="3.375" y="0.0" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="4.375" y="4.0" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="7.0" y="4.0" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="6.0" y="0.0" sectionEnd="false"/>
+         </Linear>
+      </Boundary3>
+   </Poly>
+   <Polygon name="_ v6.1 required to open diagram _" visible="true" >
+      <Point x="30" y="30" />
+      <Point x="200" y="30" />
+      <Point x="200" y="40" />
+      <Point x="30" y="40" />
+   </Polygon>
+</GeochemXYDiagram>

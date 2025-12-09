@@ -1,0 +1,124 @@
+<?xml version="1.0" encoding="windows-1252"?>
+<XYDiagram name="Alkali Feldspar Alteration GER Diagram" variateMode="Multi">
+   <GeochemFunctionAxisX name="(Na+K)/Al (Molar)" function="(N+K)/A" log="false"/>
+   <GeochemFunctionAxisY name="(Fe+Mg)/Al (Molar)" function="(F+M)/A" log="false"/>
+   <Bounds x="-0.040589787" y="-0.07020672" w="1.0780346" h="3.1152365" />
+   <Comment>Fig 16. GER diagram (Na+K)/Al v (Fe+Mg)/Al describing alteration of alkali feldspar to muscovite and chlorite.</Comment>
+   <Comment>&quot;Chl&quot; Chlorite, &quot;Mu&quot; Muscovite, &quot;AF&quot; Alkali Feldspar nodes </Comment>
+   <Comment>Axes are molar ratios.</Comment>
+   <Reference>Stanley, C.R. 2017. Molar Element Ratio Analysis of Lithogeochemical Data: A Toolbox for Use in Mineral Exploration and Mining, Exploration 2017:</Reference>
+   <Reference>Integrating the Geosciences: the Challenge of Discovery. Decennial Mineral Exploration Conference. Toronto, Oct. Paper 33, pp. 471-494.</Reference>
+   <Variable letter="N" element="Na-mol" unit="mol/kg"/>
+   <Variable letter="K" element="K-mol" unit="mol/kg"/>
+   <Variable letter="A" element="Al-mol" unit="mol/kg"/>
+   <Variable letter="F" element="Fe-mol" unit="mol/kg"/>
+   <Variable letter="M" element="Mg-mol" unit="mol/kg"/>
+   <Poly name="" visible="true" closed="false" endArrow="false">
+      <Colour r="0" g="0" b="255"/>
+      <LabelAngle angle="0.0" />
+      <LabelPos x="0.6697166" y="0.09626566" />
+      <Boundary3>
+         <Linear>
+            <BezierPoint x="0.9236109" y="0.17613046" sectionEnd="true"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="0.43989456" y="0.17613046" sectionEnd="true"/>
+         </Linear>
+      </Boundary3>
+   </Poly>
+   <Poly name="" visible="true" closed="false" endArrow="false">
+      <Colour r="255" g="0" b="0"/>
+      <LabelAngle angle="0.0" />
+      <LabelPos x="0.22925678" y="1.3176275" />
+      <Boundary3>
+         <Linear>
+            <BezierPoint x="0.37467438" y="0.20544384" sectionEnd="true"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="0.07220203" y="2.3817842" sectionEnd="true"/>
+         </Linear>
+      </Boundary3>
+   </Poly>
+   <Poly name="" visible="true" closed="false" endArrow="false">
+      <Colour r="255" g="0" b="0"/>
+      <LabelAngle angle="0.0" />
+      <LabelPos x="0.09225157" y="2.326263" />
+      <Boundary3>
+         <Linear>
+            <BezierPoint x="0.07220203" y="2.3817842" sectionEnd="true"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="0.13010228" y="2.2873628" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="0.07220203" y="2.3817842" sectionEnd="true"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="0.058835667" y="2.2614882" sectionEnd="true"/>
+         </Linear>
+      </Boundary3>
+   </Poly>
+   <Poly name="" visible="true" closed="false" endArrow="false">
+      <Colour r="0" g="0" b="255"/>
+      <LabelAngle angle="0.0" />
+      <LabelPos x="0.4534821" y="0.1834588" />
+      <Boundary3>
+         <Linear>
+            <BezierPoint x="0.43989456" y="0.17613046" sectionEnd="true"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="0.46978715" y="0.23475721" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="0.43989456" y="0.17613046" sectionEnd="true"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="0.47487476" y="0.1230918" sectionEnd="true"/>
+         </Linear>
+      </Boundary3>
+   </Poly>
+   <Poly name="" visible="true" closed="false" endArrow="false">
+      <Colour r="0" g="0" b="0"/>
+      <LabelAngle angle="0.0" />
+      <LabelPos x="0.16542628" y="1.2607255" />
+      <Boundary3>
+         <Linear>
+            <BezierPoint x="0.33302507" y="0.0" sectionEnd="true"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="0.0" y="2.5096292" sectionEnd="true"/>
+         </Linear>
+      </Boundary3>
+   </Poly>
+   <Poly name="" visible="true" closed="false" endArrow="false">
+      <Colour r="0" g="0" b="0"/>
+      <LabelAngle angle="0.0" />
+      <LabelPos x="0.66273016" y="0.022235215" />
+      <Boundary3>
+         <Linear>
+            <BezierPoint x="1.0" y="0.0" sectionEnd="true"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="0.33302507" y="0.0" sectionEnd="true"/>
+         </Linear>
+      </Boundary3>
+   </Poly>
+   <PointFeature name="Mu" visible="true" x="0.33302507" y="0.0" pixelRadius="5.0" >
+      <Colour r="0" g="102" b="51"/>
+      <LabelAngle angle="0.0" />
+   </PointFeature>
+   <PointFeature name="Chl" visible="true" x="0.0" y="2.5096292" pixelRadius="5.0" >
+      <Colour r="0" g="102" b="0"/>
+      <LabelAngle angle="0.0" />
+   </PointFeature>
+   <PointFeature name="AF" visible="true" x="1.0" y="0.0" pixelRadius="5.0" >
+      <Colour r="0" g="102" b="0"/>
+      <LabelAngle angle="0.0" />
+   </PointFeature>
+   <Polygon name="_ v6.1 required to open diagram _" visible="true" >
+      <Point x="30" y="30" />
+      <Point x="200" y="30" />
+      <Point x="200" y="40" />
+      <Point x="30" y="40" />
+   </Polygon>
+</XYDiagram>

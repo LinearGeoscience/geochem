@@ -1,0 +1,205 @@
+<?xml version="1.0" encoding="windows-1252"?>
+<GeochemTernaryDiagram name="Tectonic Classification of Mafic Igneous Rocks (Cabanis and Lecolle 1989)">
+   <GeochemFunctionAxisA name="Y/15" function="B/15" log="false"/>
+   <GeochemFunctionAxisB name="La/10" function="A/10" log="false"/>
+   <GeochemFunctionAxisC name="Nb/8" function="C/8" log="false"/>
+   <Reference>Cabanis, B. and Lecolle, M., 1989, The La/10-Y/15-Nb/8 diagram: A tool for distinguishing volcanic series and discovering crustal mixing and/or contamination: Comptes Rendus de l&apos;Academie des Sciences, Serie 2, Sciences de la Terre, 309, 20p.</Reference>
+   <Variable letter="A" element="La" unit="ppm"/>
+   <Variable letter="B" element="Y" unit="ppm"/>
+   <Variable letter="C" element="Nb" unit="ppm"/>
+   <Poly name="Arc &lt;br&gt; calc-alkaline" visible="true" closed="true">
+      <Colour r="255" g="127" b="0"/>
+      <LabelAngle angle="0.0" />
+      <LabelPos a="0.1866897962724704" b="0.6405002560939816" />
+      <Boundary3>
+         <Linear>
+            <BezierPoint x="38.0" y="0.0" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="44.046803" y="40.387142" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="28.5" y="49.36345" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="0.0" y="0.0" sectionEnd="false"/>
+         </Linear>
+      </Boundary3>
+   </Poly>
+   <Poly name="Arc &lt;br&gt; transitional" visible="true" closed="true">
+      <Colour r="255" g="0" b="127"/>
+      <LabelAngle angle="0.0" />
+      <LabelPos a="0.5687178790537064" b="0.3642608539209274" />
+      <Boundary3>
+         <Linear>
+            <BezierPoint x="44.046803" y="40.387142" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="45.0" y="46.765373" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="45.570675" y="51.053978" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="33.5" y="58.0237" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="28.5" y="49.36345" sectionEnd="false"/>
+         </Linear>
+      </Boundary3>
+   </Poly>
+   <Poly name="Arc &lt;br&gt; tholeiite" visible="true" closed="true">
+      <Colour r="127" g="255" b="0"/>
+      <LabelAngle angle="0.0" />
+      <LabelPos a="0.7258423324556665" b="0.22888172003165658" />
+      <Boundary3>
+         <Linear>
+            <BezierPoint x="45.570675" y="51.053978" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="48.0" y="69.282036" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="50.0" y="86.60254" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="33.5" y="58.0237" sectionEnd="false"/>
+         </Linear>
+      </Boundary3>
+   </Poly>
+   <Poly name="N-MORB" visible="true" closed="true">
+      <Colour r="127" g="0" b="255"/>
+      <LabelAngle angle="0.0" />
+      <LabelPos a="0.7997832517036477" b="0.03695605898505466" />
+      <Boundary3>
+         <Linear>
+            <BezierPoint x="48.0" y="69.282036" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="50.157917" y="58.99666" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="61.5" y="66.68395" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="50.0" y="86.60254" sectionEnd="false"/>
+         </Linear>
+      </Boundary3>
+   </Poly>
+   <Poly name="Back &lt;br&gt; arc" visible="true" closed="true">
+      <Colour r="0" g="255" b="127"/>
+      <LabelAngle angle="0.0" />
+      <LabelPos a="0.5872031088657017" b="0.21814114442495647" />
+      <Boundary3>
+         <Linear>
+            <BezierPoint x="48.0" y="69.282036" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="50.157917" y="58.99666" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="52.0" y="50.229473" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="45.0" y="46.765373" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="45.570675" y="51.053978" sectionEnd="false"/>
+         </Linear>
+      </Boundary3>
+   </Poly>
+   <Poly name="E-MORB (weakly &lt;br&gt; enriched MORB)" visible="true" closed="true">
+      <Colour r="255" g="127" b="127"/>
+      <LabelAngle angle="0.0" />
+      <LabelPos a="0.6210926968543597" b="0.022997868794624288" />
+      <Boundary3>
+         <Linear>
+            <BezierPoint x="50.157917" y="58.99666" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="52.0" y="50.229473" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="53.545704" y="42.464928" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="69.5" y="52.82755" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="61.5" y="66.68395" sectionEnd="false"/>
+         </Linear>
+      </Boundary3>
+   </Poly>
+   <Poly name="E-MORB &lt;br&gt; (enriched MORB)" visible="true" closed="true">
+      <Colour r="0" g="0" b="0"/>
+      <LabelAngle angle="0.0" />
+      <LabelPos a="0.4300786554637417" b="0.10042678265729554" />
+      <Boundary3>
+         <Linear>
+            <BezierPoint x="53.545704" y="42.464928" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="57.154495" y="24.342436" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="78.5" y="37.239094" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="69.5" y="52.82755" sectionEnd="false"/>
+         </Linear>
+      </Boundary3>
+   </Poly>
+   <Poly name="Alkaline" visible="true" closed="true">
+      <Colour r="255" g="0" b="0"/>
+      <LabelAngle angle="0.0" />
+      <LabelPos a="0.18052805300180533" b="0.1528896565577117" />
+      <Boundary3>
+         <Linear>
+            <BezierPoint x="57.154495" y="24.342436" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="62.0" y="0.0" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="100.0" y="0.0" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="78.5" y="37.239094" sectionEnd="false"/>
+         </Linear>
+      </Boundary3>
+   </Poly>
+   <Poly name="Late- to post- &lt;br&gt; orogenic intra- &lt;br&gt; continental &lt;br&gt; domains" visible="true" closed="true">
+      <Colour r="0" g="255" b="0"/>
+      <LabelAngle angle="0.0" />
+      <LabelPos a="0.04188882941184064" b="0.46755500393849525" />
+      <Boundary3>
+         <Linear>
+            <BezierPoint x="62.0" y="0.0" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="57.154495" y="24.342436" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="53.545704" y="42.464928" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="51.999714" y="50.22928" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="45.0" y="46.765373" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="44.046803" y="40.387142" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="38.0" y="0.0" sectionEnd="false"/>
+         </Linear>
+      </Boundary3>
+   </Poly>
+   <Polygon name="_ v6.1 required to open diagram _" visible="true" >
+      <TPoint a="0.1" b="0.7" />
+      <TPoint a="0.1" b="0.2" />
+      <TPoint a="0.5" b="0.0" />
+      <TPoint a="0.5" b="0.5" />
+   </Polygon>
+</GeochemTernaryDiagram>

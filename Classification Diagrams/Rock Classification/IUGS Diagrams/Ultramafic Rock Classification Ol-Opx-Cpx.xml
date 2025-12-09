@@ -1,0 +1,196 @@
+<?xml version="1.0" encoding="windows-1252"?>
+<FreeTernaryDiagram name="IUGS Ultramafic Rock Classification Ol-Opx-Cpx">
+   <FreeAxisA name="Ol" log="false"/>
+   <FreeAxisB name="Opx" log="false"/>
+   <FreeAxisC name="Cpx" log="false"/>
+   <Comment>Classification and nomenclature of ultramafic rocks (M &gt;90%) based on the modal proportions of olivine (Ol), orthopyroxene (Opx) and clinopyroxene (Cpx).</Comment>
+   <Comment>M = mafic and related minerals (micas, amphiboles, pyroxenes, olivines, opaque minerals, epidote, allanite, garnets, melilites, monticellite, etc)</Comment>
+   <Comment>Column headers in data file must exactly match diagram variables: Ol, Opx and Cpx.</Comment>
+   <Reference>Le Maitre, R. W. (editor), Bateman, P., Dudek, A., Keller, J. et al. 1989</Reference>
+   <Reference>A Classification of Igneous rocks and Glossary of Terms: Recommendations of the International Union of</Reference>
+   <Reference>Geological Sciences Subcommission on the Systematics of Igneous Rocks. Blackwell Scientific Publications, Oxford.</Reference>
+   <Poly name="Dunite" visible="true" closed="true">
+      <Colour r="255" g="127" b="127"/>
+      <LabelAngle angle="0.0" />
+      <LabelPos a="0.9000356568064972" b="0.04751355234988969" />
+      <Boundary3>
+         <Linear>
+            <BezierPoint x="50.0" y="86.60254" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="45.0" y="77.94228" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="55.0" y="77.94228" sectionEnd="false"/>
+         </Linear>
+      </Boundary3>
+   </Poly>
+   <Poly name="Orthopyroxenite" visible="true" closed="true">
+      <Colour r="0" g="0" b="0"/>
+      <LabelAngle angle="0.0" />
+      <LabelPos a="0.005551172066308395" b="0.946513116895716" />
+      <Boundary3>
+         <Linear>
+            <BezierPoint x="5.0" y="8.6602545" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="0.0" y="0.0" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="10.0" y="0.0" sectionEnd="false"/>
+         </Linear>
+      </Boundary3>
+   </Poly>
+   <Poly name="Clinopyroxenite" visible="true" closed="true">
+      <Colour r="255" g="0" b="0"/>
+      <LabelAngle angle="0.0" />
+      <LabelPos a="0.005551172066308395" b="0.03806123405052775" />
+      <Boundary3>
+         <Linear>
+            <BezierPoint x="95.0" y="8.6602545" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="90.0" y="0.0" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="100.0" y="0.0" sectionEnd="false"/>
+         </Linear>
+      </Boundary3>
+   </Poly>
+   <Poly name="Lherzolite" visible="true" closed="true">
+      <Colour r="0" g="255" b="0"/>
+      <LabelAngle angle="0.0" />
+      <LabelPos a="0.6490459804913399" b="0.17300839050746836" />
+      <Boundary3>
+         <Linear>
+            <BezierPoint x="50.24686" y="77.94537" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="25.0" y="34.641018" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="75.0" y="34.641018" sectionEnd="false"/>
+         </Linear>
+      </Boundary3>
+   </Poly>
+   <Poly name="Olivine Websterite" visible="true" closed="true">
+      <Colour r="0" g="0" b="255"/>
+      <LabelAngle angle="0.0" />
+      <LabelPos a="0.22716971604671338" b="0.3864151419766433" />
+      <Boundary3>
+         <Linear>
+            <BezierPoint x="25.0" y="34.641018" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="7.5" y="4.3301272" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="92.5" y="4.3301272" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="75.0" y="34.641018" sectionEnd="false"/>
+         </Linear>
+      </Boundary3>
+   </Poly>
+   <Poly name="Websterite" visible="true" closed="true">
+      <Colour r="255" g="0" b="255"/>
+      <LabelAngle angle="0.0" />
+      <LabelPos a="0.010891377945354282" b="0.489617072533599" />
+      <Boundary3>
+         <Linear>
+            <BezierPoint x="7.5" y="4.3301272" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="10.0" y="0.0" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="90.0" y="0.0" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="92.5" y="4.3301272" sectionEnd="false"/>
+         </Linear>
+      </Boundary3>
+   </Poly>
+   <Poly name="Harzburgite" visible="true" closed="true">
+      <Colour r="127" g="0" b="127"/>
+      <LabelAngle angle="1.0607793" />
+      <LabelPos a="0.6463758775518167" b="0.3175233582952214" />
+      <Boundary3>
+         <Linear>
+            <BezierPoint x="45.0" y="77.94228" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="50.24686" y="77.94537" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="25.0" y="34.641018" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="20.0" y="34.641018" sectionEnd="false"/>
+         </Linear>
+      </Boundary3>
+   </Poly>
+   <Poly name="Olivine Orthopyroxenite" visible="true" closed="true">
+      <Colour r="0" g="127" b="127"/>
+      <LabelAngle angle="1.0490792" />
+      <LabelPos a="0.2244996131071904" b="0.7333568880070742" />
+      <Boundary3>
+         <Linear>
+            <BezierPoint x="20.0" y="34.641018" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="5.0" y="8.6602545" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="7.5" y="4.3301272" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="25.0" y="34.641018" sectionEnd="false"/>
+         </Linear>
+      </Boundary3>
+   </Poly>
+   <Poly name="Wehrlite" visible="true" closed="true">
+      <Colour r="255" g="127" b="0"/>
+      <LabelAngle angle="-1.0354708" />
+      <LabelPos a="0.643705774612294" b="0.034967196375861154" />
+      <Boundary3>
+         <Linear>
+            <BezierPoint x="50.24686" y="77.94537" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="55.0" y="77.94228" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="80.0" y="34.641018" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="75.0" y="34.641018" sectionEnd="false"/>
+         </Linear>
+      </Boundary3>
+   </Poly>
+   <Poly name="Olivine Clinopyroxenite" visible="true" closed="true">
+      <Colour r="255" g="0" b="127"/>
+      <LabelAngle angle="-1.0272667" />
+      <LabelPos a="0.2191594072281445" b="0.03740774408467251" />
+      <Boundary3>
+         <Linear>
+            <BezierPoint x="75.0" y="34.641018" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="80.0" y="34.641018" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="95.0" y="8.6602545" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="92.5" y="4.3301272" sectionEnd="false"/>
+         </Linear>
+      </Boundary3>
+   </Poly>
+   <Polygon name="_ v6.1 required to open diagram _" visible="true" >
+      <TPoint a="0.1" b="0.7" />
+      <TPoint a="0.1" b="0.2" />
+      <TPoint a="0.5" b="0.0" />
+      <TPoint a="0.5" b="0.5" />
+   </Polygon>
+</FreeTernaryDiagram>

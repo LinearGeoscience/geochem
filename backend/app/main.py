@@ -33,10 +33,16 @@ async def root():
 async def health_check():
     return {"status": "healthy"}
 
+@app.get("/api/health")
+async def api_health_check():
+    """Health check endpoint for QGIS plugin compatibility"""
+    return {"status": "ok"}
+
 # Include routers
-from app.api import data, analysis, drillhole
+from app.api import data, analysis, drillhole, websocket
 app.include_router(data.router, prefix="/api/data", tags=["data"])
 app.include_router(analysis.router, prefix="/api/analysis", tags=["analysis"])
 app.include_router(drillhole.router, prefix="/api/drillhole", tags=["drillhole"])
+app.include_router(websocket.router, prefix="/api/qgis", tags=["qgis"])
 
 

@@ -97,7 +97,7 @@ export function buildCustomData(
     sortedIndices: number[]
 ): PointCustomData[] {
     const state = useAttributeStore.getState();
-    const { color, shape, size, customEntries } = state;
+    const { color, shape, size } = state;
 
     return sortedIndices.map(idx => {
         const dataPoint = data[idx];
@@ -115,22 +115,6 @@ export function buildCustomData(
             sizeCategory: getEntryNameForPoint(dataPoint, idx, 'size'),
         };
     });
-}
-
-/**
- * Format a numeric value for display
- */
-function formatValue(value: any): string {
-    if (value === null || value === undefined) return 'N/A';
-    if (typeof value === 'number') {
-        if (Number.isInteger(value)) return value.toLocaleString();
-        // Use 4 significant figures for decimals
-        if (Math.abs(value) < 0.001 || Math.abs(value) > 100000) {
-            return value.toExponential(3);
-        }
-        return value.toFixed(4).replace(/\.?0+$/, '');
-    }
-    return String(value);
 }
 
 /**

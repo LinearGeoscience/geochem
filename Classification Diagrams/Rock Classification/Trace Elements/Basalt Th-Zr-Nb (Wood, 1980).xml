@@ -1,0 +1,185 @@
+<?xml version="1.0" encoding="windows-1252"?>
+<GeochemTernaryDiagram name="Basalt Th-Zr-Nb (Wood 1980)">
+   <GeochemFunctionAxisA name="Zr/117 (ppm)" function="a/(3*39)" log="false"/>
+   <GeochemFunctionAxisB name="Th (ppm)" function="b" log="false"/>
+   <GeochemFunctionAxisC name="Nb/16 (ppm)" function="c/16" log="false"/>
+   <Comment>Basalt discrimination diagram based on HFS</Comment>
+   <Comment>Diagram is based on WOOD Th-Hf-Ta, 1980 but used when Hf and Ta are not analised but recalculated assuming a Zr/Hf ratio of 39 and a Nb/Ta ratio of 16</Comment>
+   <Comment>WPT within plate tholeiites, VAB volcanic arc basalts, IAT island arc tholeiites, CAB calk-alkaline basalts, WPB within plate basalts</Comment>
+   <Reference>Using Geochemical Data, by Hugh Rollinson, 1993. Page 182-185.</Reference>
+   <Variable letter="B" element="Th" unit="ppm"/>
+   <Variable letter="A" element="Zr" unit="ppm"/>
+   <Variable letter="C" element="Nb" unit="ppm"/>
+   <Poly name="Trans N-MORB WPT" visible="true" closed="true">
+      <Colour r="255" g="0" b="0"/>
+      <LabelAngle angle="0.0" />
+      <LabelPos a="0.5716129952451742" b="0.1944445484025173" />
+      <Boundary3>
+         <Linear>
+            <BezierPoint x="40.81" y="37.57338" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="42.0" y="39.83717" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="42.81" y="44.49292" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="58.734" y="61.03747" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="60.5" y="56.291653" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="63.5505" y="52.52011" sectionEnd="false"/>
+         </Linear>
+      </Boundary3>
+   </Poly>
+   <Poly name="E-MORB WPT" visible="true" closed="true">
+      <Colour r="0" g="255" b="0"/>
+      <LabelAngle angle="0.0" />
+      <LabelPos a="0.4274274365109348" b="0.28875490099139456" />
+      <Boundary3>
+         <Linear>
+            <BezierPoint x="60.5" y="56.291653" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="67.5" y="47.631397" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="65.25" y="36.80608" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="56.5" y="28.578838" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="33.0" y="17.320509" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="32.25" y="21.217623" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="42.0" y="39.83717" sectionEnd="false"/>
+         </Linear>
+      </Boundary3>
+   </Poly>
+   <Poly name="N-MORB" visible="true" closed="true">
+      <Colour r="0" g="0" b="255"/>
+      <LabelAngle angle="0.0" />
+      <LabelPos a="0.6677367010680004" b="0.15378855323169016" />
+      <Boundary3>
+         <Linear>
+            <BezierPoint x="53.25" y="75.77722" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="46.5" y="66.68395" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="45.5" y="59.755753" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="42.0" y="39.83717" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="60.5" y="56.291653" sectionEnd="false"/>
+         </Linear>
+      </Boundary3>
+   </Poly>
+   <Poly name="VAB CAB" visible="true" closed="true">
+      <Colour r="255" g="0" b="255"/>
+      <LabelAngle angle="0.0" />
+      <LabelPos a="0.25120064250241997" b="0.6903829423471164" />
+      <Boundary3>
+         <Linear>
+            <BezierPoint x="5.0" y="0.0" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="31.25" y="21.217623" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="36.877" y="36.44408" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="25.0" y="43.30127" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="0.0" y="0.0" sectionEnd="false"/>
+         </Linear>
+      </Boundary3>
+   </Poly>
+   <Poly name="VAB IAT" visible="true" closed="true">
+      <Colour r="0" g="255" b="255"/>
+      <LabelAngle angle="0.0" />
+      <LabelPos a="0.6356954657937249" b="0.32533218342112913" />
+      <Boundary3>
+         <Linear>
+            <BezierPoint x="36.877" y="36.44408" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="45.5" y="59.755753" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="46.5" y="66.68395" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="42.5" y="73.61216" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="25.0" y="43.30127" sectionEnd="false"/>
+         </Linear>
+      </Boundary3>
+   </Poly>
+   <Poly name="Alk WPB" visible="true" closed="true">
+      <Colour r="127" g="127" b="0"/>
+      <LabelAngle angle="0.0" />
+      <LabelPos a="0.2058088925305298" b="0.4439993194251116" />
+      <Boundary3>
+         <Linear>
+            <BezierPoint x="56.5" y="28.578838" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="58.0" y="17.320509" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="54.0" y="10.392304" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="33.0" y="6.928203" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="33.0" y="17.320509" sectionEnd="false"/>
+         </Linear>
+      </Boundary3>
+   </Poly>
+   <Poly name="Trans Alk WPB E-MORB WPT" visible="true" closed="true">
+      <Colour r="127" g="0" b="127"/>
+      <LabelAngle angle="0.0" />
+      <LabelPos a="0.30193259835335606" b="0.3613767970576316" />
+      <Boundary3>
+         <Linear>
+            <BezierPoint x="32.999" y="15.197014" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="33.0" y="17.320509" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="32.7745" y="18.490509" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="65.25" y="36.80608" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="56.5" y="28.578838" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="56.8175" y="26.163494" sectionEnd="false"/>
+         </Linear>
+      </Boundary3>
+   </Poly>
+   <Polygon name="_ v6.1 required to open diagram _" visible="true" >
+      <TPoint a="0.1" b="0.7" />
+      <TPoint a="0.1" b="0.2" />
+      <TPoint a="0.5" b="0.0" />
+      <TPoint a="0.5" b="0.5" />
+   </Polygon>
+</GeochemTernaryDiagram>

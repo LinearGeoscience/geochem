@@ -1,0 +1,344 @@
+<?xml version="1.0" encoding="windows-1252"?>
+<GeochemXYDiagram name="TAS Classification Diagram">
+   <GeochemFunctionAxisX name="SiO2 (pct)" function="s" log="false"/>
+   <GeochemFunctionAxisY name="Na2O+K2O (pct)" function=" k+n " log="false"/>
+   <Comment>Total alkalis versus silica (Na2+K2O vs SiO2) general igneous rocks classification diagram</Comment>
+   <Reference>Le Maitre, R. W. (1989). A Classification of Igneous Rocks and Glossary of Terms. Recommendations of the IUGS Commission on the Systematics of Igneous Rocks. Oxford: Blackwell.</Reference>
+   <Reference>Derived from work done in Le Bas, M. J., Le Maitre, R. W., Streckeisen, A. and Zanettin, B. (1986). A chemical classification of volcanic rocks based on the total alkali-silica diagram. Journal of Petrology 27, 745-750.</Reference>
+   <Variable letter="S" element="SiO2" unit="pct"/>
+   <Variable letter="K" element="K2O" unit="pct"/>
+   <Variable letter="N" element="Na2O" unit="pct"/>
+   <Poly name="Phonotephrite" visible="true" closed="true">
+      <Colour r="255" g="0" b="0"/>
+      <LabelAngle angle="0.0" />
+      <LabelPos x="49.10092" y="9.169763" />
+      <Boundary3>
+         <Linear>
+            <BezierPoint x="49.4" y="7.3" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="45.0" y="9.4" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="48.4" y="11.5" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="53.0" y="9.3" sectionEnd="false"/>
+         </Linear>
+      </Boundary3>
+   </Poly>
+   <Poly name="Trachyte&lt;br&gt;Trachydacite" visible="true" closed="true">
+      <Colour r="0" g="255" b="0"/>
+      <LabelAngle angle="0.0" />
+      <LabelPos x="64.55046" y="10.515354" />
+      <Boundary3>
+         <Linear>
+            <BezierPoint x="63.0" y="7.0" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="57.6" y="11.7" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="61.0" y="13.5" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="63.8333" y="15.0" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="69.0" y="13.0" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="69.0" y="8.0" sectionEnd="false"/>
+         </Linear>
+      </Boundary3>
+   </Poly>
+   <Poly name="Foidite" visible="true" closed="true">
+      <Colour r="0" g="0" b="255"/>
+      <LabelAngle angle="0.0" />
+      <LabelPos x="37.5" y="9.0" />
+      <Boundary3>
+         <Linear>
+            <BezierPoint x="41.0" y="0.0" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="35.0" y="0.0" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="35.0" y="15.5" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="49.0" y="15.5" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="52.5" y="14.0" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="48.4" y="11.5" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="45.0" y="9.4" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="41.0" y="7.0" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="41.0" y="3.0" sectionEnd="false"/>
+         </Linear>
+      </Boundary3>
+   </Poly>
+   <Poly name="Trachyandesite" visible="true" closed="true">
+      <Colour r="255" g="0" b="255"/>
+      <LabelAngle angle="0.0" />
+      <LabelPos x="57.85566" y="8.496967" />
+      <Boundary3>
+         <Linear>
+            <BezierPoint x="57.0" y="5.9" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="53.0" y="9.3" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="57.6" y="11.7" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="63.0" y="7.0" sectionEnd="false"/>
+         </Linear>
+      </Boundary3>
+   </Poly>
+   <Poly name="Basaltic&lt;br&gt;Trachyandesite" visible="true" closed="true">
+      <Colour r="51" g="255" b="255"/>
+      <LabelAngle angle="0.0" />
+      <LabelPos x="53.83878" y="6.6654673" />
+      <Boundary3>
+         <Linear>
+            <BezierPoint x="52.0" y="5.0" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="49.4" y="7.3" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="53.0" y="9.3" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="57.0" y="5.9" sectionEnd="false"/>
+         </Linear>
+      </Boundary3>
+   </Poly>
+   <Poly name="Trachybasalt" visible="true" closed="true">
+      <Colour r="102" g="102" b="0"/>
+      <LabelAngle angle="0.0" />
+      <LabelPos x="48.894928" y="5.5815187" />
+      <Boundary3>
+         <Linear>
+            <BezierPoint x="45.0" y="5.0" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="49.4" y="7.3" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="52.0" y="5.0" sectionEnd="false"/>
+         </Linear>
+      </Boundary3>
+   </Poly>
+   <Poly name="Tephrite/&lt;br&gt;Basanite" visible="true" closed="true">
+      <Colour r="102" g="0" b="153"/>
+      <LabelAngle angle="0.0" />
+      <LabelPos x="44.878048" y="6.7028446" />
+      <Boundary3>
+         <Linear>
+            <BezierPoint x="41.0" y="3.0" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="41.0" y="7.0" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="45.0" y="9.4" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="49.4" y="7.3" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="45.0" y="5.0" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="45.0" y="3.0" sectionEnd="false"/>
+         </Linear>
+      </Boundary3>
+   </Poly>
+   <Poly name="Dacite" visible="true" closed="true">
+      <Colour r="0" g="102" b="102"/>
+      <LabelAngle angle="0.0" />
+      <LabelPos x="68.05236" y="3.1146007" />
+      <Boundary3>
+         <Linear>
+            <BezierPoint x="63.0" y="0.0" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="63.0" y="7.0" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="69.0" y="8.0" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="73.5" y="3.0" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="75.781" y="0.0" sectionEnd="false"/>
+         </Linear>
+      </Boundary3>
+   </Poly>
+   <Poly name="Andesite" visible="true" closed="true">
+      <Colour r="255" g="102" b="0"/>
+      <LabelAngle angle="0.0" />
+      <LabelPos x="59.9156" y="3.5257535" />
+      <Boundary3>
+         <Linear>
+            <BezierPoint x="57.0" y="0.0" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="57.0" y="5.9" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="63.0" y="7.0" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="63.0" y="0.0" sectionEnd="false"/>
+         </Linear>
+      </Boundary3>
+   </Poly>
+   <Poly name="Basaltic&lt;br&gt;andesite" visible="true" closed="true">
+      <Colour r="255" g="0" b="153"/>
+      <LabelAngle angle="0.0" />
+      <LabelPos x="54.55976" y="2.66607" />
+      <Boundary3>
+         <Linear>
+            <BezierPoint x="52.0" y="0.0" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="52.0" y="5.0" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="57.0" y="5.9" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="57.0" y="0.0" sectionEnd="false"/>
+         </Linear>
+      </Boundary3>
+   </Poly>
+   <Poly name="Phonolite" visible="true" closed="true">
+      <Colour r="153" g="255" b="51"/>
+      <LabelAngle angle="0.0" />
+      <LabelPos x="56.413704" y="13.61769" />
+      <Boundary3>
+         <Linear>
+            <BezierPoint x="57.6" y="11.7" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="52.5" y="14.0" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="49.0" y="15.5" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="63.8333" y="15.5" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="63.8333" y="15.0" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="61.0" y="13.5" sectionEnd="false"/>
+         </Linear>
+      </Boundary3>
+   </Poly>
+   <Poly name="Basalt" visible="true" closed="true">
+      <Colour r="102" g="51" b="255"/>
+      <LabelAngle angle="0.0" />
+      <LabelPos x="48.48294" y="2.5165598" />
+      <Boundary3>
+         <Linear>
+            <BezierPoint x="45.0" y="0.0" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="45.0" y="3.0" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="45.0" y="5.0" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="52.0" y="5.0" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="52.0" y="0.0" sectionEnd="false"/>
+         </Linear>
+      </Boundary3>
+   </Poly>
+   <Poly name="Tephriphonolite" visible="true" closed="true">
+      <Colour r="0" g="204" b="102"/>
+      <LabelAngle angle="0.0" />
+      <LabelPos x="52.911808" y="11.561925" />
+      <Boundary3>
+         <Linear>
+            <BezierPoint x="53.0" y="9.3" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="48.4" y="11.5" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="52.5" y="14.0" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="57.6" y="11.7" sectionEnd="false"/>
+         </Linear>
+      </Boundary3>
+   </Poly>
+   <Poly name="Picrobasalt" visible="true" closed="true">
+      <Colour r="0" g="153" b="255"/>
+      <LabelAngle angle="0.0" />
+      <LabelPos x="42.92111" y="1.5073662" />
+      <Boundary3>
+         <Linear>
+            <BezierPoint x="41.0" y="3.0" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="45.0" y="3.0" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="45.0" y="0.0" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="41.0" y="0.0" sectionEnd="false"/>
+         </Linear>
+      </Boundary3>
+   </Poly>
+   <Poly name="Rhyolite" visible="true" closed="true">
+      <Colour r="153" g="153" b="153"/>
+      <LabelAngle angle="0.0" />
+      <LabelPos x="74.43816" y="6.515957" />
+      <Boundary3>
+         <Linear>
+            <BezierPoint x="73.5" y="3.0" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="69.0" y="8.0" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="69.0" y="13.0" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="80.0" y="13.0" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="80.0" y="0.0" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="75.781" y="0.0" sectionEnd="false"/>
+         </Linear>
+      </Boundary3>
+   </Poly>
+   <Polygon name="_ v6.1 required to open diagram _" visible="true" >
+      <Point x="30" y="30" />
+      <Point x="200" y="30" />
+      <Point x="200" y="40" />
+      <Point x="30" y="40" />
+   </Polygon>
+</GeochemXYDiagram>

@@ -1,0 +1,187 @@
+<?xml version="1.0" encoding="windows-1252"?>
+<GeochemTernaryDiagram name="Al-K-Mg Ternary Plot">
+   <GeochemAxisA element="Al" unit="ppm" log="false"/>
+   <GeochemAxisB element="K" unit="ppm" log="false"/>
+   <GeochemAxisC element="Mg" unit="ppm" log="false"/>
+   <Comment>This diagram describes argillic alteration along with potassic and phyllic alteration.</Comment>
+   <Reference>Using ME_MS61 or ME-ICP61 to characterize alteration in porphyry Cu and epithermal systems (Scott Halley, 2016)</Reference>
+   <Poly name="Least altered &lt;br&gt;rocks" visible="true" closed="true">
+      <Colour r="255" g="255" b="255"/>
+      <LabelAngle angle="0.0" />
+      <LabelPos a="0.5597759570072047" b="0.09282572570263914" />
+      <Boundary3>
+         <Cubic>
+            <BezierPoint x="56.54322" y="56.108402" sectionEnd="false"/>
+            <BezierPoint x="57.412548" y="53.528538" sectionEnd="false"/>
+            <BezierPoint x="57.65272" y="51.950253" sectionEnd="false"/>
+         </Cubic>
+         <Cubic>
+            <BezierPoint x="57.81987" y="50.851826" sectionEnd="false"/>
+            <BezierPoint x="57.883472" y="49.416126" sectionEnd="false"/>
+            <BezierPoint x="58.640167" y="48.705753" sectionEnd="false"/>
+         </Cubic>
+         <Cubic>
+            <BezierPoint x="60.00155" y="47.42771" sectionEnd="false"/>
+            <BezierPoint x="62.31455" y="46.01389" sectionEnd="false"/>
+            <BezierPoint x="64.07113" y="45.92475" sectionEnd="false"/>
+         </Cubic>
+         <Cubic>
+            <BezierPoint x="65.32873" y="45.86093" sectionEnd="false"/>
+            <BezierPoint x="67.15793" y="47.121582" sectionEnd="false"/>
+            <BezierPoint x="67.774055" y="48.242252" sectionEnd="false"/>
+         </Cubic>
+         <Cubic>
+            <BezierPoint x="68.46136" y="49.492386" sectionEnd="false"/>
+            <BezierPoint x="68.65398" y="51.81553" sectionEnd="false"/>
+            <BezierPoint x="68.02092" y="53.109005" sectionEnd="false"/>
+         </Cubic>
+         <Cubic>
+            <BezierPoint x="67.26908" y="54.645195" sectionEnd="false"/>
+            <BezierPoint x="65.27263" y="56.22484" sectionEnd="false"/>
+            <BezierPoint x="63.577404" y="56.817005" sectionEnd="false"/>
+         </Cubic>
+         <Cubic>
+            <BezierPoint x="61.769657" y="57.44848" sectionEnd="false"/>
+            <BezierPoint x="58.498367" y="57.71443" sectionEnd="false"/>
+            <BezierPoint x="57.405857" y="56.817005" sectionEnd="false"/>
+         </Cubic>
+      </Boundary3>
+   </Poly>
+   <Poly name="Potassic (biotite) &lt;br&gt;alteration" visible="true" closed="false">
+      <Colour r="0" g="0" b="0"/>
+      <LabelAngle angle="0.0" />
+      <LabelPos a="0.39525674082937795" b="0.24640956996471497" />
+      <Boundary3>
+         <Linear>
+            <BezierPoint x="59.465553" y="45.605183" sectionEnd="true"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="51.010925" y="27.130962" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="49.698997" y="30.141575" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="51.010925" y="27.267809" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="54.217854" y="27.952038" sectionEnd="true"/>
+         </Linear>
+      </Boundary3>
+   </Poly>
+   <Poly name="Phyllic (muscovite) &lt;br&gt; alteration" visible="true" closed="false">
+      <Colour r="0" g="0" b="0"/>
+      <LabelAngle angle="0.0" />
+      <LabelPos a="0.5117320249955304" b="0.2633209793721535" />
+      <Boundary3>
+         <Linear>
+            <BezierPoint x="55.092472" y="53.815945" sectionEnd="true"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="37.45436" y="57.729744" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="42.585445" y="59.08452" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="37.294014" y="57.579212" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="39.538864" y="54.5686" sectionEnd="true"/>
+         </Linear>
+      </Boundary3>
+   </Poly>
+   <Poly name="Adularia" visible="true" closed="false">
+      <Colour r="0" g="0" b="0"/>
+      <LabelAngle angle="0.0" />
+      <LabelPos a="0.5449331532728887" b="0.3786452453719238" />
+      <Boundary3>
+         <Linear>
+            <BezierPoint x="35.850895" y="55.17072" sectionEnd="true"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="26.871496" y="40.719776" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="27.031841" y="45.235695" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="27.031841" y="40.719776" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="31.681889" y="42.526146" sectionEnd="true"/>
+         </Linear>
+      </Boundary3>
+   </Poly>
+   <Poly name="Advanced Argillic &lt;br&gt; alteration" visible="true" closed="false">
+      <Colour r="0" g="0" b="0"/>
+      <LabelAngle angle="0.0" />
+      <LabelPos a="0.7601379209200614" b="0.11752941131744554" />
+      <Boundary3>
+         <Linear>
+            <BezierPoint x="56.41841" y="59.366253" sectionEnd="true"/>
+         </Linear>
+         <Cubic>
+            <BezierPoint x="56.41841" y="59.366253" sectionEnd="false"/>
+            <BezierPoint x="51.266476" y="60.84902" sectionEnd="false"/>
+            <BezierPoint x="48.76569" y="61.683754" sectionEnd="false"/>
+         </Cubic>
+         <Cubic>
+            <BezierPoint x="47.600574" y="62.07266" sectionEnd="false"/>
+            <BezierPoint x="46.127823" y="62.30614" sectionEnd="false"/>
+            <BezierPoint x="45.309624" y="63.074253" sectionEnd="false"/>
+         </Cubic>
+         <Cubic>
+            <BezierPoint x="44.661465" y="63.682735" sectionEnd="false"/>
+            <BezierPoint x="44.216175" y="64.93479" sectionEnd="false"/>
+            <BezierPoint x="44.322174" y="65.855255" sectionEnd="false"/>
+         </Cubic>
+         <Cubic>
+            <BezierPoint x="44.542034" y="67.76446" sectionEnd="false"/>
+            <BezierPoint x="45.621265" y="69.7457" sectionEnd="false"/>
+            <BezierPoint x="46.29707" y="71.649" sectionEnd="false"/>
+         </Cubic>
+         <Cubic>
+            <BezierPoint x="46.76177" y="72.95775" sectionEnd="false"/>
+            <BezierPoint x="47.27658" y="74.293625" sectionEnd="false"/>
+            <BezierPoint x="47.778244" y="75.58875" sectionEnd="false"/>
+         </Cubic>
+         <Cubic>
+            <BezierPoint x="48.254154" y="76.81738" sectionEnd="false"/>
+            <BezierPoint x="49.27588" y="78.6563" sectionEnd="false"/>
+            <BezierPoint x="49.259415" y="79.29675" sectionEnd="false"/>
+         </Cubic>
+         <Linear>
+            <BezierPoint x="47.705956" y="78.40106" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="49.239937" y="79.30894" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="50.106968" y="77.837555" sectionEnd="true"/>
+         </Linear>
+      </Boundary3>
+   </Poly>
+   <TPointFeature name="Biotite" visible="true" a="0.265367522664149" b="0.38212795414909695" pixelRadius="5.0" >
+      <Colour r="0" g="0" b="0"/>
+      <LabelAngle angle="0.0" />
+   </TPointFeature>
+   <TPointFeature name="Orthoclase" visible="true" a="0.40939330359678855" b="0.5906066964032115" pixelRadius="5.0" >
+      <Colour r="0" g="0" b="0"/>
+      <LabelAngle angle="0.0" />
+   </TPointFeature>
+   <TPointFeature name="Dolomite" visible="true" a="4.4167816625128117E-4" b="0.0011180730507655001" pixelRadius="5.0" >
+      <Colour r="0" g="0" b="0"/>
+      <LabelAngle angle="0.0" />
+   </TPointFeature>
+   <TPointFeature name="Muscovite" visible="true" a="0.6730301685886642" b="0.32696983141133584" pixelRadius="5.0" >
+      <Colour r="0" g="0" b="0"/>
+      <LabelAngle angle="0.0" />
+   </TPointFeature>
+   <Polygon name="_ v6.1 required to open diagram _" visible="true" >
+      <TPoint a="0.1" b="0.7" />
+      <TPoint a="0.1" b="0.2" />
+      <TPoint a="0.5" b="0.0" />
+      <TPoint a="0.5" b="0.5" />
+   </Polygon>
+</GeochemTernaryDiagram>

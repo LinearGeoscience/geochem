@@ -5,12 +5,11 @@ import {
     NORMALIZATION_STANDARDS,
     REE_ELEMENTS,
     LREE,
-    MREE,
     HREE,
     CHONDRITE_MCDONOUGH_SUN_1995,
     COLUMN_PATTERNS,
 } from './constants';
-import { parseNumericValue, safeDivide } from './formulaEvaluator';
+import { safeDivide } from './formulaEvaluator';
 import { VALIDATION_RULES } from './validation';
 
 /**

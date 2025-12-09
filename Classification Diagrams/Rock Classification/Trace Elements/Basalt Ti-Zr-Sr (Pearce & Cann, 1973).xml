@@ -1,0 +1,95 @@
+<?xml version="1.0" encoding="windows-1252"?>
+<GeochemTernaryDiagram name="Basalt Ti-Zr-Sr (Pearce and Cann 1973)">
+   <GeochemFunctionAxisA name="Ti/100" function="t/100" log="false"/>
+   <GeochemFunctionAxisB name="Zr" function="z" log="false"/>
+   <GeochemFunctionAxisC name="Sr/2" function="s/2" log="false"/>
+   <Comment>Discrimination diagram for basalts. Island-Arc tholeiites plot in field A, calc-alkaline basalts in field B and MORB plot in field C.</Comment>
+   <Reference>after Pearce and Cann, 1973 in Rollinson, Using Geochemical Data, 1993 p.178</Reference>
+   <Variable letter="T" element="Ti" unit="ppm"/>
+   <Variable letter="Z" element="Zr" unit="ppm"/>
+   <Variable letter="S" element="Sr" unit="ppm"/>
+   <Poly name="IAT" visible="true" closed="true">
+      <Colour r="0" g="255" b="0"/>
+      <LabelAngle angle="0.0" />
+      <LabelPos a="0.21000000000000002" b="0.19000000000000017" />
+      <Boundary3>
+         <Linear>
+            <BezierPoint x="67.5" y="29.444864" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="78.75" y="17.753521" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="82.5" y="4.3301272" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="73.30674" y="12.307567" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="53.0" y="20.784609" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="56.5" y="26.846788" sectionEnd="false"/>
+         </Linear>
+      </Boundary3>
+   </Poly>
+   <Poly name="CAB" visible="true" closed="true">
+      <Colour r="0" g="0" b="255"/>
+      <LabelAngle angle="0.0" />
+      <LabelPos a="0.14" b="0.38999999999999996" />
+      <Boundary3>
+         <Linear>
+            <BezierPoint x="34.5" y="20.784609" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="53.0" y="20.784609" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="73.30674" y="12.307567" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="82.5" y="4.3301272" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="42.25" y="8.2272415" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="34.5" y="20.784609" sectionEnd="false"/>
+         </Linear>
+      </Boundary3>
+   </Poly>
+   <Poly name="MORB" visible="true" closed="true">
+      <Colour r="255" g="0" b="255"/>
+      <LabelAngle angle="0.0" />
+      <LabelPos a="0.3400000000000001" b="0.3999999999999999" />
+      <Boundary3>
+         <Linear>
+            <BezierPoint x="52.5" y="35.507042" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="56.5" y="26.846788" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="53.0" y="20.784609" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="34.5" y="20.784609" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="29.5" y="26.846788" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="34.5" y="34.641018" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="44.5" y="38.97114" sectionEnd="false"/>
+         </Linear>
+      </Boundary3>
+   </Poly>
+   <Polygon name="_ v6.1 required to open diagram _" visible="true" >
+      <TPoint a="0.1" b="0.7" />
+      <TPoint a="0.1" b="0.2" />
+      <TPoint a="0.5" b="0.0" />
+      <TPoint a="0.5" b="0.5" />
+   </Polygon>
+</GeochemTernaryDiagram>

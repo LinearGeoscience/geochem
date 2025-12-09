@@ -1,0 +1,171 @@
+<?xml version="1.0" encoding="windows-1252"?>
+<GeochemXYDiagram name="Basalt TiO2/Yb vs Nb/Yb (Pearce 2008)">
+   <GeochemFunctionAxisX name="Nb/Yb" function="C/B" log="true"/>
+   <GeochemFunctionAxisY name="TiO2/Yb" function="A/B" log="true"/>
+   <Bounds x="0.10563308" y="0.08736104" w="101.05893" h="10.127432" />
+   <Comment>Fig 2b. Uses Ti-Yb as proxy for shallow and deep melting, reflected in the plot being classified into two distinct OIB and MORB arrays.</Comment>
+   <Comment>Th = Tholeiite, Alk = Alkali. MORB - Mid-Oceanic Ridge Basalt, OIB - Ocean-Island Basalt, N-MORB - Normal-MORB, E-MORB - Plume-MORB. N-MORB is depleted in trace elements compared to E-MORB.</Comment>
+   <Reference>Pearce, J.A. 2008. Geochemical fingerprinting of oceanic basalts with applications to ophiolite classification and the search for Archean oceanic crust, Lithos. vol. 100, pp. 14-48</Reference>
+   <Variable letter="A" element="TiO2" unit="pct"/>
+   <Variable letter="B" element="Yb" unit="ppm"/>
+   <Variable letter="C" element="Nb" unit="ppm"/>
+   <Poly name="N-MORB" visible="true" closed="true">
+      <Colour r="0" g="255" b="0"/>
+      <LabelAngle angle="0.0" />
+      <LabelPos x="0.9069169" y="0.31729382" />
+      <Boundary3>
+         <Linear>
+            <BezierPoint x="0.1" y="0.25" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="1.75" y="0.27" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="1.33" y="0.63" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="0.1" y="0.6" sectionEnd="false"/>
+         </Linear>
+      </Boundary3>
+   </Poly>
+   <Poly name="E-MORB" visible="true" closed="true">
+      <Colour r="255" g="255" b="0"/>
+      <LabelAngle angle="3.135122" />
+      <LabelPos x="3.0662632" y="0.31729382" />
+      <Boundary3>
+         <Linear>
+            <BezierPoint x="1.75" y="0.27" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="100.0" y="0.3" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="100.0" y="0.7" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="1.33" y="0.63" sectionEnd="false"/>
+         </Linear>
+      </Boundary3>
+   </Poly>
+   <Poly name="Alk" visible="true" closed="true">
+      <Colour r="255" g="0" b="255"/>
+      <LabelAngle angle="0.0" />
+      <LabelPos x="13.143513" y="1.9027553" />
+      <Boundary3>
+         <Linear>
+            <BezierPoint x="19.508" y="0.672" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="7.989" y="2.304" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="100.0" y="2.5" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="100.0" y="0.7" sectionEnd="false"/>
+         </Linear>
+      </Boundary3>
+   </Poly>
+   <Poly name="Th" visible="true" closed="true">
+      <Colour r="0" g="0" b="255"/>
+      <LabelAngle angle="0.0" />
+      <LabelPos x="6.0540833" y="1.8595574" />
+      <Boundary3>
+         <Linear>
+            <BezierPoint x="0.1" y="2.0" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="7.989" y="2.304" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="19.508" y="0.672" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="1.33" y="0.63" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="0.1" y="0.6" sectionEnd="false"/>
+         </Linear>
+      </Boundary3>
+   </Poly>
+   <Poly name="" visible="true" closed="false">
+      <Colour r="0" g="0" b="0"/>
+      <LabelAngle angle="0.0" />
+      <LabelPos x="2.2597141" y="0.84028834" />
+      <Boundary3>
+         <Linear>
+            <BezierPoint x="0.68177825" y="0.54756546" sectionEnd="true"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="4.418873" y="1.066893" sectionEnd="true"/>
+         </Linear>
+      </Boundary3>
+   </Poly>
+   <Poly name="" visible="true" closed="false">
+      <Colour r="0" g="0" b="0"/>
+      <LabelAngle angle="0.0" />
+      <LabelPos x="5.084784" y="0.63658386" />
+      <Boundary3>
+         <Linear>
+            <BezierPoint x="2.2702131" y="0.442665" sectionEnd="true"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="12.734154" y="0.7770023" sectionEnd="true"/>
+         </Linear>
+      </Boundary3>
+   </Poly>
+   <Poly name="" visible="true" closed="false">
+      <Colour r="0" g="0" b="0"/>
+      <LabelAngle angle="0.0" />
+      <LabelPos x="1.0217322" y="0.6237844" />
+      <Boundary3>
+         <Linear>
+            <BezierPoint x="0.7711405" y="0.6299165" sectionEnd="true"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="0.68177825" y="0.54756546" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="0.97383136" y="0.56087613" sectionEnd="true"/>
+         </Linear>
+      </Boundary3>
+   </Poly>
+   <Poly name="" visible="true" closed="false">
+      <Colour r="0" g="0" b="0"/>
+      <LabelAngle angle="0.0" />
+      <LabelPos x="2.650322" y="0.49663585" />
+      <Boundary3>
+         <Linear>
+            <BezierPoint x="2.5397885" y="0.51008105" sectionEnd="true"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="2.2702131" y="0.442665" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="3.0583613" y="0.44495282" sectionEnd="true"/>
+         </Linear>
+      </Boundary3>
+   </Poly>
+   <Label name="MORB Array&lt;br&gt;(Shallow Melting)" visible="true" x="18.615139" y="0.4529482" >
+      <Colour r="0" g="0" b="0"/>
+      <LabelAngle angle="0.0" />
+   </Label>
+   <Label name="OIB Array&lt;br&gt;(Deep Melting)" visible="true" x="0.14473358" y="1.2585273" >
+      <Colour r="0" g="0" b="0"/>
+      <LabelAngle angle="0.0" />
+   </Label>
+   <Label name="OIB" visible="true" x="25.142536" y="1.1613307" >
+      <Colour r="0" g="0" b="0"/>
+      <LabelAngle angle="0.0" />
+   </Label>
+   <Label name="plume-ridge&lt;br&gt;interaction" visible="true" x="1.8481952" y="0.55058205" >
+      <Colour r="0" g="0" b="0"/>
+      <LabelAngle angle="0.0" />
+   </Label>
+   <Polygon name="_ v6.1 required to open diagram _" visible="true" >
+      <Point x="30" y="30" />
+      <Point x="200" y="30" />
+      <Point x="200" y="40" />
+      <Point x="30" y="40" />
+   </Polygon>
+</GeochemXYDiagram>

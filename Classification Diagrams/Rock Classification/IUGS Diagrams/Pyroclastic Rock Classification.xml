@@ -1,0 +1,105 @@
+<?xml version="1.0" encoding="windows-1252"?>
+<FreeTernaryDiagram name="IUGS Classification of Pyroclastic Rocks">
+   <FreeAxisA name="Blocks and Bombs" log="false"/>
+   <FreeAxisB name="Lapilli" log="false"/>
+   <FreeAxisC name="Ash" log="false"/>
+   <Comment>Use classification if rock considered to have pyroclastic origin.</Comment>
+   <Comment>Bombs = pyroclasts &gt; 64 mm with surface indicating wholly or partly molten during formation and transport. Blocks = pyroclasts &gt;64 mm with angular/subangular surface.</Comment>
+   <Comment>Lapilli = pyroclasts of any shape between 2-64 mm in mean diameter, Ash = pyroclasts &lt;2 mm in mean diameter.</Comment>
+   <Comment>Column headers in data file must exactly match diagram variables: Blocks and Bombs, Lapilli and Ash.</Comment>
+   <Reference>Schmid, R., 1981. Descriptive nomenclature and classification of pyroclastic deposits and fragments:</Reference>
+   <Reference>Recommendations of the International Union of Geological Sciences Subcommission on the Systematics of Igneous Rocks. Geology.</Reference>
+   <Reference>The Geological Society of America. Boulder. Vol. 9, p. 41-43.</Reference>
+   <Poly name="Pyroclastic&lt;br&gt; Breccia or&lt;br&gt;Agglomerate" visible="true" closed="true">
+      <Colour r="127" g="255" b="0"/>
+      <LabelAngle angle="0.0" />
+      <LabelPos a="0.7638604068908268" b="0.11066393881400083" />
+      <Boundary3>
+         <Linear>
+            <BezierPoint x="37.5" y="64.951904" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="50.0" y="86.60254" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="62.5" y="64.951904" sectionEnd="false"/>
+         </Linear>
+      </Boundary3>
+   </Poly>
+   <Poly name="Tuff Breccia" visible="true" closed="true">
+      <Colour r="127" g="0" b="255"/>
+      <LabelAngle angle="0.0" />
+      <LabelPos a="0.4995202158780545" b="0.25023989206097275" />
+      <Boundary3>
+         <Linear>
+            <BezierPoint x="12.5" y="21.650635" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="37.5" y="64.951904" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="62.5" y="64.951904" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="87.5" y="21.650635" sectionEnd="false"/>
+         </Linear>
+      </Boundary3>
+   </Poly>
+   <Poly name="Lapilli Tuff" visible="true" closed="true">
+      <Colour r="0" g="255" b="127"/>
+      <LabelAngle angle="0.0" />
+      <LabelPos a="0.06429343673581332" b="0.46785328163209333" />
+      <Boundary3>
+         <Linear>
+            <BezierPoint x="25.0" y="0.0" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="12.5" y="21.650635" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="87.5" y="21.650635" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="75.0" y="0.0" sectionEnd="false"/>
+         </Linear>
+      </Boundary3>
+   </Poly>
+   <Poly name="Lapillistone" visible="true" closed="true">
+      <Colour r="0" g="127" b="255"/>
+      <LabelAngle angle="0.0" />
+      <LabelPos a="0.06162333379629037" b="0.8419498393780054" />
+      <Boundary3>
+         <Linear>
+            <BezierPoint x="0.0" y="0.0" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="12.5" y="21.650635" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="25.0" y="0.0" sectionEnd="false"/>
+         </Linear>
+      </Boundary3>
+   </Poly>
+   <Poly name="Tuff" visible="true" closed="true">
+      <Colour r="192" g="192" b="192"/>
+      <LabelAngle angle="0.0" />
+      <LabelPos a="0.06162333379629037" b="0.0939582075788421" />
+      <Boundary3>
+         <Linear>
+            <BezierPoint x="75.0" y="0.0" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="87.5" y="21.650635" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="100.0" y="0.0" sectionEnd="false"/>
+         </Linear>
+      </Boundary3>
+   </Poly>
+   <Polygon name="_ v6.1 required to open diagram _" visible="true" >
+      <TPoint a="0.1" b="0.7" />
+      <TPoint a="0.1" b="0.2" />
+      <TPoint a="0.5" b="0.0" />
+      <TPoint a="0.5" b="0.5" />
+   </Polygon>
+</FreeTernaryDiagram>

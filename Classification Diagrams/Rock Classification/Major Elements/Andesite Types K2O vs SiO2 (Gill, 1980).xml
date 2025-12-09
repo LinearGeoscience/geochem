@@ -1,0 +1,111 @@
+<?xml version="1.0" encoding="windows-1252"?>
+<GeochemXYDiagram name="Andesite types Gill 1980 K2O vs SiO2">
+   <GeochemFunctionAxisX name="SiO2 (pct)" function="s" log="false"/>
+   <GeochemFunctionAxisY name="K2O (pct)" function="k" log="false"/>
+   <Comment>Andesite classification diagram</Comment>
+   <Reference>Gill J. B. 1981. Orogenic Andesites and Plate Tectonics</Reference>
+   <Variable letter="S" element="SiO2" unit="pct"/>
+   <Variable letter="K" element="K2O" unit="pct"/>
+   <Poly name="Low-K" visible="true" closed="true">
+      <Colour r="255" g="0" b="0"/>
+      <LabelAngle angle="0.0" />
+      <LabelPos x="59.514896" y="0.37457788" />
+      <Boundary3>
+         <Linear>
+            <BezierPoint x="53.0" y="0.0" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="53.0" y="0.5" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="63.0" y="1.0" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="63.0" y="0.0" sectionEnd="false"/>
+         </Linear>
+      </Boundary3>
+   </Poly>
+   <Poly name="Medium-K" visible="true" closed="true">
+      <Colour r="0" g="255" b="0"/>
+      <LabelAngle angle="0.0" />
+      <LabelPos x="59.50025" y="1.4379306" />
+      <Boundary3>
+         <Linear>
+            <BezierPoint x="53.0" y="0.5" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="53.0" y="1.5" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="63.0" y="2.3" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="63.0" y="1.0" sectionEnd="false"/>
+         </Linear>
+      </Boundary3>
+   </Poly>
+   <Poly name="High-K" visible="true" closed="true">
+      <Colour r="0" g="0" b="255"/>
+      <LabelAngle angle="0.0" />
+      <LabelPos x="59.50025" y="2.7001216" />
+      <Boundary3>
+         <Linear>
+            <BezierPoint x="53.0" y="1.5" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="53.0" y="2.5" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="63.0" y="4.0" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="63.0" y="2.3" sectionEnd="false"/>
+         </Linear>
+      </Boundary3>
+   </Poly>
+   <Poly name="" visible="true" closed="false">
+      <Colour r="0" g="0" b="0"/>
+      <LabelAngle angle="0.0" />
+      <LabelPos x="56.996246" y="1.5503174" />
+      <Boundary3>
+         <Linear>
+            <BezierPoint x="57.0" y="0.0" sectionEnd="true"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="57.0" y="3.1" sectionEnd="true"/>
+         </Linear>
+      </Boundary3>
+   </Poly>
+   <Poly name="Basaltic Andesite" visible="true" closed="false">
+      <Colour r="255" g="255" b="255"/>
+      <LabelAngle angle="0.0" />
+      <LabelPos x="54.990116" y="4.0055385" />
+      <Boundary3>
+         <Linear>
+            <BezierPoint x="54.0" y="4.0" sectionEnd="true"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="56.0" y="4.0" sectionEnd="true"/>
+         </Linear>
+      </Boundary3>
+   </Poly>
+   <Poly name="Andesite" visible="true" closed="false">
+      <Colour r="255" g="255" b="255"/>
+      <LabelAngle angle="0.0" />
+      <LabelPos x="59.998123" y="4.0055385" />
+      <Boundary3>
+         <Linear>
+            <BezierPoint x="59.0" y="4.0" sectionEnd="true"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="61.0" y="4.0" sectionEnd="true"/>
+         </Linear>
+      </Boundary3>
+   </Poly>
+   <Polygon name="_ v6.1 required to open diagram _" visible="true" >
+      <Point x="30" y="30" />
+      <Point x="200" y="30" />
+      <Point x="200" y="40" />
+      <Point x="30" y="40" />
+   </Polygon>
+</GeochemXYDiagram>

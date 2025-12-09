@@ -1,0 +1,174 @@
+<?xml version="1.0" encoding="windows-1252"?>
+<GeochemXYDiagram name="Phyllite Weathering Stages (Jeffcoate et al 2013) ">
+   <GeochemAxisX element="Al2O3" unit="pct" log="false"/>
+   <GeochemAxisY element="SiO2" unit="pct" log="false"/>
+   <Bounds x="-2.3698623" y="-3.3735566" w="73.97145" h="111.25538" />
+   <Comment>Stage 1: Initial modification of mica to clay minerals such as kaolinite and illite.</Comment>
+   <Comment>Stage 2: Increase in clay content (in kaolinite), lowered SiO2 and increased Al2O3.</Comment>
+   <Comment>Following this, Stage 3 occurs at depth and in proximity to mineralisation or Stage 4 at/close to the surface.</Comment>
+   <Comment>Stage 3: Ferrugenisation of dominantly kaolinitic phyllites, associated with a reduction in Al2O3 and SiO2.</Comment>
+   <Comment>Stage 4a: Bauxitisation of kaolinite-dominant phyllite through prolonged leaching of silica and increase in Al2O3.</Comment>
+   <Comment>Stage 4b: Bauxitised material is modified by ferrugenisation, which is associated with a reduction in Al2O3.</Comment>
+   <Reference>Figure 6a, Jeffcoate et al., 2013. Modelling intact rock strength of clay-rich rocks with geochemistry at the Simandou iron ore deposit, Guinea, West Africa. Iron Ore Conference, Perth, WA.</Reference>
+   <Poly name="Stage 2" visible="true" closed="false">
+      <Colour r="255" g="0" b="0"/>
+      <LabelAngle angle="0.0" />
+      <LabelPos x="26.618973" y="63.369247" />
+      <Boundary3>
+         <Linear>
+            <BezierPoint x="19.22425" y="74.46118" sectionEnd="true"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="34.15594" y="54.832344" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="33.667156" y="58.212776" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="33.994648" y="54.97795" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="32.465286" y="54.93026" sectionEnd="true"/>
+         </Linear>
+      </Boundary3>
+   </Poly>
+   <Poly name="Stage 3" visible="true" closed="false">
+      <Colour r="255" g="0" b="0"/>
+      <LabelAngle angle="0.0" />
+      <LabelPos x="17.911175" y="26.72371" />
+      <Boundary3>
+         <Linear>
+            <BezierPoint x="34.156128" y="51.18813" sectionEnd="true"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="1.7091315" y="2.8973424" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="1.9832393" y="6.759125" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="1.8510002" y="3.3374884" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="3.4515092" y="3.6190872" sectionEnd="true"/>
+         </Linear>
+      </Boundary3>
+   </Poly>
+   <Poly name="Stage 4a" visible="true" closed="false">
+      <Colour r="255" g="0" b="0"/>
+      <LabelAngle angle="0.0" />
+      <LabelPos x="50.439693" y="28.032343" />
+      <Boundary3>
+         <Linear>
+            <BezierPoint x="36.177937" y="52.04857" sectionEnd="true"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="64.68243" y="4.794118" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="64.19519" y="9.060867" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="64.731606" y="4.3430996" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="62.528748" y="4.316153" sectionEnd="true"/>
+         </Linear>
+      </Boundary3>
+   </Poly>
+   <Poly name="Stage 4b" visible="true" closed="false">
+      <Colour r="255" g="0" b="0"/>
+      <LabelAngle angle="0.0" />
+      <LabelPos x="32.929745" y="-0.14229095" />
+      <Boundary3>
+         <Linear>
+            <BezierPoint x="64.082054" y="0.87860495" sectionEnd="true"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="1.798178" y="-0.08256848" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="3.4515092" y="1.956714" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="1.8435593" y="0.0" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="3.346633" y="-1.460386" sectionEnd="true"/>
+         </Linear>
+      </Boundary3>
+   </Poly>
+   <Poly name="Stage 1" visible="true" closed="false">
+      <Colour r="255" g="0" b="0"/>
+      <LabelAngle angle="0.0" />
+      <LabelPos x="17.997747" y="66.48827" />
+      <Boundary3>
+         <Linear>
+            <BezierPoint x="17.257107" y="59.61662" sectionEnd="true"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="18.738388" y="73.19632" sectionEnd="true"/>
+         </Linear>
+      </Boundary3>
+   </Poly>
+   <Poly name="" visible="true" closed="false">
+      <Colour r="255" g="0" b="0"/>
+      <LabelAngle angle="0.0" />
+      <LabelPos x="18.058714" y="72.571175" />
+      <Boundary3>
+         <Linear>
+            <BezierPoint x="18.738388" y="73.19632" sectionEnd="true"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="17.388987" y="71.91152" sectionEnd="true"/>
+         </Linear>
+      </Boundary3>
+   </Poly>
+   <Poly name="" visible="true" closed="false">
+      <Colour r="255" g="0" b="0"/>
+      <LabelAngle angle="0.0" />
+      <LabelPos x="19.264223" y="72.1314" />
+      <Boundary3>
+         <Linear>
+            <BezierPoint x="18.738388" y="73.19632" sectionEnd="true"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="19.800005" y="71.031975" sectionEnd="true"/>
+         </Linear>
+      </Boundary3>
+   </Poly>
+   <PointFeature name="Goethite/Hematite" visible="true" x="0.015386999" y="-0.028679036" pixelRadius="5.0" >
+      <Colour r="255" g="0" b="0"/>
+      <LabelAngle angle="0.0" />
+   </PointFeature>
+   <PointFeature name="Quartz" visible="true" x="-0.002564298" y="100.04474" pixelRadius="5.0" >
+      <Colour r="255" g="0" b="0"/>
+      <LabelAngle angle="0.0" />
+   </PointFeature>
+   <PointFeature name="Illite" visible="true" x="35.123077" y="54.326485" pixelRadius="5.0" >
+      <Colour r="255" g="0" b="0"/>
+      <LabelAngle angle="0.0" />
+   </PointFeature>
+   <PointFeature name="Kaolinite" visible="true" x="39.021282" y="46.68513" pixelRadius="5.0" >
+      <Colour r="255" g="0" b="255"/>
+      <LabelAngle angle="0.0" />
+   </PointFeature>
+   <PointFeature name="Gibbsite" visible="true" x="65.51249" y="1.360694" pixelRadius="5.0" >
+      <Colour r="0" g="255" b="255"/>
+      <LabelAngle angle="0.0" />
+   </PointFeature>
+   <Label name="Fresh Phyllite Region" visible="true" x="11.862226" y="58.016212" >
+      <Colour r="0" g="0" b="255"/>
+      <LabelAngle angle="0.0" />
+   </Label>
+   <Label name="Kaolinitic Mineral Region" visible="true" x="27.140396" y="43.259613" >
+      <Colour r="0" g="0" b="255"/>
+      <LabelAngle angle="0.0" />
+   </Label>
+   <Polygon name="_ v6.1 required to open diagram _" visible="true" >
+      <Point x="30" y="30" />
+      <Point x="200" y="30" />
+      <Point x="200" y="40" />
+      <Point x="30" y="40" />
+   </Polygon>
+</GeochemXYDiagram>

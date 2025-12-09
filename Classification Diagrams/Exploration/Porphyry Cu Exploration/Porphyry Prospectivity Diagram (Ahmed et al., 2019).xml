@@ -1,0 +1,75 @@
+<?xml version="1.0" encoding="windows-1252"?>
+<XYDiagram name="Porphyry Prospectivity Diagram (Sr/MnO vs Sr/Y)" variateMode="Multi">
+   <GeochemFunctionAxisX name="Sr/Y" function="A/C" log="true"/>
+   <GeochemFunctionAxisY name="Sr/MnO" function="A/B" log="true"/>
+   <Comment>(Automatic Unit conversion will occur)</Comment>
+   <Comment>Prospectivity diagram for porphyry Cu, skarn or epithermal mineralisation constructed using Sr/MnO and Sr/Y ratios.</Comment>
+   <Comment>Three prospectivity fields for prospective, unprospective and mixed signals (overlap between prospective and unprospective fields).</Comment>
+   <Reference>Ahmed et al., 2019 Assessing copper fertility of intrusive rocks using field portable X-ray fluorescence (pXRF) data. Geochemistry: Exploration, Environment, Analysis. Vol. 20, pp. 81-97.</Reference>
+   <Variable letter="A" element="Sr" unit="ppm"/>
+   <Variable letter="B" element="MnO" unit="pct"/>
+   <Variable letter="C" element="Y" unit="ppm"/>
+   <Poly name="Unprospective" visible="true" closed="true" endArrow="false">
+      <Colour r="255" g="0" b="0"/>
+      <LabelAngle angle="0.0" />
+      <LabelPos x="2.897859" y="152.26624" />
+      <Boundary3>
+         <Linear>
+            <BezierPoint x="1.0" y="100.0" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="49.0" y="100.0" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="49.0" y="13000.0" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="1.0" y="13000.0" sectionEnd="false"/>
+         </Linear>
+      </Boundary3>
+   </Poly>
+   <Poly name="Prospective" visible="true" closed="true" endArrow="false">
+      <Colour r="0" g="255" b="0"/>
+      <LabelAngle angle="0.0" />
+      <LabelPos x="442.2859" y="51532.33" />
+      <Boundary3>
+         <Linear>
+            <BezierPoint x="29.0" y="2500.0" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="1000.0" y="2500.0" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="1000.0" y="100000.0" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="29.0" y="100000.0" sectionEnd="false"/>
+         </Linear>
+      </Boundary3>
+   </Poly>
+   <Poly name="Mixed Signal" visible="true" closed="true" endArrow="false">
+      <Colour r="0" g="0" b="255"/>
+      <LabelAngle angle="0.0" />
+      <LabelPos x="95.607635" y="1653.5328" />
+      <Boundary3>
+         <Linear>
+            <BezierPoint x="29.0" y="2500.0" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="49.0" y="2500.0" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="49.0" y="13000.0" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="29.0" y="13000.0" sectionEnd="false"/>
+         </Linear>
+      </Boundary3>
+   </Poly>
+   <Polygon name="_ v6.1 required to open diagram _" visible="true" >
+      <Point x="30" y="30" />
+      <Point x="200" y="30" />
+      <Point x="200" y="40" />
+      <Point x="30" y="40" />
+   </Polygon>
+</XYDiagram>

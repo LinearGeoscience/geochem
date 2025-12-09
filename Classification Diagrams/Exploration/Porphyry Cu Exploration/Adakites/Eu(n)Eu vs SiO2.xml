@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="windows-1252"?>
+<GeochemXYDiagram name="Porphyry Cu Prospectivity Eu(n)/Eu vs SiO2 wt%">
+   <GeochemAxisX element="SiO2" unit="pct" log="false"/>
+   <GeochemFunctionAxisY name="Eu(n)/Eu" function="(A/0.058)/((B/0.153)*(C/0.2055))^0.5" log="false"/>
+   <Bounds x="50.0" y="0.4" w="30.0" h="1.0" />
+   <Comment>Plot of Europium norm (Eu(n)/Eu) against SiO2 as indicators for plagioclase fractionation in igenous rocks. Normalisation values from Sun and McDonough (1989).</Comment>
+   <Reference>Richards et al., 2012, High Sr/Y Magmas Reflect Arc Maturity, High Magmatic Water Content, and Porphyry Cu +/- Mo +/- Au Potential: Examples from the Tethyan Arcs of Central and Eastern Iran and Western Pakistan, Economic Geology, v.107, pp. 310, Fig 9a</Reference>
+   <Variable letter="A" element="Eu" unit="ppm"/>
+   <Variable letter="B" element="Sm" unit="ppm"/>
+   <Variable letter="C" element="Gd" unit="ppm"/>
+   <Variable letter="D" element="SiO2" unit="pct"/>
+   <Poly name="" visible="true" closed="false">
+      <Colour r="255" g="0" b="51"/>
+      <LabelAngle angle="0.0" />
+      <LabelPos x="63.0" y="1.0005456" />
+      <Boundary3>
+         <Linear>
+            <BezierPoint x="0.0" y="1.0002478" sectionEnd="true"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="100.01238" y="1.0005456" sectionEnd="true"/>
+         </Linear>
+      </Boundary3>
+   </Poly>
+   <Polygon name="_ v6.1 required to open diagram _" visible="true" >
+      <Point x="30" y="30" />
+      <Point x="200" y="30" />
+      <Point x="200" y="40" />
+      <Point x="30" y="40" />
+   </Polygon>
+</GeochemXYDiagram>

@@ -8,7 +8,6 @@ import { persist } from 'zustand/middleware';
 import {
   TransformationType,
   ZeroHandlingStrategy,
-  TransformationConfig,
   TransformationResult,
   AmalgamationDefinition,
   VarianceDecompositionResult,

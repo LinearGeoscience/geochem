@@ -7,13 +7,9 @@ import {
     CalculationResult,
     SavedCalculation,
     ColumnMapping,
-    MissingValueStrategy,
-    FormulaExpression,
 } from '../types/calculations';
 import {
     getAllCalculationDefinitions,
-    getCalculationById,
-    parseFormula,
     evaluateFormula,
     parseNumericValue,
     validateData,
@@ -227,9 +223,8 @@ export const useCalculationStore = create<CalculationState>()(
                             {
                                 name: queueItem.config.outputColumnName,
                                 type: 'numeric' as const,
+                                role: 'Calculated' as string | null,
                                 alias: queueItem.config.outputColumnName,
-                                isCalculated: true,
-                                calculationId: calcDef.id,
                             },
                         ];
 

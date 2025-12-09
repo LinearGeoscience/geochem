@@ -1,0 +1,146 @@
+<?xml version="1.0" encoding="windows-1252"?>
+<GeochemXYDiagram name="Granite Ta vs Yb (Pearce et al 1984)">
+   <GeochemFunctionAxisX name="Yb" function="y" log="true"/>
+   <GeochemFunctionAxisY name="Ta" function="t" log="true"/>
+   <Comment>Granite discrimination diagram showing the fields of volcanic arc (VAG), syn-collisional (syn-COLG), within plate (WPG), and ocean ridge (ORG)</Comment>
+   <Comment>Red line is the boundary for ORG from anomalous ridges</Comment>
+   <Reference>Pearce et al, 1984 in Rollinson, Using Geochemical Data, 1993 p.203</Reference>
+   <Variable letter="T" element="Ta" unit="ppm"/>
+   <Variable letter="Y" element="Yb" unit="ppm"/>
+   <Poly name="" visible="true" closed="false">
+      <Colour r="0" g="0" b="0"/>
+      <LabelAngle angle="0.0" />
+      <LabelPos x="1.279564" y="6.3772244" />
+      <Boundary3>
+         <Linear>
+            <BezierPoint x="0.55" y="20.0" sectionEnd="true"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="3.0" y="2.0" sectionEnd="true"/>
+         </Linear>
+      </Boundary3>
+   </Poly>
+   <Poly name="" visible="true" closed="false">
+      <Colour r="0" g="0" b="0"/>
+      <LabelAngle angle="0.0" />
+      <LabelPos x="0.5438577" y="0.84918153" />
+      <Boundary3>
+         <Linear>
+            <BezierPoint x="0.1" y="0.35" sectionEnd="true"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="3.0" y="2.0" sectionEnd="true"/>
+         </Linear>
+      </Boundary3>
+   </Poly>
+   <Poly name="" visible="true" closed="false">
+      <Colour r="0" g="0" b="0"/>
+      <LabelAngle angle="0.0" />
+      <LabelPos x="3.835323" y="1.4186931" />
+      <Boundary3>
+         <Linear>
+            <BezierPoint x="3.0" y="2.0" sectionEnd="true"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="5.0" y="1.0" sectionEnd="true"/>
+         </Linear>
+      </Boundary3>
+   </Poly>
+   <Poly name="" visible="true" closed="false">
+      <Colour r="0" g="0" b="0"/>
+      <LabelAngle angle="0.0" />
+      <LabelPos x="4.9656496" y="0.101299584" />
+      <Boundary3>
+         <Linear>
+            <BezierPoint x="5.0" y="0.01" sectionEnd="true"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="5.0" y="1.0" sectionEnd="true"/>
+         </Linear>
+      </Boundary3>
+   </Poly>
+   <Poly name="" visible="true" closed="false">
+      <Colour r="0" g="0" b="0"/>
+      <LabelAngle angle="0.0" />
+      <LabelPos x="22.283737" y="1.4186931" />
+      <Boundary3>
+         <Linear>
+            <BezierPoint x="5.0" y="1.0" sectionEnd="true"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="100.0" y="2.0" sectionEnd="true"/>
+         </Linear>
+      </Boundary3>
+   </Poly>
+   <Poly name="" visible="true" closed="false">
+      <Colour r="200" g="0" b="0"/>
+      <LabelAngle angle="0.0" />
+      <LabelPos x="17.21131" y="6.3772244" />
+      <Boundary3>
+         <Linear>
+            <BezierPoint x="3.0" y="2.0" sectionEnd="true"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="100.0" y="20.0" sectionEnd="true"/>
+         </Linear>
+      </Boundary3>
+   </Poly>
+   <Poly name="WPG" visible="true" closed="false">
+      <Colour r="255" g="255" b="255"/>
+      <LabelAngle angle="0.0" />
+      <LabelPos x="4.6551375" y="9.900987" />
+      <Boundary3>
+         <Linear>
+            <BezierPoint x="4.0" y="18.0" sectionEnd="true"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="5.0" y="18.0" sectionEnd="true"/>
+         </Linear>
+      </Boundary3>
+   </Poly>
+   <Poly name="ORG" visible="true" closed="false">
+      <Colour r="255" g="255" b="255"/>
+      <LabelAngle angle="0.0" />
+      <LabelPos x="55.925293" y="0.30424586" />
+      <Boundary3>
+         <Linear>
+            <BezierPoint x="50.0" y="0.3" sectionEnd="true"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="63.0" y="0.3" sectionEnd="true"/>
+         </Linear>
+      </Boundary3>
+   </Poly>
+   <Poly name="VAG" visible="true" closed="false">
+      <Colour r="255" g="255" b="255"/>
+      <LabelAngle angle="0.0" />
+      <LabelPos x="0.55270857" y="0.101299584" />
+      <Boundary3>
+         <Linear>
+            <BezierPoint x="0.5" y="0.1" sectionEnd="true"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="0.63" y="0.1" sectionEnd="true"/>
+         </Linear>
+      </Boundary3>
+   </Poly>
+   <Poly name="syn-COLG" visible="true" closed="false">
+      <Colour r="255" g="255" b="255"/>
+      <LabelAngle angle="0.0" />
+      <LabelPos x="0.55270857" y="3.177905" />
+      <Boundary3>
+         <Linear>
+            <BezierPoint x="0.5" y="3.16" sectionEnd="true"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="0.63" y="3.16" sectionEnd="true"/>
+         </Linear>
+      </Boundary3>
+   </Poly>
+   <Polygon name="_ v6.1 required to open diagram _" visible="true" >
+      <Point x="30" y="30" />
+      <Point x="200" y="30" />
+      <Point x="200" y="40" />
+      <Point x="30" y="40" />
+   </Polygon>
+</GeochemXYDiagram>

@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="windows-1252"?>
+<GeochemXYDiagram name="AF Control Diagram (Zr)">
+   <GeochemFunctionAxisX name="Al-2Ca/Zr (Molar)" function="(A-2*C)/(Z)" log="false"/>
+   <GeochemFunctionAxisY name="(Na + K)/Zr (Molar)" function="(N+K)/(Z)" log="false"/>
+   <Comment>Alkali Feldspar, projected from Ca Feldspar. Molar ratios used throughout the PER-GER ratio diagrams</Comment>
+   <Comment>&quot;AF&quot; alkali feldspar control line, &quot;Mu&quot; muscovite control line, &quot;Als&quot; aluminosilicate control line (Ox axis)</Comment>
+   <Comment>Anorthite has no effect on sample position (it is projected from)</Comment>
+   <Reference>Theoretical basis for PER diagrams is described in Stanley C. R., and Madeisky H. E., 1996 Lithogeochemical Exploration for Metasomatic Zones Associated with Hydrothermal Mineral Deposits Using Pearce Element Ratio Analysis</Reference>
+   <Variable letter="C" element="Ca-mol" unit="mol/kg"/>
+   <Variable letter="K" element="K-mol" unit="mol/kg"/>
+   <Variable letter="N" element="Na-mol" unit="mol/kg"/>
+   <Variable letter="A" element="Al-mol" unit="mol/kg"/>
+   <Variable letter="Z" element="Zr-mol" unit="mol/kg"/>
+   <Line name="AF" visible="true" m="1.0" c="0.0" >
+      <Colour r="0" g="0" b="0"/>
+      <LabelAngle angle="0.0" />
+   </Line>
+   <Line name="Mu" visible="true" m="0.3333" c="0.0" >
+      <Colour r="0" g="0" b="0"/>
+      <LabelAngle angle="0.0" />
+   </Line>
+   <Line name="Als" visible="true" m="0.0" c="0.0" >
+      <Colour r="0" g="0" b="0"/>
+      <LabelAngle angle="0.0" />
+   </Line>
+   <Polygon name="_ v6.1 required to open diagram _" visible="true" >
+      <Point x="30" y="30" />
+      <Point x="200" y="30" />
+      <Point x="200" y="40" />
+      <Point x="30" y="40" />
+   </Polygon>
+</GeochemXYDiagram>

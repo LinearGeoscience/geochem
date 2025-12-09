@@ -21,6 +21,8 @@ import { BoxPlot } from './features/analysis/BoxPlot';
 import { TransformationManager } from './features/analysis/TransformationManager';
 import { VectoringManager } from './features/vectoring/VectoringManager';
 import { CalculationManager } from './features/calculations/CalculationManager';
+import { QAQCManager, ControlChart, DuplicateAnalysis, BlankAnalysis, QAQCDashboard } from './features/qaqc';
+import { StatisticsManager } from './features/statistics';
 import { Box, Typography, Paper, Tabs, Tab, IconButton } from '@mui/material';
 import { ChevronRight, ChevronLeft } from '@mui/icons-material';
 import { useAppStore } from './store/appStore';
@@ -34,6 +36,7 @@ const DEFAULT_SIDEBAR_WIDTH = 360;
 function App() {
     const { columns, data, currentView } = useAppStore();
     const [analysisTab, setAnalysisTab] = React.useState(0);
+    const [qaqcTab, setQaqcTab] = React.useState(0);
     const [rightSidebarOpen, setRightSidebarOpen] = useState(true);
     const [sidebarWidth, setSidebarWidth] = useState(DEFAULT_SIDEBAR_WIDTH);
     const [isResizing, setIsResizing] = useState(false);
@@ -260,6 +263,99 @@ function App() {
                         </Box>
                     </Box>
                 );
+            case 'qaqc':
+                return (
+                    <Box sx={{ display: 'flex', gap: 2 }}>
+                        {/* Main content area */}
+                        <Box sx={{ flex: 1, minWidth: 0 }}>
+                            <Tabs value={qaqcTab} onChange={(_, newValue) => setQaqcTab(newValue)} sx={{ borderBottom: 1, borderColor: 'divider', mb: 2 }} variant="scrollable" scrollButtons="auto">
+                                <Tab label="Configuration" />
+                                <Tab label="Control Charts" />
+                                <Tab label="Duplicates" />
+                                <Tab label="Blanks" />
+                                <Tab label="Dashboard" />
+                            </Tabs>
+                            {qaqcTab === 0 && <QAQCManager onNavigate={(view) => {
+                                switch (view) {
+                                    case 'control-chart': setQaqcTab(1); break;
+                                    case 'duplicates': setQaqcTab(2); break;
+                                    case 'blanks': setQaqcTab(3); break;
+                                    case 'dashboard': setQaqcTab(4); break;
+                                }
+                            }} />}
+                            {qaqcTab === 1 && <ControlChart />}
+                            {qaqcTab === 2 && <DuplicateAnalysis />}
+                            {qaqcTab === 3 && <BlankAnalysis />}
+                            {qaqcTab === 4 && <QAQCDashboard onNavigate={(view) => {
+                                switch (view) {
+                                    case 'manager': setQaqcTab(0); break;
+                                    case 'control-chart': setQaqcTab(1); break;
+                                    case 'duplicates': setQaqcTab(2); break;
+                                    case 'blanks': setQaqcTab(3); break;
+                                }
+                            }} />}
+                        </Box>
+                        {/* Right sidebar */}
+                        <Box sx={{ position: 'relative', width: rightSidebarOpen ? sidebarWidth : 40, flexShrink: 0, display: 'flex' }}>
+                            {/* Resize handle */}
+                            {rightSidebarOpen && (
+                                <Box
+                                    onMouseDown={startResizing}
+                                    sx={{
+                                        width: 6,
+                                        cursor: 'col-resize',
+                                        backgroundColor: isResizing ? 'primary.main' : 'transparent',
+                                        '&:hover': {
+                                            backgroundColor: 'primary.light',
+                                        },
+                                        transition: 'background-color 0.15s',
+                                        flexShrink: 0,
+                                    }}
+                                />
+                            )}
+                            <Box sx={{ flex: 1, position: 'relative' }}>
+                                <IconButton
+                                    onClick={() => setRightSidebarOpen(!rightSidebarOpen)}
+                                    sx={{
+                                        position: 'absolute',
+                                        left: -20,
+                                        top: 0,
+                                        zIndex: 1,
+                                        backgroundColor: 'background.paper',
+                                        boxShadow: 1,
+                                        '&:hover': { backgroundColor: 'action.hover' }
+                                    }}
+                                    size="small"
+                                >
+                                    {rightSidebarOpen ? <ChevronRight /> : <ChevronLeft />}
+                                </IconButton>
+                                {rightSidebarOpen && (
+                                    <Box
+                                        sx={{
+                                            position: 'sticky',
+                                            top: 80,
+                                            maxHeight: 'calc(100vh - 100px)',
+                                            overflowY: 'auto',
+                                            overflowX: 'hidden',
+                                            width: '100%',
+                                            '&::-webkit-scrollbar': {
+                                                width: '8px',
+                                            },
+                                            '&::-webkit-scrollbar-thumb': {
+                                                backgroundColor: 'rgba(0,0,0,0.2)',
+                                                borderRadius: '4px',
+                                            }
+                                        }}
+                                    >
+                                        <AttributeManager />
+                                    </Box>
+                                )}
+                            </Box>
+                        </Box>
+                    </Box>
+                );
+            case 'statistics':
+                return <StatisticsManager />;
             case 'settings':
                 return <Typography variant="h5">Settings (Coming Soon)</Typography>;
             default:

@@ -1,0 +1,44 @@
+[general]
+name=GeoChem Pro Integration
+qgisMinimumVersion=3.16
+description=Real-time integration with GeoChem Pro geochemical analysis application. Sync data, classifications, and export styled geopackages.
+version=1.0.0
+author=Linear Geoscience
+email=support@lineargeoscience.com
+
+about=GeoChem Pro Integration enables seamless data exchange between the GeoChem Pro web application and QGIS.
+
+    Features:
+    - Real-time data synchronization via WebSocket
+    - Automatic layer styling based on classifications
+    - High-grade highlighting
+    - Cluster and population visualization
+    - Export to styled GeoPackage files
+    - Bidirectional selection synchronization
+
+tracker=https://github.com/lineargeoscience/geochem-qgis-plugin/issues
+repository=https://github.com/lineargeoscience/geochem-qgis-plugin
+
+hasProcessingProvider=no
+
+changelog=
+    1.0.0 - Initial release
+        - Connection manager with REST and WebSocket support
+        - Data synchronization from GeoChem Pro
+        - Classification-based styling
+        - Graduated styling for numeric columns
+        - High-grade highlighting
+        - Cluster visualization
+        - GeoPackage export with embedded styles
+        - Bidirectional selection sync
+
+tags=geochemistry,analysis,geopackage,styling,exploration,mining
+
+homepage=https://github.com/lineargeoscience/geochem-qgis-plugin
+category=Analysis
+icon=icons/icon.png
+
+experimental=False
+deprecated=False
+
+server=False

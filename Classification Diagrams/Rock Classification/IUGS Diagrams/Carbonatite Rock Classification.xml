@@ -1,0 +1,77 @@
+<?xml version="1.0" encoding="windows-1252"?>
+<GeochemTernaryDiagram name="IUGS Carbonatite Rock Classification">
+   <GeochemAxisA element="CaO" unit="pct" log="false"/>
+   <GeochemAxisB element="MgO" unit="pct" log="false"/>
+   <GeochemFunctionAxisC name="FeO+Fe2O3+MnO" function="C+D+E" log="false"/>
+   <Comment>Chemical classification of carbonatites using weight percent oxides of MgO, CaO, FeO, Fe2O3 and MnO.</Comment>
+   <Comment>Use when rock contains more than 50% modal carbonates.</Comment>
+   <Comment>This diagram requires the following columns to be aliased: CaO_pct, MgO_pct, FeO_pct, Fe2O3_pct, MnO_pct</Comment>
+   <Reference>Le Maitre, R. W. (editor), Bateman, P., Dudek, A., Keller, J. et al. 1989</Reference>
+   <Reference>A Classification of Igneous rocks and Glossary of Terms: Recommendations of the International Union of</Reference>
+   <Reference>Geological Sciences Subcommission on the Systematics of Igneous Rocks. Blackwell Scientific Publications, Oxford.</Reference>
+   <Variable letter="A" element="CaO" unit="pct"/>
+   <Variable letter="B" element="MgO" unit="pct"/>
+   <Variable letter="C" element="FeO" unit="pct"/>
+   <Variable letter="D" element="Fe2O3" unit="pct"/>
+   <Variable letter="E" element="MnO" unit="pct"/>
+   <Poly name="Calciocarbonatite" visible="true" closed="true">
+      <Colour r="0" g="0" b="255"/>
+      <LabelAngle angle="0.0" />
+      <LabelPos a="0.8466335980160383" b="0.07668320099198084" />
+      <Boundary3>
+         <Linear>
+            <BezierPoint x="50.0" y="86.60254" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="40.00378" y="69.28627" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="59.99821" y="69.28457" sectionEnd="false"/>
+         </Linear>
+      </Boundary3>
+   </Poly>
+   <Poly name="Magnesiocarbonatite" visible="true" closed="true">
+      <Colour r="255" g="0" b="255"/>
+      <LabelAngle angle="0.0" />
+      <LabelPos a="0.2752315689581266" b="0.549999278282443" />
+      <Boundary3>
+         <Linear>
+            <BezierPoint x="40.00378" y="69.28627" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="0.0" y="0.0" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="50.0" y="0.0" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="50.006104" y="69.28511" sectionEnd="false"/>
+         </Linear>
+      </Boundary3>
+   </Poly>
+   <Poly name="Ferrocarbonatite" visible="true" closed="true">
+      <Colour r="0" g="255" b="255"/>
+      <LabelAngle angle="0.0" />
+      <LabelPos a="0.27790167189764947" b="0.1857771975239786" />
+      <Boundary3>
+         <Linear>
+            <BezierPoint x="50.006104" y="69.28511" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="59.99821" y="69.28457" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="100.0" y="0.0" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="50.0" y="0.0" sectionEnd="false"/>
+         </Linear>
+      </Boundary3>
+   </Poly>
+   <Polygon name="_ v6.1 required to open diagram _" visible="true" >
+      <TPoint a="0.1" b="0.7" />
+      <TPoint a="0.1" b="0.2" />
+      <TPoint a="0.5" b="0.0" />
+      <TPoint a="0.5" b="0.5" />
+   </Polygon>
+</GeochemTernaryDiagram>

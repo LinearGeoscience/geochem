@@ -1,0 +1,63 @@
+<?xml version="1.0" encoding="windows-1252"?>
+<GeochemXYDiagram name="A and I-S-M-type Granite Differentiation using (Na2O+K2O)/CaO (Whalen et al, 1987)">
+   <GeochemFunctionAxisX name="10000*(Ga/Al) (ppm)" function="10000*(A/B)" log="true"/>
+   <GeochemFunctionAxisY name="(Na2O+K2O)/CaO (wt%)" function="(C+D)/E" log="true"/>
+   <Bounds x="1.4952159" y="1.0001243" w="11.265271" h="136.7682" />
+   <Comment>This diagram discriminates between A-type granites and other granite types. This is a variant of the diagram with (Na2O+K2O)/CaO y-axis.</Comment>
+   <Reference>Whalen, J.B., Currie, K.L., and Chappell, B.W., 1987, A-type granites: geochemical characteristics, discrimination and petrogenesis.  Contributions to Mineralogy and Petrology, v. 95, p. 407-419.</Reference>
+   <Variable letter="A" element="Ga" unit="ppm"/>
+   <Variable letter="B" element="Al" unit="ppm"/>
+   <Variable letter="C" element="Na2O" unit="pct"/>
+   <Variable letter="D" element="K2O" unit="pct"/>
+   <Variable letter="E" element="CaO" unit="pct"/>
+   <Poly name="Other granites &lt;br&gt; (I, S, and M)" visible="true" closed="true">
+      <Colour r="255" g="0" b="0"/>
+      <LabelAngle angle="0.0" />
+      <LabelPos x="1.9797212" y="5.1422524" />
+      <Boundary3>
+         <Linear>
+            <BezierPoint x="1.5" y="10.0" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="2.6" y="10.0" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="2.6" y="1.0" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="1.5" y="1.0" sectionEnd="false"/>
+         </Linear>
+      </Boundary3>
+   </Poly>
+   <Poly name="A-type granites" visible="true" closed="true">
+      <Colour r="0" g="255" b="0"/>
+      <LabelAngle angle="0.0" />
+      <LabelPos x="5.0" y="50.0" />
+      <Boundary3>
+         <Linear>
+            <BezierPoint x="1.5" y="125.0" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="12.0" y="125.0" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="12.020262" y="1.0" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="2.6" y="1.0" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="2.6" y="10.0" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="1.5" y="10.0" sectionEnd="false"/>
+         </Linear>
+      </Boundary3>
+   </Poly>
+   <Polygon name="_ v6.1 required to open diagram _" visible="true" >
+      <Point x="30" y="30" />
+      <Point x="200" y="30" />
+      <Point x="200" y="40" />
+      <Point x="30" y="40" />
+   </Polygon>
+</GeochemXYDiagram>

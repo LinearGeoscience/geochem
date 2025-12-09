@@ -1,0 +1,70 @@
+<?xml version="1.0" encoding="windows-1252"?>
+<GeochemXYDiagram name="Selwyn Deposit Fe Stone Classification - No Au or Cu (CRC LEME 2002)">
+   <GeochemFunctionAxisX name="PC1_(MgKMnCoWBaRb)" function="0.40038496 * (LOG(V0) - -1.2880591) / 0.3176591 + 0.40411967 * (LOG(V1) - -1.6656762) / 0.90912443 + 0.43828043 * (LOG(V2) - -1.5419742) / 0.76974654 + 0.34400943 * (LOG(V3) - 0.81201655) / 0.781422 + -0.2523815 * (LOG(V4) - 1.6147507) / 0.83662754 + 0.39376917 * (LOG(V5) - 1.9001213) / 0.84846365 + 0.38366175 * (LOG(V6) - 0.4961844) / 0.47403693" log="false"/>
+   <GeochemFunctionAxisY name="PC2_(MgKMnCoWBaRb)" function="0.22810368 * (LOG(V0) - -1.2880591) / 0.3176591 + 0.056110844 * (LOG(V1) - -1.6656762) / 0.90912443 + 0.07226908 * (LOG(V2) - -1.5419742) / 0.76974654 + 0.3579042 * (LOG(V3) - 0.81201655) / 0.781422 + 0.80827075 * (LOG(V4) - 1.6147507) / 0.83662754 + -0.34952888 * (LOG(V5) - 1.9001213) / 0.84846365 + 0.18981557 * (LOG(V6) - 0.4961844) / 0.47403693" log="false"/>
+   <Bounds x="-5.230731" y="-3.127269" w="14.807157" h="6.0853724" />
+   <Comment>Discriminates between barren and mineralised Fe stone in the Selwyn Au-Cu deposit in NW Queensland.</Comment>
+   <Comment>The axes of the diagram are calculated Principal Components of the following elements: Mg, K, Mn, Co, W, Ba, and Rb.</Comment>
+   <Comment>Cu and Au are omitted from the calculated Principal Components in this diagram to remove the influence of Cu and Au in differentiating between the mineralised and barren Fe rocks.</Comment>
+   <Reference>CRC LEME OFR 128. 2002. The geochemical discrimination of mineralised and barren ironstones from the Selwyn Au-Cu Deposit, N.W. Queensland.</Reference>
+   <Variable letter="V0" element="MgO" unit="pct"/>
+   <Variable letter="V1" element="K2O" unit="pct"/>
+   <Variable letter="V2" element="MnO" unit="pct"/>
+   <Variable letter="V3" element="Co" unit="ppm"/>
+   <Variable letter="V4" element="W" unit="ppm"/>
+   <Variable letter="V5" element="Ba" unit="ppm"/>
+   <Variable letter="V6" element="Rb" unit="ppm"/>
+   <Poly name="Mineralised Fe Stone" visible="true" closed="true">
+      <Colour r="102" g="255" b="102"/>
+      <LabelAngle angle="0.0" />
+      <LabelPos x="-0.42496637" y="1.118505" />
+      <Boundary3>
+         <Linear>
+            <BezierPoint x="-4.0407853" y="2.7414184" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="-3.985318" y="-1.735692" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="3.5027614" y="0.67075485" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="3.5582287" y="2.7302258" sectionEnd="false"/>
+         </Linear>
+      </Boundary3>
+   </Poly>
+   <Poly name="Barren Fe Stone" visible="true" closed="true">
+      <Colour r="255" g="102" b="102"/>
+      <LabelAngle angle="0.0" />
+      <LabelPos x="6.664395" y="-0.17989613" />
+      <Boundary3>
+         <Linear>
+            <BezierPoint x="-3.985318" y="-1.735692" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="-3.985318" y="-2.6534996" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="9.021753" y="-2.6199214" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="8.9940195" y="2.7526112" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="3.5582287" y="2.7302258" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="3.5027614" y="0.67075485" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="3.5027614" y="0.67075485" sectionEnd="false"/>
+         </Linear>
+      </Boundary3>
+   </Poly>
+   <Polygon name="_ v6.1 required to open diagram _" visible="true" >
+      <Point x="30" y="30" />
+      <Point x="200" y="30" />
+      <Point x="200" y="40" />
+      <Point x="30" y="40" />
+   </Polygon>
+</GeochemXYDiagram>

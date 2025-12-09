@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="windows-1252"?>
+<GeochemXYDiagram name="AB Control Diagram (Ti)">
+   <GeochemFunctionAxisX name="(Al-2Ca-K)/Ti (Molar)" function="(A-2*C-K)/(T)" log="false"/>
+   <GeochemFunctionAxisY name="Na/Ti (Molar)" function="(N)/(T)" log="false"/>
+   <Comment>Proj from K and Ca Feldspar. Molar ratios used throughout the PER-GER ratio diagrams.</Comment>
+   <Comment>&quot;AB&quot; albite control line, muscovite and aluminosilicate plot along Ox axis.</Comment>
+   <Comment>K feldspar, Anorthite has no effect on sample position (it is project from)</Comment>
+   <Reference>Stanley C. R., and Madeisky H. E., 1996 Lithogeochemical Exploration for Metasomatic Zones Associated with Hydrothermal Mineral Deposits Using Pearce Element Ratio Analysis</Reference>
+   <Variable letter="N" element="Na-mol" unit="mol/kg"/>
+   <Variable letter="K" element="K-mol" unit="mol/kg"/>
+   <Variable letter="C" element="Ca-mol" unit="mol/kg"/>
+   <Variable letter="A" element="Al-mol" unit="mol/kg"/>
+   <Variable letter="T" element="Ti-mol" unit="mol/kg"/>
+   <Line name="AB Control Line" visible="true" m="1.0" c="0.0" >
+      <Colour r="0" g="0" b="0"/>
+      <LabelAngle angle="0.0" />
+   </Line>
+   <Polygon name="_ v6.1 required to open diagram _" visible="true" >
+      <Point x="30" y="30" />
+      <Point x="200" y="30" />
+      <Point x="200" y="40" />
+      <Point x="30" y="40" />
+   </Polygon>
+</GeochemXYDiagram>

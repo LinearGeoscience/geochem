@@ -368,9 +368,10 @@ export const DownholePlot: React.FC<DownholePlotProps> = ({ plotId }) => {
 
     // Handle hole selection toggle
     const toggleHole = (hole: string) => {
-        setSelectedHoles(prev =>
-            prev.includes(hole) ? prev.filter(h => h !== hole) : [...prev, hole]
-        );
+        const newHoles = selectedHoles.includes(hole)
+            ? selectedHoles.filter(h => h !== hole)
+            : [...selectedHoles, hole];
+        setSelectedHoles(newHoles);
     };
 
     // Handle trace color change

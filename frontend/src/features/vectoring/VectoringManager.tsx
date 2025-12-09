@@ -63,7 +63,7 @@ const IndicatorHistogram: React.FC<IndicatorHistogramProps> = ({ indicator, thre
     showarrow: false,
     font: { size: 10, color: t.color },
     yanchor: 'bottom' as const,
-    textangle: -45
+    textangle: '-45' as any
   }));
 
   // Color the histogram bars based on thresholds
@@ -79,10 +79,7 @@ const IndicatorHistogram: React.FC<IndicatorHistogramProps> = ({ indicator, thre
   };
 
   // Calculate histogram bins manually for coloring
-  const min = Math.min(...validValues);
-  const max = Math.max(...validValues);
   const binCount = Math.min(30, Math.ceil(Math.sqrt(validValues.length)));
-  const binWidth = (max - min) / binCount || 1;
 
   return (
     <div style={{ marginBottom: '24px', background: 'white', borderRadius: '8px', border: '1px solid #e5e7eb', overflow: 'hidden' }}>
@@ -115,7 +112,7 @@ const IndicatorHistogram: React.FC<IndicatorHistogramProps> = ({ indicator, thre
           },
           nbinsx: binCount,
           hovertemplate: 'Value: %{x:.2f}<br>Count: %{y}<extra></extra>'
-        }]}
+        } as any]}
         layout={{
           height: 200,
           margin: { t: 20, b: 40, l: 50, r: 20 },

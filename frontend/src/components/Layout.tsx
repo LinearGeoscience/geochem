@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Box, Drawer, List, ListItem, ListItemIcon, ListItemText, AppBar, Toolbar, Typography, IconButton, Divider, Button, Tooltip, Select, MenuItem, FormControl, Chip } from '@mui/material';
-import { CloudUpload, TableChart, ViewColumn, BarChart, Analytics, Settings, Menu as MenuIcon, ChevronLeft, Calculate, FilterList } from '@mui/icons-material';
+import { CloudUpload, TableChart, ViewColumn, BarChart, Analytics, Settings, Menu as MenuIcon, ChevronLeft, Calculate, FilterList, Science, Functions } from '@mui/icons-material';
 import { useAppStore, COLUMN_FILTER_LABELS, ColumnFilterType } from '../store/appStore';
 import { useCalculationStore } from '../store/calculationStore';
 import { ProjectManager } from './ProjectManager';
@@ -21,6 +21,8 @@ export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) =>
         { id: 'columns', label: 'Columns', icon: <ViewColumn /> },
         { id: 'plots', label: 'Plots', icon: <BarChart /> },
         { id: 'analysis', label: 'Analysis', icon: <Analytics /> },
+        { id: 'qaqc', label: 'QA/QC', icon: <Science /> },
+        { id: 'statistics', label: 'Statistics', icon: <Functions /> },
         { id: 'settings', label: 'Settings', icon: <Settings /> },
     ];
 

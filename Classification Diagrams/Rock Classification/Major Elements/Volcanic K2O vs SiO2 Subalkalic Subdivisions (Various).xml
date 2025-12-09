@@ -1,0 +1,239 @@
+<?xml version="1.0" encoding="windows-1252"?>
+<GeochemXYDiagram name="Subdivision of Subalkalic Rocks using K2O vs SiO2">
+   <GeochemFunctionAxisX name="SiO2 (pct)" function="s" log="false"/>
+   <GeochemFunctionAxisY name="K2O (pct)" function="k" log="false"/>
+   <Comment>Subdivisions of Le Maitre et al. (1989) - red lines with nomenclature in red and of Rickwood (1989) - nomenclature in parentheses</Comment>
+   <Comment>Shaded bands are the fields in which fall the boundary lines of Peccerillo and Taylor (1976), Ewart (1982), Innocenti et al. (1982), Carr (1985) and Middlemost (1985) as summarised by Rickwood (1989)</Comment>
+   <Reference>Using Geochemical Data, by Hugh Rollinson, 1993. Fig. 3.5 Page 56.</Reference>
+   <Variable letter="S" element="SiO2" unit="pct"/>
+   <Variable letter="K" element="K2O" unit="pct"/>
+   <Poly name="" visible="true" closed="true">
+      <Colour r="255" g="0" b="0"/>
+      <LabelAngle angle="0.0" />
+      <LabelPos x="57.472797" y="3.2457423" />
+      <Boundary3>
+         <Linear>
+            <BezierPoint x="45.0" y="1.38" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="48.0" y="1.7" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="56.0" y="3.3" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="63.0" y="4.2" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="70.0" y="5.1" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="70.0" y="4.61" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="63.0" y="3.87" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="56.0" y="2.98" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="48.0" y="1.6" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="45.0" y="1.37" sectionEnd="false"/>
+         </Linear>
+      </Boundary3>
+   </Poly>
+   <Poly name="" visible="true" closed="true">
+      <Colour r="0" g="255" b="0"/>
+      <LabelAngle angle="0.0" />
+      <LabelPos x="59.996716" y="0.8439337" />
+      <Boundary3>
+         <Linear>
+            <BezierPoint x="45.0" y="0.2" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="48.0" y="0.41" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="61.0" y="0.97" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="70.0" y="1.38" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="75.0" y="1.51" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="75.0" y="1.44" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="70.0" y="1.23" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="61.0" y="0.8" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="48.0" y="0.3" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="45.0" y="0.15" sectionEnd="false"/>
+         </Linear>
+      </Boundary3>
+   </Poly>
+   <Poly name="" visible="true" closed="true">
+      <Colour r="0" g="0" b="255"/>
+      <LabelAngle angle="0.0" />
+      <LabelPos x="59.996716" y="2.1750565" />
+      <Boundary3>
+         <Linear>
+            <BezierPoint x="45.0" y="0.98" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="49.0" y="1.28" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="52.0" y="1.5" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="63.0" y="2.48" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="70.0" y="3.1" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="75.0" y="3.43" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="75.0" y="3.25" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="70.0" y="2.86" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="63.0" y="2.32" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="52.0" y="1.35" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="49.0" y="1.1" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="45.0" y="0.92" sectionEnd="false"/>
+         </Linear>
+      </Boundary3>
+   </Poly>
+   <Poly name="" visible="true" closed="false">
+      <Colour r="255" g="0" b="0"/>
+      <LabelAngle angle="0.0" />
+      <LabelPos x="57.96356" y="2.1605878" />
+      <Boundary3>
+         <Linear>
+            <BezierPoint x="48.0" y="1.2" sectionEnd="true"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="68.0" y="3.1" sectionEnd="true"/>
+         </Linear>
+      </Boundary3>
+   </Poly>
+   <Poly name="" visible="true" closed="false">
+      <Colour r="255" g="0" b="0"/>
+      <LabelAngle angle="0.0" />
+      <LabelPos x="57.96356" y="0.7571213" />
+      <Boundary3>
+         <Linear>
+            <BezierPoint x="48.0" y="0.3" sectionEnd="true"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="68.0" y="1.2" sectionEnd="true"/>
+         </Linear>
+      </Boundary3>
+   </Poly>
+   <Poly name="" visible="true" closed="false">
+      <Colour r="0" g="0" b="0"/>
+      <LabelAngle angle="0.0" />
+      <LabelPos x="47.937996" y="2.0014317" />
+      <Boundary3>
+         <Linear>
+            <BezierPoint x="48.0" y="0.0" sectionEnd="true"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="47.98665" y="2.8658695" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="47.98665" y="2.8658695" sectionEnd="true"/>
+         </Linear>
+      </Boundary3>
+   </Poly>
+   <Poly name="(Shoshonite series)" visible="true" closed="false">
+      <Colour r="255" g="255" b="255"/>
+      <LabelAngle angle="0.0" />
+      <LabelPos x="59.435844" y="4.5045214" />
+      <Boundary3>
+         <Linear>
+            <BezierPoint x="59.0" y="4.5" sectionEnd="true"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="60.0" y="4.5" sectionEnd="true"/>
+         </Linear>
+      </Boundary3>
+   </Poly>
+   <Poly name="[High K&lt;br&gt; (calc-alkaline)&lt;br&gt; series]" visible="true" closed="false">
+      <Colour r="255" g="255" b="255"/>
+      <LabelAngle angle="0.0" />
+      <LabelPos x="63.432045" y="2.8744285" />
+      <Boundary3>
+         <Linear>
+            <BezierPoint x="62.0" y="3.0" sectionEnd="true"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="63.0" y="3.0" sectionEnd="true"/>
+         </Linear>
+      </Boundary3>
+   </Poly>
+   <Poly name="(Calc-alkaline series)" visible="true" closed="false">
+      <Colour r="255" g="255" b="255"/>
+      <LabelAngle angle="0.0" />
+      <LabelPos x="63.57226" y="1.5990182" />
+      <Boundary3>
+         <Linear>
+            <BezierPoint x="64.0" y="1.75" sectionEnd="true"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="65.0" y="1.75" sectionEnd="true"/>
+         </Linear>
+      </Boundary3>
+   </Poly>
+   <Poly name="[Low-K (tholeiite) series]" visible="true" closed="false">
+      <Colour r="255" g="255" b="255"/>
+      <LabelAngle angle="0.0" />
+      <LabelPos x="63.8527" y="0.30911484" />
+      <Boundary3>
+         <Linear>
+            <BezierPoint x="65.18477" y="0.6424607" sectionEnd="true"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="65.18477" y="0.6424607" sectionEnd="true"/>
+         </Linear>
+      </Boundary3>
+   </Poly>
+   <Label name="High K" visible="true" x="67.64132" y="3.8484693" >
+      <Colour r="255" g="0" b="0"/>
+      <LabelAngle angle="0.0" />
+   </Label>
+   <Label name="Medium K" visible="true" x="67.68574" y="2.2075276" >
+      <Colour r="255" g="0" b="0"/>
+      <LabelAngle angle="0.0" />
+   </Label>
+   <Label name="Low K" visible="true" x="67.61911" y="0.723802" >
+      <Colour r="255" g="0" b="0"/>
+      <LabelAngle angle="0.0" />
+   </Label>
+   <Polygon name="_ v6.1 required to open diagram _" visible="true" >
+      <Point x="30" y="30" />
+      <Point x="200" y="30" />
+      <Point x="200" y="40" />
+      <Point x="30" y="40" />
+   </Polygon>
+</GeochemXYDiagram>

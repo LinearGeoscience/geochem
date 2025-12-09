@@ -1,0 +1,34 @@
+<?xml version="1.0" encoding="windows-1252"?>
+<GeochemXYDiagram name="Garnet TiO2 vs Cr2O3">
+   <GeochemFunctionAxisX name="Cr2O3 (pct)" function="cr" log="false"/>
+   <GeochemFunctionAxisY name="TiO2 (pct)" function="ti" log="false"/>
+   <Comment>Discrimination diagram used to separate Cr-poor garnet megacrysts from garnets in peridotites</Comment>
+   <Reference>Diagram after Schultze D. J., 1999 Explor. Mining Geol., Vol. 6, No. 4, pp. 349-366, 1997</Reference>
+   <Variable letter="CR" element="Cr2O3" unit="pct"/>
+   <Variable letter="TI" element="TiO2" unit="pct"/>
+   <Poly name=" Cr-poor grt" visible="true" closed="true">
+      <Colour r="255" g="0" b="0"/>
+      <LabelAngle angle="0.0" />
+      <LabelPos x="1.9995679" y="1.203798" />
+      <Boundary3>
+         <Linear>
+            <BezierPoint x="0.0" y="2.0" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="0.0" y="0.4" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="4.0" y="0.4" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="4.0" y="2.0" sectionEnd="false"/>
+         </Linear>
+      </Boundary3>
+   </Poly>
+   <Polygon name="_ v6.1 required to open diagram _" visible="true" >
+      <Point x="30" y="30" />
+      <Point x="200" y="30" />
+      <Point x="200" y="40" />
+      <Point x="30" y="40" />
+   </Polygon>
+</GeochemXYDiagram>

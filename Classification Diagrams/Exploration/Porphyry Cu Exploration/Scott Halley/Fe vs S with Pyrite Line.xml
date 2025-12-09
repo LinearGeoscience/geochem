@@ -1,0 +1,52 @@
+<?xml version="1.0" encoding="windows-1252"?>
+<GeochemXYDiagram name="S_ppm : Fe_ppm">
+   <GeochemAxisX element="S" unit="ppm" log="false"/>
+   <GeochemAxisY element="Fe" unit="ppm" log="false"/>
+   <Bounds x="-3013.1897" y="-7252.9097" w="130154.54" h="103028.51" />
+   <Comment>The pyrite line shows Fe to S ratios that match the stoichiometry of pyrite, i.e. Fe:S (molar) = 1:2</Comment>
+   <Comment>Trend of increasing Fe and S up the pyrite line maps samples that contain additional pyrite in veins.</Comment>
+   <Reference>Using ME_MS61 or ME-ICP61 to characterize alteration in porphyry Cu and epithermal systems (Scott Halley, 2016)</Reference>
+   <Poly name="Probable sulfates on the &lt;br&gt; S-rich side of the pyrite line" visible="true" closed="false">
+      <Colour r="0" g="0" b="0"/>
+      <LabelAngle angle="0.0" />
+      <LabelPos x="69247.08" y="12752.739" />
+      <Boundary3>
+         <Linear>
+            <BezierPoint x="28877.557" y="12752.739" sectionEnd="true"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="109616.59" y="12752.739" sectionEnd="true"/>
+         </Linear>
+      </Boundary3>
+   </Poly>
+   <Poly name="" visible="true" closed="false">
+      <Colour r="0" g="0" b="0"/>
+      <LabelAngle angle="0.0" />
+      <LabelPos x="105861.29" y="13001.789" />
+      <Boundary3>
+         <Linear>
+            <BezierPoint x="102418.93" y="15492.28" sectionEnd="true"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="109616.59" y="12752.739" sectionEnd="true"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="102418.93" y="10511.297" sectionEnd="true"/>
+         </Linear>
+      </Boundary3>
+   </Poly>
+   <PointFeature name="Biotite" visible="false" x="-295.15906" y="180352.0" pixelRadius="5.0" >
+      <Colour r="0" g="0" b="0"/>
+      <LabelAngle angle="0.0" />
+   </PointFeature>
+   <Line name="Pyrite Line" visible="true" m="0.86" c="0.0" >
+      <Colour r="0" g="0" b="255"/>
+      <LabelAngle angle="0.0" />
+   </Line>
+   <Polygon name="_ v6.1 required to open diagram _" visible="true" >
+      <Point x="30" y="30" />
+      <Point x="200" y="30" />
+      <Point x="200" y="40" />
+      <Point x="30" y="40" />
+   </Polygon>
+</GeochemXYDiagram>

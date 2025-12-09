@@ -1,0 +1,8 @@
+# GeoChem Pro QGIS Plugin Requirements
+# Install these in your QGIS Python environment
+
+# WebSocket client for real-time communication
+websocket-client>=1.0.0
+
+# HTTP requests (optional - plugin has fallback to urllib)
+requests>=2.25.0

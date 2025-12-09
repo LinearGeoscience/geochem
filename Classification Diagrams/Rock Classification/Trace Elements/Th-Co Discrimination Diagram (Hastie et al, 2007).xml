@@ -1,0 +1,91 @@
+<?xml version="1.0" encoding="windows-1252"?>
+<GeochemXYDiagram name="Th-Co Discrimination Diagram (Hastie et al 2007)">
+   <GeochemAxisX element="Co" unit="ppm" log="false"/>
+   <GeochemAxisY element="Th" unit="ppm" log="true"/>
+   <Comment>Discrimination diagram for classifying altered volcanic island arc rocks. Classification field boundaries were constructed using composition data from island arc lavas.</Comment>
+   <Comment>Th and Co on y- and x-axes are used as proxies for K2O and SiO2 respectively. Th is used to subdivide volcanic arc rocks into volcanic series: tholeiitic, calc-alkaline, high-K calc-alkaline and shoshonitic.</Comment>
+   <Comment>Gradual removal of Co from the melt during crystallization of volcanic island arc rocks reflects fractionation from basalt to rhyolite, as shown in the field boundaries for the different rock types along the x-axis.</Comment>
+   <Reference>Hastie, A.R., Kerr, A.C., Pearce, J.A., Mitchell, S.F., 2007, Classification of Altered Volcanic Island Arc Rocks using Immobile Trace Elements: Development of the Th-Co Discrimination Diagram.  Journal of Petrology, v. 48, p. 2341-2357.</Reference>
+   <Poly name="" visible="true" closed="false">
+      <Colour r="255" g="0" b="0"/>
+      <LabelAngle angle="0.0" />
+      <LabelPos x="52.228596" y="4.464543" />
+      <Boundary3>
+         <Linear>
+            <BezierPoint x="38.4" y="0.01" sectionEnd="true"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="24.0" y="100.0" sectionEnd="true"/>
+         </Linear>
+      </Boundary3>
+   </Poly>
+   <Poly name="" visible="true" closed="false">
+      <Colour r="0" g="255" b="0"/>
+      <LabelAngle angle="0.0" />
+      <LabelPos x="85.057556" y="4.343713" />
+      <Boundary3>
+         <Linear>
+            <BezierPoint x="23.0" y="0.01" sectionEnd="true"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="7.0" y="100.0" sectionEnd="true"/>
+         </Linear>
+      </Boundary3>
+   </Poly>
+   <Poly name="" visible="true" closed="false">
+      <Colour r="0" g="0" b="255"/>
+      <LabelAngle angle="0.0" />
+      <LabelPos x="73.88174" y="11.824758" />
+      <Boundary3>
+         <Linear>
+            <BezierPoint x="70.0" y="2.2" sectionEnd="true"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="0.0" y="9.0" sectionEnd="true"/>
+         </Linear>
+      </Boundary3>
+   </Poly>
+   <Poly name="" visible="true" closed="false">
+      <Colour r="255" g="0" b="255"/>
+      <LabelAngle angle="0.0" />
+      <LabelPos x="74.58023" y="3.2564461" />
+      <Boundary3>
+         <Linear>
+            <BezierPoint x="70.0" y="0.245" sectionEnd="true"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="0.0" y="1.35" sectionEnd="true"/>
+         </Linear>
+      </Boundary3>
+   </Poly>
+   <Label name="Basalts" visible="true" x="42.517345" y="0.0134449955" >
+      <Colour r="0" g="0" b="0"/>
+      <LabelAngle angle="0.0" />
+   </Label>
+   <Label name="Basaltic Andesite &lt;br&gt; - Andesite" visible="true" x="21.41459" y="0.013049061" >
+      <Colour r="0" g="0" b="0"/>
+      <LabelAngle angle="0.0" />
+   </Label>
+   <Label name="Dacite - Rhyolite - &lt;br&gt; Latite - Trachyte" visible="true" x="1.9477105" y="0.012860831" >
+      <Colour r="0" g="0" b="0"/>
+      <LabelAngle angle="-0.16274773" />
+   </Label>
+   <Label name="High-K and Shoshonitic" visible="true" x="46.9342" y="28.600113" >
+      <Colour r="0" g="0" b="0"/>
+      <LabelAngle angle="0.0" />
+   </Label>
+   <Label name="Calc-Alkaline" visible="true" x="47.752136" y="0.91684777" >
+      <Colour r="0" g="0" b="0"/>
+      <LabelAngle angle="0.0" />
+   </Label>
+   <Label name="Island Arc Tholeiite" visible="true" x="49.060833" y="0.048633948" >
+      <Colour r="0" g="0" b="0"/>
+      <LabelAngle angle="0.0" />
+   </Label>
+   <Polygon name="_ v6.1 required to open diagram _" visible="true" >
+      <Point x="30" y="30" />
+      <Point x="200" y="30" />
+      <Point x="200" y="40" />
+      <Point x="30" y="40" />
+   </Polygon>
+</GeochemXYDiagram>

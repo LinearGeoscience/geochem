@@ -1,0 +1,107 @@
+<?xml version="1.0" encoding="windows-1252"?>
+<GeochemTernaryDiagram name="A-CN-K">
+   <GeochemFunctionAxisA name="Al2O3(mol%)" function="a/101.961276" log="false"/>
+   <GeochemFunctionAxisB name="CaO* (mol%)" function="c/56.0774" log="false"/>
+   <GeochemFunctionAxisC name="K2O (mol%)" function="k/94.196" log="false"/>
+   <Comment>CaO* here is only the silicate bound fraction of total CaO in the analysis. Note, Na2O is missing so mierals and rocks on the left side of the triangle are either Ca end members or Na free rocks</Comment>
+   <Comment>Ka kaolinite, Ch chlorite, Il illite, Sm smectite, Cpx clinopyroxene, Hbl hornblende, Plg plagioclase, Mu muscovite, Bio biotite, Ks potassium feldspar, Gi gibbsite, Bas basalt, And andesite</Comment>
+   <Reference>Nesbitt, HW, Young, GM: Prediction of some weathering trends of plutonic and volcanic rocks based on thermodynamic and kinetic considerations. Geochim Cosmochim Acta, 1984, 48: 1523-1534</Reference>
+   <Reference>Nesbitt, HW, Young, GM: Formation and diagenesis of weathering profiles. J Geol 1989. 97: 129-147</Reference>
+   <Variable letter="A" element="Al2O3" unit="pct"/>
+   <Variable letter="C" element="CaO" unit="pct"/>
+   <Variable letter="K" element="K2O" unit="pct"/>
+   <Poly name="Natural Water" visible="true" closed="false">
+      <Colour r="200" g="0" b="100"/>
+      <LabelAngle angle="0.0" />
+      <LabelPos a="0.002348398697545861" b="0.8239541971219702" />
+      <Boundary3>
+         <Linear>
+            <BezierPoint x="0.0" y="0.0" sectionEnd="true"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="35.0" y="0.0" sectionEnd="true"/>
+         </Linear>
+      </Boundary3>
+   </Poly>
+   <Poly name="" visible="true" closed="false">
+      <Colour r="200" g="0" b="100"/>
+      <LabelAngle angle="0.0" />
+      <LabelPos a="0.502864508988767" b="0.24865334315277854" />
+      <Boundary3>
+         <Linear>
+            <BezierPoint x="25.0" y="43.30127" sectionEnd="true"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="75.0" y="43.30127" sectionEnd="true"/>
+         </Linear>
+      </Boundary3>
+   </Poly>
+   <Poly name="Sm" visible="true" closed="false">
+      <Colour r="200" g="0" b="100"/>
+      <LabelAngle angle="0.0" />
+      <LabelPos a="0.8011371062771249" b="0.19886289372287508" />
+      <Boundary3>
+         <Linear>
+            <BezierPoint x="37.5" y="64.951904" sectionEnd="true"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="42.5" y="73.61216" sectionEnd="true"/>
+         </Linear>
+      </Boundary3>
+   </Poly>
+   <Poly name="Il" visible="true" closed="false">
+      <Colour r="200" g="0" b="100"/>
+      <LabelAngle angle="0.0" />
+      <LabelPos a="0.8025921796864169" b="1.8101827320432529E-4" />
+      <Boundary3>
+         <Linear>
+            <BezierPoint x="57.5" y="73.61216" sectionEnd="true"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="62.5" y="64.951904" sectionEnd="true"/>
+         </Linear>
+      </Boundary3>
+   </Poly>
+   <TPointFeature name="Cpx" visible="true" a="0.05000000000000001" b="0.95" pixelRadius="10.0" >
+      <Colour r="2" g="200" b="10"/>
+      <LabelAngle angle="0.0" />
+   </TPointFeature>
+   <TPointFeature name="Hbl" visible="true" a="0.15" b="0.85" pixelRadius="10.0" >
+      <Colour r="2" g="200" b="10"/>
+      <LabelAngle angle="0.0" />
+   </TPointFeature>
+   <TPointFeature name="Bas" visible="true" a="0.4000000000000001" b="0.5999999999999999" pixelRadius="10.0" >
+      <Colour r="2" g="200" b="10"/>
+      <LabelAngle angle="0.0" />
+   </TPointFeature>
+   <TPointFeature name="And" visible="true" a="0.45" b="0.55" pixelRadius="10.0" >
+      <Colour r="2" g="200" b="10"/>
+      <LabelAngle angle="0.0" />
+   </TPointFeature>
+   <TPointFeature name="Plg" visible="true" a="0.5" b="0.5" pixelRadius="10.0" >
+      <Colour r="2" g="200" b="10"/>
+      <LabelAngle angle="0.0" />
+   </TPointFeature>
+   <TPointFeature name="Ka, Gi, Ch" visible="true" a="0.9803744221493917" b="1.1102230246251565E-16" pixelRadius="10.0" >
+      <Colour r="2" g="200" b="10"/>
+      <LabelAngle angle="0.0" />
+   </TPointFeature>
+   <TPointFeature name="Mu" visible="true" a="0.725" b="5.551115123125783E-17" pixelRadius="10.0" >
+      <Colour r="2" g="200" b="10"/>
+      <LabelAngle angle="0.0" />
+   </TPointFeature>
+   <TPointFeature name="Bio" visible="true" a="0.55" b="0.0" pixelRadius="10.0" >
+      <Colour r="2" g="200" b="10"/>
+      <LabelAngle angle="0.0" />
+   </TPointFeature>
+   <TPointFeature name="Ks" visible="true" a="0.5" b="0.0" pixelRadius="10.0" >
+      <Colour r="2" g="200" b="10"/>
+      <LabelAngle angle="0.0" />
+   </TPointFeature>
+   <Polygon name="_ v6.1 required to open diagram _" visible="true" >
+      <TPoint a="0.1" b="0.7" />
+      <TPoint a="0.1" b="0.2" />
+      <TPoint a="0.5" b="0.0" />
+      <TPoint a="0.5" b="0.5" />
+   </Polygon>
+</GeochemTernaryDiagram>

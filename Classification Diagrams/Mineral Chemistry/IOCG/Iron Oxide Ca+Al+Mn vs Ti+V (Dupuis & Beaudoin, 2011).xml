@@ -1,0 +1,205 @@
+<?xml version="1.0" encoding="windows-1252"?>
+<GeochemXYDiagram name="Iron Oxide CaAlMn vs TiV (Dupuis and Beaudoin 2011)">
+   <GeochemFunctionAxisX name="Ti+V" function="D+E" log="true"/>
+   <GeochemFunctionAxisY name="Ca+Al+Mn" function="A+B+C" log="true"/>
+   <Bounds x="0.01" y="0.01" w="12.0" h="3.0" />
+   <Comment>Ca + Al + Mn vs. Ti + V discriminant diagram for average Fe-oxide compositions from Kiruna, IOCG, porphyry Cu, skarn, Fe-Ti-V, and BIF deposits</Comment>
+   <Comment>This plot is to be used with mineral chemistry data. Whole rock chemistry data will mostly plot outside the range of values represented by the polygons in this diagram.</Comment>
+   <Reference>Fig. 6., Dupuis and Beaudoin, 2011. Discriminant diagrams for iron oxide trace element fingerprinting of mineral deposit types. Mineralium Deposita vol. 46, pp. 319-335</Reference>
+   <Variable letter="A" element="Ca" unit="pct"/>
+   <Variable letter="B" element="Al" unit="pct"/>
+   <Variable letter="C" element="Mn" unit="pct"/>
+   <Variable letter="D" element="Ti" unit="pct"/>
+   <Variable letter="E" element="V" unit="pct"/>
+   <Poly name="BIF" visible="true" closed="true">
+      <Colour r="255" g="0" b="0"/>
+      <LabelAngle angle="0.0" />
+      <LabelPos x="0.028216239" y="0.06601822" />
+      <Boundary3>
+         <Linear>
+            <BezierPoint x="0.014498998" y="0.121444196" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="0.024562221" y="0.022614844" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="0.04688462" y="0.035380814" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="0.046420623" y="0.12024231" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="0.014643923" y="0.121444196" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="0.014498998" y="0.121444196" sectionEnd="false"/>
+         </Linear>
+      </Boundary3>
+   </Poly>
+   <Poly name="IOCG" visible="true" closed="true">
+      <Colour r="255" g="204" b="102"/>
+      <LabelAngle angle="0.0" />
+      <LabelPos x="0.08004643" y="0.15637109" />
+      <Boundary3>
+         <Linear>
+            <BezierPoint x="0.04688462" y="0.035380814" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="0.1147569" y="0.091924824" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="0.1562" y="0.14239265" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="0.14001267" y="0.34852666" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="0.08773124" y="0.4086456" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="0.04688462" y="0.22056793" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="0.046420623" y="0.121444196" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="0.04688462" y="0.035380814" sectionEnd="false"/>
+         </Linear>
+      </Boundary3>
+   </Poly>
+   <Poly name="Porphyry" visible="true" closed="true">
+      <Colour r="0" g="255" b="0"/>
+      <LabelAngle angle="0.0" />
+      <LabelPos x="0.4355682" y="0.3468942" />
+      <Boundary3>
+         <Linear>
+            <BezierPoint x="0.14001267" y="0.34852666" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="0.37853846" y="0.7203676" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="1.3057241" y="0.9470787" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="0.90827966" y="0.13281637" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="0.1562" y="0.14239265" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="0.14001267" y="0.34852666" sectionEnd="false"/>
+         </Linear>
+      </Boundary3>
+   </Poly>
+   <Poly name="Kiruna" visible="true" closed="true">
+      <Colour r="0" g="0" b="204"/>
+      <LabelAngle angle="0.0" />
+      <LabelPos x="0.33505657" y="0.0878481" />
+      <Boundary3>
+         <Linear>
+            <BezierPoint x="0.11494024" y="0.09213335" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="0.7370749" y="0.044474866" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="0.90827966" y="0.13281637" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="0.1562" y="0.14239265" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="0.13068166" y="0.110544026" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="0.11494024" y="0.09213335" sectionEnd="false"/>
+         </Linear>
+      </Boundary3>
+   </Poly>
+   <Poly name="Skarn" visible="true" closed="true">
+      <Colour r="255" g="153" b="255"/>
+      <LabelAngle angle="0.0" />
+      <LabelPos x="0.08858749" y="0.61831814" />
+      <Boundary3>
+         <Linear>
+            <BezierPoint x="0.00500218" y="0.121444196" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="0.005058608" y="3.0375915" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="1.6171353" y="2.9869792" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="1.3057241" y="0.9470787" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="0.37853846" y="0.7203676" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="0.14001267" y="0.34852666" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="0.08773124" y="0.4086456" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="0.04688462" y="0.22056793" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="0.046420623" y="0.121444196" sectionEnd="false"/>
+         </Linear>
+      </Boundary3>
+   </Poly>
+   <Poly name="Fe-Ti, V" visible="true" closed="true">
+      <Colour r="0" g="255" b="255"/>
+      <LabelAngle angle="0.0" />
+      <LabelPos x="3.2912004" y="0.17727976" />
+      <Boundary3>
+         <Linear>
+            <BezierPoint x="0.56349117" y="0.010205622" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="19.818779" y="0.010346391" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="19.818779" y="2.9769979" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="1.6171353" y="2.9869792" sectionEnd="false"/>
+         </Linear>
+      </Boundary3>
+   </Poly>
+   <Poly name="" visible="true" closed="false">
+      <Colour r="0" g="0" b="0"/>
+      <LabelAngle angle="0.0" />
+      <LabelPos x="0.005" y="0.121" />
+      <Boundary3>
+         <Linear>
+            <BezierPoint x="0.00500218" y="0.121444196" sectionEnd="true"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="0.046420623" y="0.121444196" sectionEnd="true"/>
+         </Linear>
+      </Boundary3>
+   </Poly>
+   <Poly name="" visible="true" closed="false">
+      <Colour r="0" g="0" b="0"/>
+      <LabelAngle angle="0.0" />
+      <LabelPos x="0.56" y="0.5" />
+      <Boundary3>
+         <Linear>
+            <BezierPoint x="0.56349117" y="0.010205622" sectionEnd="true"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="1.6171353" y="2.9869792" sectionEnd="true"/>
+         </Linear>
+      </Boundary3>
+   </Poly>
+   <Polygon name="_ v6.1 required to open diagram _" visible="true" >
+      <Point x="30" y="30" />
+      <Point x="200" y="30" />
+      <Point x="200" y="40" />
+      <Point x="30" y="40" />
+   </Polygon>
+</GeochemXYDiagram>

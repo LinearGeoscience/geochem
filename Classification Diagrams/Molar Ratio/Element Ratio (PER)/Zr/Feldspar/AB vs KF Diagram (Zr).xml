@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="windows-1252"?>
+<GeochemXYDiagram name="AB vs KF Diagram (Zr)">
+   <GeochemFunctionAxisX name="Na/Zr (Molar)" function="(N)/(Z)" log="false"/>
+   <GeochemFunctionAxisY name="K/Zr (Molar)" function=" (K)/(Z)" log="false"/>
+   <Comment>Molar ratios used throughout the PER-GER ratio diagrams</Comment>
+   <Comment>Competing phases are Albite and K feldspar. Anorthite has no effect on sample position (it is projected from)</Comment>
+   <Comment>&quot;AB&quot; albite control line (Ox axis), &quot;KF&quot; K feldspar control line (Oy axis). Muscovite and Kalsilite will plot along &quot;KF&quot;</Comment>
+   <Reference>Theoretical basis for PER diagrams is described in Stanley C. R., and Madeisky H. E., 1996 Lithogeochemical Exploration for Metasomatic Zones Associated with Hydrothermal Mineral Deposits Using Pearce Element Ratio Analysis</Reference>
+   <Variable letter="K" element="K-mol" unit="mol/kg"/>
+   <Variable letter="N" element="Na-mol" unit="mol/kg"/>
+   <Variable letter="Z" element="Zr-mol" unit="mol/kg"/>
+   <Line name="AB" visible="true" m="0.0" c="0.0" >
+      <Colour r="0" g="0" b="0"/>
+      <LabelAngle angle="0.0" />
+   </Line>
+   <Line name="KF" visible="true" m="1.0E12" c="0.0" >
+      <Colour r="0" g="0" b="0"/>
+      <LabelAngle angle="0.0" />
+   </Line>
+   <Polygon name="_ v6.1 required to open diagram _" visible="true" >
+      <Point x="30" y="30" />
+      <Point x="200" y="30" />
+      <Point x="200" y="40" />
+      <Point x="30" y="40" />
+   </Polygon>
+</GeochemXYDiagram>

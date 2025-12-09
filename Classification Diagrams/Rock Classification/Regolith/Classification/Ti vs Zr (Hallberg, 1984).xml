@@ -1,0 +1,82 @@
+<?xml version="1.0" encoding="windows-1252"?>
+<GeochemXYDiagram name="Ti vs Zr (Hallberg 1984)">
+   <GeochemFunctionAxisX name="Ti (ppm)" function="t" log="false"/>
+   <GeochemFunctionAxisY name="Zr (ppm)" function="z" log="false"/>
+   <Comment>Volcanic rock classification in deeply weathered terrain using conserved elements Ti and Zr.</Comment>
+   <Reference>Hallberg, J. A., 1984, A geochemical aid to igneous rock type identification in deeply weathered terrain. Journal of Geochemical Exploration, 20: 1-8</Reference>
+   <Variable letter="Z" element="Zr" unit="ppm"/>
+   <Variable letter="T" element="Ti" unit="ppm"/>
+   <Poly name="Basalt" visible="true" closed="true">
+      <Colour r="0" g="0" b="204"/>
+      <LabelAngle angle="0.0" />
+      <LabelPos x="21596.76" y="187.6449" />
+      <Boundary3>
+         <Linear>
+            <BezierPoint x="0.0" y="0.0" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="31648.525" y="630.6852" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="31636.354" y="0.11308231" sectionEnd="false"/>
+         </Linear>
+      </Boundary3>
+   </Poly>
+   <Poly name="Andesite" visible="true" closed="true">
+      <Colour r="255" g="0" b="51"/>
+      <LabelAngle angle="0.0" />
+      <LabelPos x="15145.628" y="665.6788" />
+      <Boundary3>
+         <Linear>
+            <BezierPoint x="0.0" y="0.0" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="31648.525" y="630.6852" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="31576.756" y="2198.1497" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="27437.992" y="2201.429" sectionEnd="false"/>
+         </Linear>
+      </Boundary3>
+   </Poly>
+   <Poly name="Dacite" visible="true" closed="true">
+      <Colour r="102" g="255" b="102"/>
+      <LabelAngle angle="0.0" />
+      <LabelPos x="7644.311" y="968.43353" />
+      <Boundary3>
+         <Linear>
+            <BezierPoint x="0.0" y="0.0" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="8816.322" y="2200.4316" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="27437.992" y="2201.429" sectionEnd="false"/>
+         </Linear>
+      </Boundary3>
+   </Poly>
+   <Poly name="Rhyolite" visible="true" closed="true">
+      <Colour r="255" g="102" b="0"/>
+      <LabelAngle angle="0.0" />
+      <LabelPos x="2018.3231" y="1053.4174" />
+      <Boundary3>
+         <Linear>
+            <BezierPoint x="0.0" y="0.0" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="8816.322" y="2200.4316" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="0.0" y="2202.6074" sectionEnd="false"/>
+         </Linear>
+      </Boundary3>
+   </Poly>
+   <Polygon name="_ v6.1 required to open diagram _" visible="true" >
+      <Point x="30" y="30" />
+      <Point x="200" y="30" />
+      <Point x="200" y="40" />
+      <Point x="30" y="40" />
+   </Polygon>
+</GeochemXYDiagram>

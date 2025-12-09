@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="windows-1252"?>
+<GeochemXYDiagram name="Porphyry Cu Prospectivity (La/Sm)n vs (Dy/Yb)n">
+   <GeochemFunctionAxisX name="(Dy/Yb)n" function="(C/0.254)/(D/0.17)" log="false"/>
+   <GeochemFunctionAxisY name="(La/Sm)n" function="(A/0.237)/(B/0.153)" log="false"/>
+   <Bounds x="0.0" y="0.0" w="3.0" h="12.5" />
+   <Comment>Comparison of ratios of normalised LREE/MREE (La/Sm)n to normalised MREE/HREE (Dy/Yb)n as a discriminant of hornblende (+/- titanite) vs. garnet frationation/restite. Normalisation values from Sun and McDonough (1989).</Comment>
+   <Reference>Richards et al., 2012, High Sr/Y Magmas Reflect Arc Maturity, High Magmatic Water Content, and Porphyry Cu +/- Mo +/- Au Potential: Examples from the Tethyan Arcs of Central and Eastern Iran and Western Pakistan, Economic Geology, v.107, pp. 310, Fig 9b</Reference>
+   <Reference></Reference>
+   <Variable letter="A" element="La" unit="ppm"/>
+   <Variable letter="B" element="Sm" unit="ppm"/>
+   <Variable letter="C" element="Dy" unit="ppm"/>
+   <Variable letter="D" element="Yb" unit="ppm"/>
+   <Poly name="" visible="true" closed="false">
+      <Colour r="153" g="0" b="51"/>
+      <LabelAngle angle="1.5707964" />
+      <LabelPos x="1.1351055" y="6.460531" />
+      <Boundary3>
+         <Linear>
+            <BezierPoint x="1.0" y="0.0" sectionEnd="true"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="1.0" y="2257.7925" sectionEnd="true"/>
+         </Linear>
+      </Boundary3>
+   </Poly>
+   <Polygon name="_ v6.1 required to open diagram _" visible="true" >
+      <Point x="30" y="30" />
+      <Point x="200" y="30" />
+      <Point x="200" y="40" />
+      <Point x="30" y="40" />
+   </Polygon>
+</GeochemXYDiagram>

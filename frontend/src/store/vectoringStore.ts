@@ -7,13 +7,9 @@ import { persist } from 'zustand/middleware';
 import {
   DepositType,
   VectoringResult,
-  CalculatedIndicator,
-  VectoringUIState,
 } from '../types/vectoring';
 import {
   calculateVectoring,
-  getAllDepositTypes,
-  getIndicatorsForDeposit,
   getDepositConfig,
   VECTORING_INDICATORS,
   DEPOSIT_CONFIGS,

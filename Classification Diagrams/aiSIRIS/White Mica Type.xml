@@ -1,0 +1,110 @@
+<?xml version="1.0" encoding="windows-1252"?>
+<XYDiagram name="aiSIRIS White Mica Type Diagram" variateMode="Multi">
+   <FreeAxisX name="Wav_WtMica" log="false"/>
+   <FreeAxisY name="D_AlOH" log="false"/>
+   <Comment>White mica types calculated from the wavelength of the AlOH absorption.</Comment>
+   <Comment>Thresholds based on generic AlOH boundaries for white micas. Applies to all white micas including illite.</Comment>
+   <Comment>NOTE: your project data may show more variable distribution (e.g. two populations of muscovite)</Comment>
+   <Reference>AusSpec International white mica thresholds for aiSIRIS white mica/illite analysis</Reference>
+   <Poly name="Paragonitic&lt;br&gt; white mica" visible="true" closed="true" endArrow="false">
+      <Colour r="0" g="51" b="204"/>
+      <LabelAngle angle="0.0" />
+      <LabelPos x="2185.9502" y="0.3053565" />
+      <Boundary3>
+         <Linear>
+            <BezierPoint x="2180.0205" y="0.0" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="2192.036" y="0.0" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="2191.9963" y="0.9989405" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="2180.029" y="0.9989405" sectionEnd="false"/>
+         </Linear>
+      </Boundary3>
+   </Poly>
+   <Poly name="ParagMusc&lt;br&gt; white mica" visible="true" closed="true" endArrow="false">
+      <Colour r="0" g="204" b="204"/>
+      <LabelAngle angle="0.0" />
+      <LabelPos x="2196.0015" y="0.19425581" />
+      <Boundary3>
+         <Linear>
+            <BezierPoint x="2192.036" y="0.0" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="2200.038" y="0.0" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="2199.9587" y="0.9976832" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="2191.9963" y="0.9989405" sectionEnd="false"/>
+         </Linear>
+      </Boundary3>
+   </Poly>
+   <Poly name="Muscovitic&lt;br&gt; white mica" visible="true" closed="true" endArrow="false">
+      <Colour r="0" g="153" b="0"/>
+      <LabelAngle angle="0.0" />
+      <LabelPos x="2205.0105" y="0.3034207" />
+      <Boundary3>
+         <Linear>
+            <BezierPoint x="2200.038" y="0.0" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="2210.035" y="0.0" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="2209.9712" y="0.9989405" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="2199.9587" y="0.9976832" sectionEnd="false"/>
+         </Linear>
+      </Boundary3>
+   </Poly>
+   <Poly name="MuscPheng&lt;br&gt; white mica" visible="true" closed="true" endArrow="false">
+      <Colour r="255" g="153" b="0"/>
+      <LabelAngle angle="0.0" />
+      <LabelPos x="2213.0227" y="0.19802777" />
+      <Boundary3>
+         <Linear>
+            <BezierPoint x="2210.035" y="0.0" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="2216.0188" y="0.0" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="2216.0266" y="1.0001979" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="2209.9712" y="0.9989405" sectionEnd="false"/>
+         </Linear>
+      </Boundary3>
+   </Poly>
+   <Poly name="Phengitic&lt;br&gt; white mica" visible="true" closed="true" endArrow="false">
+      <Colour r="212" g="0" b="0"/>
+      <LabelAngle angle="0.0" />
+      <LabelPos x="2223.1392" y="0.30729228" />
+      <Boundary3>
+         <Linear>
+            <BezierPoint x="2216.0188" y="0.0" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="2230.0288" y="0.0" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="2229.9966" y="0.9989405" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="2216.0266" y="1.0001979" sectionEnd="false"/>
+         </Linear>
+      </Boundary3>
+   </Poly>
+   <Polygon name="_ v6.1 required to open diagram _" visible="true" >
+      <Point x="30" y="30" />
+      <Point x="200" y="30" />
+      <Point x="200" y="40" />
+      <Point x="30" y="40" />
+   </Polygon>
+</XYDiagram>

@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="windows-1252"?>
+<GeochemXYDiagram name="PL Control Diagram (Ti)">
+   <GeochemFunctionAxisX name="Al-K/Ti (Molar)" function="(A-K)/(T)" log="false"/>
+   <GeochemFunctionAxisY name="Ca+Na/Ti (Molar)" function="(C+N)/(T)" log="false"/>
+   <Comment>Projected from K feldspar. Molar ratios used throughout the PER-GER ratio diagrams</Comment>
+   <Comment>K feldspar and muscovite will drive the data along a horizontal line, Albite will drive data along the plagioclase control line</Comment>
+   <Comment>Plagioclase control line labelled &quot;Plg&quot; in the diagram</Comment>
+   <Reference>Theoretical basis for PER diagrams is described in Stanley C. R., and Madeisky H. E., 1996 Lithogeochemical Exploration for Metasomatic Zones Associated with Hydrothermal Mineral Deposits Using Pearce Element Ratio Analysis</Reference>
+   <Variable letter="N" element="Na-mol" unit="mol/kg"/>
+   <Variable letter="K" element="K-mol" unit="mol/kg"/>
+   <Variable letter="C" element="Ca-mol" unit="mol/kg"/>
+   <Variable letter="A" element="Al-mol" unit="mol/kg"/>
+   <Variable letter="T" element="Ti-mol" unit="mol/kg"/>
+   <Line name="Plg" visible="true" m="1.0" c="0.0" >
+      <Colour r="0" g="0" b="0"/>
+      <LabelAngle angle="0.0" />
+   </Line>
+   <Polygon name="_ v6.1 required to open diagram _" visible="true" >
+      <Point x="30" y="30" />
+      <Point x="200" y="30" />
+      <Point x="200" y="40" />
+      <Point x="30" y="40" />
+   </Polygon>
+</GeochemXYDiagram>

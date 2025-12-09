@@ -1,0 +1,77 @@
+<?xml version="1.0" encoding="windows-1252"?>
+<FreeTernaryDiagram name="Cl-SO4-HCO3 Ternary Anion Plot">
+   <FreeFunctionAxisA name="Cl" function="A" log="false"/>
+   <FreeFunctionAxisB name="SO4" function="B" log="false"/>
+   <FreeFunctionAxisC name="HCO3" function="C" log="false"/>
+   <Comment>Input variables in ppm. </Comment>
+   <Comment>Displays the proportions of the major anions present in geothermal water based on Giggenbach (1991a).</Comment>
+   <Comment>Plot labels indicate associations with different parts of a geothermal system or different types thereof.</Comment>
+   <Comment>Ternary plot Tcsh (FIgure 1) in Powell and Cumming (2010) paper. </Comment>
+   <Reference>Powell, T. and Cumming, W., 2010, Spreadsheets for geothermal water and gas geochemistry, </Reference>
+   <Reference>Proceedings: Thirty Fifth Workshop on Geothermal Reservoir Engineering, Stanford University, California. </Reference>
+   <Reference>Giggenbach, W.F., (1991a), &quot;Chemical techniques in geothermal exploration,&quot; </Reference>
+   <Reference>in UNITAR/UNDP Guidebook: Application of geochemistry in resources development, 119-144.</Reference>
+   <FreeVariable letter="A" columnName="Cl_ppm"/>
+   <FreeVariable letter="B" columnName="SO4_ppm"/>
+   <FreeVariable letter="C" columnName="HCO3_ppm"/>
+   <Poly name="" visible="true" closed="false">
+      <Colour r="0" g="0" b="0"/>
+      <LabelAngle angle="0.0" />
+      <LabelPos a="0.25120064250242" b="0.3768682979956519" />
+      <Boundary3>
+         <Linear>
+            <BezierPoint x="24.77579" y="42.912926" sectionEnd="true"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="50.0" y="28.460506" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="50.0" y="0.018270208" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="50.0" y="28.460506" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="74.90117" y="43.47245" sectionEnd="true"/>
+         </Linear>
+      </Boundary3>
+   </Poly>
+   <Poly name="" visible="true" closed="false">
+      <Colour r="0" g="0" b="0"/>
+      <LabelAngle angle="0.0" />
+      <LabelPos a="0.7611903039513037" b="0.04040903212476654" />
+      <Boundary3>
+         <Linear>
+            <BezierPoint x="46.06079" y="79.779625" sectionEnd="true"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="62.343098" y="52.046753" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="69.748955" y="52.046753" sectionEnd="true"/>
+         </Linear>
+      </Boundary3>
+   </Poly>
+   <TLabel name="Steam Heated Waters" visible="true" a="0.00822127500583135" b="0.8390274378108918" >
+      <Colour r="0" g="0" b="0"/>
+      <LabelAngle angle="0.0" />
+   </TLabel>
+   <TLabel name="Volcanic Waters" visible="true" a="0.15774703961911665" b="0.7963566057134542" >
+      <Colour r="0" g="0" b="0"/>
+      <LabelAngle angle="1.0278748" />
+   </TLabel>
+   <TLabel name="Peripheral Waters" visible="true" a="0.2698913630790806" b="0.04660243561527144" >
+      <Colour r="0" g="0" b="0"/>
+      <LabelAngle angle="-1.0563711" />
+   </TLabel>
+   <TLabel name="Mature Waters" visible="true" a="0.7825511274674873" b="0.12847339024115179" >
+      <Colour r="0" g="0" b="0"/>
+      <LabelAngle angle="-1.0267414" />
+   </TLabel>
+   <Polygon name="_ v6.1 required to open diagram _" visible="true" >
+      <TPoint a="0.1" b="0.7" />
+      <TPoint a="0.1" b="0.2" />
+      <TPoint a="0.5" b="0.0" />
+      <TPoint a="0.5" b="0.5" />
+   </Polygon>
+</FreeTernaryDiagram>

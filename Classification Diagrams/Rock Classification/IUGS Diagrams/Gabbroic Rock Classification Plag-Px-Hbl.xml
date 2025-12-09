@@ -1,0 +1,163 @@
+<?xml version="1.0" encoding="windows-1252"?>
+<FreeTernaryDiagram name="IUGS Classification of Gabbroic Rocks Plag-Px-Hbl">
+   <FreeAxisA name="Plag" log="false"/>
+   <FreeAxisB name="Px" log="false"/>
+   <FreeAxisC name="Hbl" log="false"/>
+   <Comment>Classification and nomenclature of gabbroic rocks based on the modal proportions of hornblende (Hbl), pyroxene (Px) and plagioclase (Plag)</Comment>
+   <Comment>Column headers in data file must exactly match diagram variables: Plag, Px and Hbl.</Comment>
+   <Reference>Le Maitre, R. W. (editor), Bateman, P., Dudek, A., Keller, J. et al. 1989</Reference>
+   <Reference>A Classification of Igneous rocks and Glossary of Terms: Recommendations of the International Union of</Reference>
+   <Reference>Geological Sciences Subcommission on the Systematics of Igneous Rocks. Blackwell Scientific Publications, Oxford.</Reference>
+   <Poly name="Anorthosite" visible="true" closed="true">
+      <Colour r="127" g="127" b="255"/>
+      <LabelAngle angle="0.0" />
+      <LabelPos a="0.9400872008993415" b="0.027487780303467435" />
+      <Boundary3>
+         <Linear>
+            <BezierPoint x="45.0" y="77.94228" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="55.0" y="77.94228" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="50.0" y="86.60254" sectionEnd="false"/>
+         </Linear>
+      </Boundary3>
+   </Poly>
+   <Poly name="Gabbronorite" visible="true" closed="true">
+      <Colour r="255" g="127" b="127"/>
+      <LabelAngle angle="1.023028" />
+      <LabelPos a="0.4995202158780545" b="0.45760390879737445" />
+      <Boundary3>
+         <Linear>
+            <BezierPoint x="5.0" y="8.6602545" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="45.0" y="77.94228" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="50.0" y="77.94228" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="10.0" y="8.6602545" sectionEnd="false"/>
+         </Linear>
+      </Boundary3>
+   </Poly>
+   <Poly name="Hornblende Gabbro" visible="true" closed="true">
+      <Colour r="153" g="255" b="153"/>
+      <LabelAngle angle="-0.9895405" />
+      <LabelPos a="0.4995202158780545" b="0.04040725607770912" />
+      <Boundary3>
+         <Linear>
+            <BezierPoint x="50.0" y="77.94228" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="55.0" y="77.94228" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="95.0" y="8.6602545" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="90.0" y="8.6602545" sectionEnd="false"/>
+         </Linear>
+      </Boundary3>
+   </Poly>
+   <Poly name="Pyroxene&lt;br&gt;Hornblende&lt;br&gt;Gabbronorite" visible="true" closed="true">
+      <Colour r="255" g="0" b="0"/>
+      <LabelAngle angle="0.0" />
+      <LabelPos a="0.3820356865390446" b="0.3015762989898919" />
+      <Boundary3>
+         <Linear>
+            <BezierPoint x="10.0" y="8.6602545" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="50.0" y="77.94228" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="90.0" y="8.6602545" sectionEnd="false"/>
+         </Linear>
+      </Boundary3>
+   </Poly>
+   <Poly name="Pyroxenite" visible="true" closed="true">
+      <Colour r="102" g="255" b="204"/>
+      <LabelAngle angle="0.0" />
+      <LabelPos a="0.032252201461537906" b="0.9356312214449632" />
+      <Boundary3>
+         <Linear>
+            <BezierPoint x="0.0" y="0.0" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="5.0" y="8.6602545" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="10.0" y="0.0" sectionEnd="false"/>
+         </Linear>
+      </Boundary3>
+   </Poly>
+   <Poly name="Hornblendite" visible="true" closed="true">
+      <Colour r="127" g="127" b="255"/>
+      <LabelAngle angle="0.0" />
+      <LabelPos a="0.032252201461537906" b="0.03211657709349869" />
+      <Boundary3>
+         <Linear>
+            <BezierPoint x="89.99163" y="0.0" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="95.0" y="8.6602545" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="100.0" y="0.0" sectionEnd="false"/>
+         </Linear>
+      </Boundary3>
+   </Poly>
+   <Poly name="Hornblende Pyroxenite" visible="true" closed="true">
+      <Colour r="51" g="153" b="255"/>
+      <LabelAngle angle="0.0" />
+      <LabelPos a="0.03492230440106084" b="0.6899028645358712" />
+      <Boundary3>
+         <Linear>
+            <BezierPoint x="5.0" y="8.6602545" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="10.0" y="8.6602545" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="50.0" y="8.6602545" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="50.0" y="0.0" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="10.0" y="0.0" sectionEnd="false"/>
+         </Linear>
+      </Boundary3>
+   </Poly>
+   <Poly name="Pyroxene Hornblendite" visible="true" closed="true">
+      <Colour r="255" g="127" b="127"/>
+      <LabelAngle angle="0.0" />
+      <LabelPos a="0.032252201461537906" b="0.26663540554538134" />
+      <Boundary3>
+         <Linear>
+            <BezierPoint x="50.0" y="8.6602545" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="90.0" y="8.6602545" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="95.0" y="8.6602545" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="89.99163" y="0.0" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="50.0" y="0.0" sectionEnd="false"/>
+         </Linear>
+      </Boundary3>
+   </Poly>
+   <Polygon name="_ v6.1 required to open diagram _" visible="true" >
+      <TPoint a="0.1" b="0.7" />
+      <TPoint a="0.1" b="0.2" />
+      <TPoint a="0.5" b="0.0" />
+      <TPoint a="0.5" b="0.5" />
+   </Polygon>
+</FreeTernaryDiagram>

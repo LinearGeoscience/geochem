@@ -1,0 +1,63 @@
+<?xml version="1.0" encoding="windows-1252"?>
+<GeochemXYDiagram name="Hydration and Carbonation of Ultramafic Rocks">
+   <GeochemFunctionAxisX name="Si/(Mg+Fe)(Molar)" function="d/(a+b)" log="false"/>
+   <GeochemFunctionAxisY name="C/(Mg+Fe) (Molar)" function="c/(a+b)" log="false"/>
+   <Bounds x="-0.057789974" y="-0.042364065" w="1.485" h="1.1" />
+   <Comment>This molar diagram describes the alteration of olivine in ultramafic rocks.</Comment>
+   <Variable letter="A" element="Mg-mol" unit="mol/kg"/>
+   <Variable letter="B" element="Fe-mol" unit="mol/kg"/>
+   <Variable letter="C" element="C-mol" unit="mol/kg"/>
+   <Variable letter="D" element="Si-mol" unit="mol/kg"/>
+   <Poly name="" visible="true" closed="false">
+      <Colour r="255" g="0" b="0"/>
+      <LabelAngle angle="0.0" />
+      <LabelPos x="0.67371935" y="0.5005231" />
+      <Boundary3>
+         <Linear>
+            <BezierPoint x="0.0" y="1.0" sectionEnd="true"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="1.35" y="0.0" sectionEnd="true"/>
+         </Linear>
+      </Boundary3>
+   </Poly>
+   <Poly name=" " visible="false" closed="false">
+      <Colour r="0" g="255" b="0"/>
+      <LabelAngle angle="0.0" />
+      <LabelPos x="0.59952086" y="0.0010962237" />
+      <Boundary3>
+         <Linear>
+            <BezierPoint x="0.5001982" y="-4.940899E-4" sectionEnd="true"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="0.7" y="0.0" sectionEnd="true"/>
+         </Linear>
+      </Boundary3>
+   </Poly>
+   <PointFeature name="Magnesite" visible="true" x="0.0" y="1.0" pixelRadius="5.0" >
+      <Colour r="0" g="255" b="0"/>
+      <LabelAngle angle="0.0" />
+   </PointFeature>
+   <PointFeature name="Mag" visible="true" x="0.0" y="0.0" pixelRadius="5.0" >
+      <Colour r="0" g="255" b="0"/>
+      <LabelAngle angle="0.0" />
+   </PointFeature>
+   <PointFeature name="Antigorite" visible="true" x="0.7" y="0.0" pixelRadius="5.0" >
+      <Colour r="0" g="255" b="0"/>
+      <LabelAngle angle="0.0" />
+   </PointFeature>
+   <PointFeature name="Talc" visible="true" x="1.35" y="0.0" pixelRadius="5.0" >
+      <Colour r="0" g="255" b="0"/>
+      <LabelAngle angle="0.0" />
+   </PointFeature>
+   <PointFeature name="Forsterite" visible="true" x="0.5001982" y="-4.940899E-4" pixelRadius="5.0" >
+      <Colour r="255" g="0" b="0"/>
+      <LabelAngle angle="0.0" />
+   </PointFeature>
+   <Polygon name="_ v6.1 required to open diagram _" visible="true" >
+      <Point x="30" y="30" />
+      <Point x="200" y="30" />
+      <Point x="200" y="40" />
+      <Point x="30" y="40" />
+   </Polygon>
+</GeochemXYDiagram>

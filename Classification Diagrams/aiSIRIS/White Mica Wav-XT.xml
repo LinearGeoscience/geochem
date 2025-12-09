@@ -1,0 +1,431 @@
+<?xml version="1.0" encoding="windows-1252"?>
+<XYDiagram name="Illite definitions for White Mica Spectra" variateMode="Multi">
+   <FreeAxisX name="Wav_WtMica" log="false"/>
+   <FreeAxisY name="XT_WtMica" log="false"/>
+   <Comment>Plot of the wavelength of the AlOH vs white mica crystallinity</Comment>
+   <Comment>The data distribution allows definition of different types and crystallinity of illite</Comment>
+   <Comment>Note: The illite definition will only apply to those white mica spectra that are reliable for crystallinity analysis</Comment>
+   <Comment>(Therefore not all white mica spectra will have an &quot;illite&quot; classification)</Comment>
+   <Reference>Ausspec International definitions</Reference>
+   <Poly name="Paragonitic&lt;br&gt; smectite-illite" visible="true" closed="true" endArrow="false">
+      <Colour r="204" g="204" b="255"/>
+      <LabelAngle angle="0.0" />
+      <LabelPos x="2184.9429" y="0.0" />
+      <Boundary3>
+         <Linear>
+            <BezierPoint x="2180.007" y="0.0" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="2180.007" y="0.5016842" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="2192.0" y="0.5016842" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="2192.0" y="0.0" sectionEnd="false"/>
+         </Linear>
+      </Boundary3>
+   </Poly>
+   <Poly name="ParagMusc&lt;br&gt; smectite-illite" visible="true" closed="true" endArrow="false">
+      <Colour r="204" g="255" b="255"/>
+      <LabelAngle angle="0.0" />
+      <LabelPos x="2196.0" y="0.0" />
+      <Boundary3>
+         <Linear>
+            <BezierPoint x="2192.0" y="0.0" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="2192.0" y="0.5016842" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="2200.0066" y="0.49615502" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="2200.0066" y="0.0" sectionEnd="false"/>
+         </Linear>
+      </Boundary3>
+   </Poly>
+   <Poly name="Smectite-illite" visible="true" closed="true" endArrow="false">
+      <Colour r="204" g="255" b="204"/>
+      <LabelAngle angle="0.0" />
+      <LabelPos x="2205.012" y="0.0" />
+      <Boundary3>
+         <Linear>
+            <BezierPoint x="2200.0066" y="0.0" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="2200.0066" y="0.49615502" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="2209.9958" y="0.49837068" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="2210.0005" y="0.0" sectionEnd="false"/>
+         </Linear>
+      </Boundary3>
+   </Poly>
+   <Poly name="MuscPheng&lt;br&gt; smectite-illite" visible="true" closed="true" endArrow="false">
+      <Colour r="255" g="204" b="153"/>
+      <LabelAngle angle="0.0" />
+      <LabelPos x="2213.1794" y="0.12737484" />
+      <Boundary3>
+         <Linear>
+            <BezierPoint x="2210.0005" y="0.0" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="2209.9958" y="0.49837068" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="2216.0063" y="0.50058633" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="2216.0063" y="0.0" sectionEnd="false"/>
+         </Linear>
+      </Boundary3>
+   </Poly>
+   <Poly name="Phengitic&lt;br&gt; smectite-illite" visible="true" closed="true" endArrow="false">
+      <Colour r="255" g="204" b="255"/>
+      <LabelAngle angle="0.0" />
+      <LabelPos x="2223.0974" y="0.0" />
+      <Boundary3>
+         <Linear>
+            <BezierPoint x="2216.0063" y="0.0" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="2216.0063" y="0.50058633" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="2230.0073" y="0.49837068" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="2230.0073" y="0.0" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="2224.5176" y="0.0" sectionEnd="false"/>
+         </Linear>
+      </Boundary3>
+   </Poly>
+   <Poly name="Paragonitic&lt;br&gt; illite-smectite" visible="true" closed="true" endArrow="false">
+      <Colour r="153" g="153" b="255"/>
+      <LabelAngle angle="0.0" />
+      <LabelPos x="2184.8262" y="0.49843094" />
+      <Boundary3>
+         <Linear>
+            <BezierPoint x="2180.007" y="0.5016842" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="2180.0002" y="0.8030647" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="2192.0" y="0.7995794" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="2192.0" y="0.5016842" sectionEnd="false"/>
+         </Linear>
+      </Boundary3>
+   </Poly>
+   <Poly name="ParagMusc&lt;br&gt; illite-smectite" visible="true" closed="true" endArrow="false">
+      <Colour r="102" g="255" b="255"/>
+      <LabelAngle angle="0.0" />
+      <LabelPos x="2196.0" y="0.49843094" />
+      <Boundary3>
+         <Linear>
+            <BezierPoint x="2192.0" y="0.5016842" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="2192.0" y="0.7995794" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="2200.0044" y="0.79609406" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="2200.0066" y="0.49615502" sectionEnd="false"/>
+         </Linear>
+      </Boundary3>
+   </Poly>
+   <Poly name="Illite-smectite" visible="true" closed="true" endArrow="false">
+      <Colour r="102" g="255" b="102"/>
+      <LabelAngle angle="0.0" />
+      <LabelPos x="2204.7786" y="0.48718682" />
+      <Boundary3>
+         <Linear>
+            <BezierPoint x="2200.0066" y="0.49615502" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="2200.0044" y="0.79609406" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="2209.9993" y="0.7995794" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="2209.9958" y="0.49837068" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="2209.9958" y="0.49837068" sectionEnd="false"/>
+         </Linear>
+      </Boundary3>
+   </Poly>
+   <Poly name="MuscPheng&lt;br&gt; illite-smectite" visible="true" closed="true" endArrow="false">
+      <Colour r="255" g="204" b="51"/>
+      <LabelAngle angle="0.0" />
+      <LabelPos x="2212.946" y="0.5771398" />
+      <Boundary3>
+         <Linear>
+            <BezierPoint x="2209.9958" y="0.49837068" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="2209.9993" y="0.7995794" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="2216.0034" y="0.7995794" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="2216.0063" y="0.50058633" sectionEnd="false"/>
+         </Linear>
+      </Boundary3>
+   </Poly>
+   <Poly name="Phengitic&lt;br&gt; illite-smectite" visible="true" closed="true" endArrow="false">
+      <Colour r="255" g="102" b="153"/>
+      <LabelAngle angle="0.0" />
+      <LabelPos x="2223.3308" y="0.48718682" />
+      <Boundary3>
+         <Linear>
+            <BezierPoint x="2216.0063" y="0.50058633" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="2216.0034" y="0.7995794" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="2230.0037" y="0.7995794" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="2230.0073" y="0.49837068" sectionEnd="false"/>
+         </Linear>
+      </Boundary3>
+   </Poly>
+   <Poly name="Paragonitic&lt;br&gt; illite" visible="true" closed="true" endArrow="false">
+      <Colour r="102" g="51" b="255"/>
+      <LabelAngle angle="0.0" />
+      <LabelPos x="2184.9429" y="1.1168578" />
+      <Boundary3>
+         <Linear>
+            <BezierPoint x="2180.0002" y="0.8030647" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="2179.9978" y="1.5017366" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="2192.0" y="1.4985199" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="2192.0" y="0.7995794" sectionEnd="false"/>
+         </Linear>
+      </Boundary3>
+   </Poly>
+   <Poly name="ParagMusc&lt;br&gt; illite" visible="true" closed="true" endArrow="false">
+      <Colour r="0" g="204" b="255"/>
+      <LabelAngle angle="0.0" />
+      <LabelPos x="2196.0" y="1.1168578" />
+      <Boundary3>
+         <Linear>
+            <BezierPoint x="2192.0" y="0.7995794" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="2192.0" y="1.4985199" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="2200.0115" y="1.495303" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="2200.0044" y="0.79609406" sectionEnd="false"/>
+         </Linear>
+      </Boundary3>
+   </Poly>
+   <Poly name="Illite" visible="true" closed="true" endArrow="false">
+      <Colour r="51" g="204" b="0"/>
+      <LabelAngle angle="0.0" />
+      <LabelPos x="2205.245" y="1.3080078" />
+      <Boundary3>
+         <Linear>
+            <BezierPoint x="2200.0044" y="0.79609406" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="2200.0115" y="1.495303" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="2210.0044" y="1.4985199" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="2209.9993" y="0.7995794" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="2209.9993" y="0.7995794" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="2209.9993" y="0.7995794" sectionEnd="false"/>
+         </Linear>
+      </Boundary3>
+   </Poly>
+   <Poly name="MuscPheng&lt;br&gt; illite" visible="true" closed="true" endArrow="false">
+      <Colour r="255" g="102" b="51"/>
+      <LabelAngle angle="0.0" />
+      <LabelPos x="2213.2961" y="1.139346" />
+      <Boundary3>
+         <Linear>
+            <BezierPoint x="2209.9993" y="0.7995794" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="2210.0044" y="1.4985199" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="2216.0059" y="1.5017366" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="2216.0034" y="0.7995794" sectionEnd="false"/>
+         </Linear>
+      </Boundary3>
+   </Poly>
+   <Poly name="Phengitic&lt;br&gt; illite" visible="true" closed="true" endArrow="false">
+      <Colour r="255" g="51" b="51"/>
+      <LabelAngle angle="0.0" />
+      <LabelPos x="2222.9807" y="1.1168578" />
+      <Boundary3>
+         <Linear>
+            <BezierPoint x="2216.0034" y="0.7995794" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="2216.0059" y="1.5017366" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="2230.0112" y="1.4985199" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="2230.0037" y="0.7995794" sectionEnd="false"/>
+         </Linear>
+      </Boundary3>
+   </Poly>
+   <Poly name="Paragonitic&lt;br&gt; HX illite" visible="true" closed="true" endArrow="false">
+      <Colour r="0" g="0" b="153"/>
+      <LabelAngle angle="0.0" />
+      <LabelPos x="2185.0596" y="2.6123264" />
+      <Boundary3>
+         <Linear>
+            <BezierPoint x="2179.9978" y="1.5017366" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="2180.004" y="3.9980173" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="2192.0" y="4.001234" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="2192.0" y="1.4985199" sectionEnd="false"/>
+         </Linear>
+      </Boundary3>
+   </Poly>
+   <Poly name="ParagMusc&lt;br&gt; HX illite" visible="true" closed="true" endArrow="false">
+      <Colour r="0" g="153" b="204"/>
+      <LabelAngle angle="0.0" />
+      <LabelPos x="2196.0" y="2.6210833" />
+      <Boundary3>
+         <Linear>
+            <BezierPoint x="2192.0" y="1.4985199" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="2192.0" y="4.001234" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="2200.0117" y="4.001234" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="2200.0115" y="1.495303" sectionEnd="false"/>
+         </Linear>
+      </Boundary3>
+   </Poly>
+   <Poly name="HX Illite" visible="true" closed="true" endArrow="false">
+      <Colour r="51" g="102" b="0"/>
+      <LabelAngle angle="0.0" />
+      <LabelPos x="2204.8953" y="2.6235704" />
+      <Boundary3>
+         <Linear>
+            <BezierPoint x="2200.0115" y="1.495303" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="2200.0117" y="4.001234" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="2210.0054" y="4.001234" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="2210.0044" y="1.4985199" sectionEnd="false"/>
+         </Linear>
+      </Boundary3>
+   </Poly>
+   <Poly name="MuscPheng&lt;br&gt; HX illite" visible="true" closed="true" endArrow="false">
+      <Colour r="204" g="102" b="0"/>
+      <LabelAngle angle="0.0" />
+      <LabelPos x="2213.0437" y="2.6210833" />
+      <Boundary3>
+         <Linear>
+            <BezierPoint x="2210.0044" y="1.4985199" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="2210.0054" y="4.001234" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="2216.0056" y="3.9980173" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="2216.0059" y="1.5017366" sectionEnd="false"/>
+         </Linear>
+      </Boundary3>
+   </Poly>
+   <Poly name="Phengitic&lt;br&gt; HX illite" visible="true" closed="true" endArrow="false">
+      <Colour r="204" g="0" b="0"/>
+      <LabelAngle angle="0.0" />
+      <LabelPos x="2222.9807" y="2.601082" />
+      <Boundary3>
+         <Linear>
+            <BezierPoint x="2216.0059" y="1.5017366" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="2216.0056" y="3.9980173" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="2230.0063" y="3.9980173" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="2230.0112" y="1.4985199" sectionEnd="false"/>
+         </Linear>
+      </Boundary3>
+   </Poly>
+   <Poly name="" visible="true" closed="true" endArrow="false">
+      <Colour r="255" g="255" b="255"/>
+      <LabelAngle angle="0.0" />
+      <LabelPos x="2180.0068" y="4.4939156" />
+      <Boundary3>
+         <Linear>
+            <BezierPoint x="2180.0068" y="4.4939156" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="2230.0981" y="4.494136" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="2230.0981" y="4.244197" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="2179.9365" y="4.2541943" sectionEnd="false"/>
+         </Linear>
+      </Boundary3>
+   </Poly>
+   <Label name="Values &gt;4 will usually represent HX white mica rather than Illite" visible="true" x="2179.9365" y="4.2541943" >
+      <Colour r="0" g="0" b="0"/>
+      <LabelAngle angle="0.0" />
+   </Label>
+   <Polygon name="_ v6.1 required to open diagram _" visible="true" >
+      <Point x="30" y="30" />
+      <Point x="200" y="30" />
+      <Point x="200" y="40" />
+      <Point x="30" y="40" />
+   </Polygon>
+</XYDiagram>

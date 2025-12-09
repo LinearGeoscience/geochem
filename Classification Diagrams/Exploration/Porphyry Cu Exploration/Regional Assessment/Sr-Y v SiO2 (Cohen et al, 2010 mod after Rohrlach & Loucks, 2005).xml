@@ -1,0 +1,192 @@
+<?xml version="1.0" encoding="windows-1252"?>
+<GeochemXYDiagram name="Sr/Y vs SiO2">
+   <GeochemFunctionAxisX name="SiO2" function="SiO2" log="false"/>
+   <GeochemFunctionAxisY name="Sr/Y" function="Sr/Y" log="true"/>
+   <Bounds x="45.282906" y="1.404904" w="29.931925" h="301.961" />
+   <Comment>Two fields represent i) rock suites associated with Cu-Au ore deposits and ii) a barren reference rock suite defined by samples from NW Pacific volcanic arcs, including intraoceanic and continental margin arcs (Kurile Arc, N. Honshu Arc, Central Ryukyu and Izu-Bonin Arc).</Comment>
+   <Comment>All analyses are from fresh or weakly altered (weakly propylitic at most) whole-rock samples.</Comment>
+   <Reference>Diagram from Cohen et al. (2010) after Rohrlach, B.D. and Loucks, R.R. (2005).</Reference>
+   <Reference>Cohen et al., 2010. Major advances in exploration geochemistry, 1998-2007. Geochemistry: Exploration, Environment, Analysis, vol. 10, pp. 3-16</Reference>
+   <Reference>Rohrlach, B.D. and Loucks, R.R. 2005. Multi-million-year cyclic ramp-up of volatiles in a lower crustal magma reservoir trapped below the Tampakan copper-gold deposit by Mio-Pliocene crustal compression in the southern Philippines.</Reference>
+   <Reference>In: PORTER, T.M. (ed.) Super porphyry copper and gold deposits. A global perspective. PGC Publishing, Perth, vol. 2, 270p.</Reference>
+   <Variable letter="SR" element="Sr" unit="ppm"/>
+   <Variable letter="Y" element="Y" unit="ppm"/>
+   <Variable letter="SIO2" element="SiO2" unit="pct"/>
+   <Poly name="Unmineralised Reference Suite" visible="true" closed="true">
+      <Colour r="255" g="0" b="0"/>
+      <LabelAngle angle="0.0" />
+      <LabelPos x="60.48873" y="6.512208" />
+      <Boundary3>
+         <Linear>
+            <BezierPoint x="45.92523" y="65.895195" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="45.92523" y="5.337012" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="74.617546" y="1.4804101" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="74.55072" y="15.671396" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="45.92523" y="65.895195" sectionEnd="false"/>
+         </Linear>
+      </Boundary3>
+   </Poly>
+   <Poly name="Ore-forming Igneous Suite" visible="true" closed="true">
+      <Colour r="0" g="255" b="0"/>
+      <LabelAngle angle="0.0" />
+      <LabelPos x="62.29476" y="44.922626" />
+      <Boundary3>
+         <Linear>
+            <BezierPoint x="55.95082" y="78.52978" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="54.911243" y="70.87304" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="53.38158" y="59.734547" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="52.60932" y="47.018406" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="51.866768" y="35.765076" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="51.59945" y="27.205103" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="51.6143" y="22.158674" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="52.074684" y="19.99818" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="52.475662" y="19.99818" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="52.861794" y="18.048338" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="53.39643" y="16.855244" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="53.931072" y="15.741018" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="54.554817" y="12.39011" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="55.44588" y="11.571055" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="56.3815" y="10.806145" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="58.029972" y="11.973581" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="59.158657" y="14.70045" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="60.16853" y="18.676191" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="61.35662" y="18.676191" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="62.381344" y="19.325886" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="63.331814" y="18.676191" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="64.37139" y="18.048338" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="65.75254" y="19.325886" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="66.39114" y="18.676191" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="67.74259" y="25.406694" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="68.27723" y="32.277943" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="69.15344" y="34.56273" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="70.19302" y="41.007523" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="71.2623" y="45.437748" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="71.70783" y="57.726402" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="71.66328" y="66.18794" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="71.02468" y="70.87304" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="70.14847" y="90.04067" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="69.00494" y="90.04067" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="67.62378" y="93.17295" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="66.15353" y="93.17295" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="65.26246" y="93.17295" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="64.41595" y="96.414185" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="62.886284" y="93.17295" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="61.7576" y="93.17295" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="60.123978" y="75.88977" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="58.90619" y="78.52978" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="57.584442" y="75.88977" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="56.648823" y="75.88977" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="56.648823" y="75.88977" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="55.95082" y="78.52978" sectionEnd="false"/>
+         </Linear>
+      </Boundary3>
+   </Poly>
+   <Label name="in western Pacific Arcs" visible="true" x="57.849148" y="34.656208" >
+      <Colour r="0" g="0" b="0"/>
+      <LabelAngle angle="0.0" />
+   </Label>
+   <Polygon name="_ v6.1 required to open diagram _" visible="true" >
+      <Point x="30" y="30" />
+      <Point x="200" y="30" />
+      <Point x="200" y="40" />
+      <Point x="30" y="40" />
+   </Polygon>
+</GeochemXYDiagram>

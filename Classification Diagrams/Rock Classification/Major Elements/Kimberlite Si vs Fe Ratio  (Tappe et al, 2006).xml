@@ -1,0 +1,86 @@
+<?xml version="1.0" encoding="windows-1252"?>
+<GeochemXYDiagram name="Si vs Fe Ratio (Tappe et al 2006)">
+   <GeochemAxisX element="Fe" unit="pct" log="false"/>
+   <GeochemAxisY element="Si" unit="pct" log="false"/>
+   <Comment>This classification diagram differentiates between rocks that are geochemically characterised as Kimberlite, Orangeite and Aillikites (Ultramafic Lamprophyre)</Comment>
+   <Reference>Tappe, S., Foley, S. F., Jenner, G. A., Heaman, L. M.,Kjarsgaard, B. A., Romer, R. L., Stracke, A., Joyce, N. &amp; Hoefs, J.(2006). Genesis of ultramafic lamprophyres and carbonatites at Aillik Bay,</Reference>
+   <Reference>Labrador: a consequence of incipient lithospheric thinning beneath the North Atlantic Craton. Journal of Petrology 47(7), pp. 1261-1315</Reference>
+   <Poly name="Aillikites &lt;br&gt; (Ultramafic Lamprophyre)" visible="true" closed="true">
+      <Colour r="0" g="255" b="0"/>
+      <LabelAngle angle="0.0" />
+      <LabelPos x="12.116671" y="16.337692" />
+      <Boundary3>
+         <Linear>
+            <BezierPoint x="16.0" y="41.0" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="16.0" y="0.0" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="5.0" y="0.0" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="9.915963" y="33.397083" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="16.0" y="41.0" sectionEnd="false"/>
+         </Linear>
+      </Boundary3>
+   </Poly>
+   <Poly name="Kimberlites (Gp 1)" visible="true" closed="true">
+      <Colour r="0" g="0" b="204"/>
+      <LabelAngle angle="0.0" />
+      <LabelPos x="2.8905065" y="19.69659" />
+      <Boundary3>
+         <Linear>
+            <BezierPoint x="9.915963" y="33.397083" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="5.0" y="0.0" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="0.0" y="0.0" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="0.0" y="38.0" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="8.0" y="31.0" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="9.915963" y="33.397083" sectionEnd="false"/>
+         </Linear>
+      </Boundary3>
+   </Poly>
+   <Poly name="Orangeites (Kimb Gp 2)" visible="true" closed="true">
+      <Colour r="255" g="127" b="0"/>
+      <LabelAngle angle="0.0" />
+      <LabelPos x="7.984542" y="37.578575" />
+      <Boundary3>
+         <Linear>
+            <BezierPoint x="0.0" y="44.0" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="16.0" y="44.0" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="16.0" y="41.0" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="9.915963" y="33.397083" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="8.0" y="31.0" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="0.0" y="38.0" sectionEnd="false"/>
+         </Linear>
+      </Boundary3>
+   </Poly>
+   <Polygon name="_ v6.1 required to open diagram _" visible="true" >
+      <Point x="30" y="30" />
+      <Point x="200" y="30" />
+      <Point x="200" y="40" />
+      <Point x="30" y="40" />
+   </Polygon>
+</GeochemXYDiagram>

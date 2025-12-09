@@ -1,0 +1,54 @@
+<?xml version="1.0" encoding="windows-1252"?>
+<GeochemTernaryDiagram name="ACF - Granulite Facies (Total Fe)">
+   <GeochemFunctionAxisA name="A = Al2O3 - K2O - Na2O" function="(A/101.94)-(B/94.2)-(C/61.982)" log="false"/>
+   <GeochemFunctionAxisB name="C = CaO" function="D/56.08" log="false"/>
+   <GeochemFunctionAxisC name="F = FeO + MgO - Fe2O3 - TiO2" function="(E/71.85)+(F/40.32)-(G/159.7)-(H/79.9)" log="false"/>
+   <Comment>ACF diagram for granulite metamorphic facies. Diagram calculation uses total Fe.</Comment>
+   <Reference>Best, Myron G. Igneous and Metamorphic Petrology. Malden, MA : Blackwell Publishers, 2002. (1985)</Reference>
+   <Variable letter="A" element="Al2O3" unit="pct"/>
+   <Variable letter="B" element="K2O" unit="pct"/>
+   <Variable letter="C" element="Na2O" unit="pct"/>
+   <Variable letter="D" element="CaO" unit="pct"/>
+   <Variable letter="E" element="FeO" unit="pct"/>
+   <Variable letter="F" element="MgO" unit="pct"/>
+   <Variable letter="G" element="Fe2O3" unit="pct"/>
+   <Variable letter="H" element="TiO2" unit="pct"/>
+   <Poly name="Granulite facies" visible="true" closed="true">
+      <Colour r="0" g="255" b="0"/>
+      <LabelAngle angle="0.0" />
+      <LabelPos a="0.2884958416646296" b="0.2946915437030065" />
+      <Boundary3>
+         <Linear>
+            <BezierPoint x="24.98488" y="43.27508" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="50.14211" y="6.670537" sectionEnd="false"/>
+         </Linear>
+         <Linear>
+            <BezierPoint x="87.507996" y="21.636791" sectionEnd="false"/>
+         </Linear>
+      </Boundary3>
+   </Poly>
+   <TPointFeature name="Garnet" visible="true" a="0.25109105062841697" b="0.0" pixelRadius="5.0" >
+      <Colour r="192" g="192" b="192"/>
+      <LabelAngle angle="0.0" />
+   </TPointFeature>
+   <TPointFeature name="Augite" visible="true" a="0.08003914311267168" b="0.45739642648157464" pixelRadius="5.0" >
+      <Colour r="127" g="127" b="255"/>
+      <LabelAngle angle="0.0" />
+   </TPointFeature>
+   <TPointFeature name="Plagioclase" visible="true" a="0.49926409563956015" b="0.5007359043604398" pixelRadius="5.0" >
+      <Colour r="127" g="255" b="127"/>
+      <LabelAngle angle="0.0" />
+   </TPointFeature>
+   <TPointFeature name="Hypersthene" visible="true" a="0.0029083945739620527" b="0.0011564330343111218" pixelRadius="5.0" >
+      <Colour r="255" g="127" b="127"/>
+      <LabelAngle angle="0.0" />
+   </TPointFeature>
+   <Polygon name="_ v6.1 required to open diagram _" visible="true" >
+      <TPoint a="0.1" b="0.7" />
+      <TPoint a="0.1" b="0.2" />
+      <TPoint a="0.5" b="0.0" />
+      <TPoint a="0.5" b="0.5" />
+   </Polygon>
+</GeochemTernaryDiagram>

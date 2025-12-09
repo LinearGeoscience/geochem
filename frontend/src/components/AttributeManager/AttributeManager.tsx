@@ -1,4 +1,4 @@
-import React, { useMemo } from 'react';
+import React, { useMemo, useState } from 'react';
 import {
     Paper,
     Box,
@@ -7,8 +7,9 @@ import {
     Typography,
     Tooltip,
     IconButton,
+    CircularProgress,
 } from '@mui/material';
-import { Palette, Category, FormatSize, FilterList, Lock, LockOpen } from '@mui/icons-material';
+import { Palette, Category, FormatSize, FilterList, Lock, LockOpen, Share } from '@mui/icons-material';
 import { useAttributeStore, AttributeType } from '../../store/attributeStore';
 import { useAppStore } from '../../store/appStore';
 import { AttributeGrid } from './AttributeGrid';
@@ -146,12 +147,31 @@ export const AttributeManager: React.FC = () => {
         shape,
         size,
         filter,
+        syncStylesToQgis,
     } = useAttributeStore();
 
     const { lockAxes, setLockAxes } = useAppStore();
+    const [isSyncing, setIsSyncing] = useState(false);
+    const [syncStatus, setSyncStatus] = useState<'idle' | 'success' | 'error'>('idle');
 
     const handleTabChange = (_: React.SyntheticEvent, newValue: AttributeType) => {
         setActiveTab(newValue);
+    };
+
+    const handleSyncToQgis = async () => {
+        setIsSyncing(true);
+        setSyncStatus('idle');
+        try {
+            await syncStylesToQgis();
+            setSyncStatus('success');
+            // Reset status after 3 seconds
+            setTimeout(() => setSyncStatus('idle'), 3000);
+        } catch (err) {
+            setSyncStatus('error');
+            setTimeout(() => setSyncStatus('idle'), 3000);
+        } finally {
+            setIsSyncing(false);
+        }
     };
 
     const currentConfig = useMemo(() => {
@@ -190,6 +210,21 @@ export const AttributeManager: React.FC = () => {
                             sx={{ ml: 1 }}
                         >
                             {lockAxes ? <Lock fontSize="small" /> : <LockOpen fontSize="small" />}
+                        </IconButton>
+                    </Tooltip>
+                    <Tooltip title="Sync styles to QGIS plugin">
+                        <IconButton
+                            size="small"
+                            onClick={handleSyncToQgis}
+                            disabled={isSyncing}
+                            color={syncStatus === 'success' ? 'success' : syncStatus === 'error' ? 'error' : 'default'}
+                            sx={{ ml: 0.5 }}
+                        >
+                            {isSyncing ? (
+                                <CircularProgress size={18} />
+                            ) : (
+                                <Share fontSize="small" />
+                            )}
                         </IconButton>
                     </Tooltip>
                 </Box>

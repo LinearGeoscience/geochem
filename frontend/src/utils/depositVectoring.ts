@@ -13,15 +13,7 @@ import {
   PorphyryFertilityResult,
   KomatiiteNiResult,
   CarlinGoldResult,
-  IRGSResult,
   LCTPegmatiteResult,
-  SEDEXResult,
-  UraniumRollFrontResult,
-  VMSResult,
-  SnWGreisenResult,
-  OrogenicGoldResult,
-  IOCGResult,
-  NiCuPGEResult,
   ELEMENT_MAPPINGS,
 } from '../types/vectoring';
 
