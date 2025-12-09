@@ -49,6 +49,9 @@ _ul
 # Claude Code
 .claude/
 
+# Classification Diagrams (external resource)
+Classification Diagrams/
+
 # Documentation files
 docs/
 *.md
