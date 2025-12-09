@@ -50,7 +50,11 @@ _ul
 .claude/
 
 # Classification Diagrams (external resource)
-Classification Diagrams/
+CDs/
+diagram_outputs/
+diagram_review/
+classification_diagram*.py
+convert_diagrams_to_json.py
 
 # Documentation files
 docs/
