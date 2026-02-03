@@ -39,7 +39,8 @@ const standardDeviation = (arr: number[], mean: number): number | null => {
 };
 
 export const SummaryStats: React.FC = () => {
-    const { columns, data, statsSelectedColumns, setStatsSelectedColumns } = useAppStore();
+    const { data, statsSelectedColumns, setStatsSelectedColumns, getFilteredColumns } = useAppStore();
+    const filteredColumns = getFilteredColumns();
     useAttributeStore(); // Subscribe to changes
     const [stats, setStats] = useState<Record<string, Stats>>({});
     const [loading, setLoading] = useState(false);
@@ -121,7 +122,7 @@ export const SummaryStats: React.FC = () => {
     };
 
     const numericColumns = sortColumnsByPriority(
-        columns.filter(c => c.type === 'numeric' || c.type === 'float' || c.type === 'integer')
+        filteredColumns.filter(c => c.type === 'numeric' || c.type === 'float' || c.type === 'integer')
     );
 
     const handleSelectAll = () => {

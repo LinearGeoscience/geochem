@@ -9,6 +9,7 @@ import { useAttributeStore } from '../../store/attributeStore';
 import { getStyleArrays, shapeToPlotlySymbol, applyOpacityToColor, getSortedIndices, sortColumnsByPriority } from '../../utils/attributeUtils';
 import { calculateLinearRegression } from '../../utils/regressionUtils';
 import { buildCustomData, buildScatterHoverTemplate } from '../../utils/tooltipUtils';
+import { getPlotConfig, EXPORT_FONT_SIZES, PRESENTATION_FONT_SIZES } from '../../utils/plotConfig';
 
 // Store axis ranges per plot when locked
 interface AxisRangeCache {
@@ -41,6 +42,8 @@ export const ScatterPlot: React.FC<ScatterPlotProps> = ({ plotId }) => {
     const [contourResolution, setContourResolutionLocal] = useState<number>(storedSettings.contourResolution || 50);
     const [logScaleX, setLogScaleXLocal] = useState<boolean>(storedSettings.logScaleX || false);
     const [logScaleY, setLogScaleYLocal] = useState<boolean>(storedSettings.logScaleY || false);
+    const [presentationMode, setPresentationModeLocal] = useState<boolean>(storedSettings.presentationMode || false);
+    const [sortOrder, setSortOrderLocal] = useState<string>(storedSettings.sortOrder || 'default');
 
     // Wrapper functions to persist settings
     const setXAxis = (axis: string) => {
@@ -78,6 +81,14 @@ export const ScatterPlot: React.FC<ScatterPlotProps> = ({ plotId }) => {
     const setLogScaleY = (log: boolean) => {
         setLogScaleYLocal(log);
         updatePlotSettings(plotId, { logScaleY: log });
+    };
+    const setPresentationMode = (mode: boolean) => {
+        setPresentationModeLocal(mode);
+        updatePlotSettings(plotId, { presentationMode: mode });
+    };
+    const setSortOrder = (order: string) => {
+        setSortOrderLocal(order);
+        updatePlotSettings(plotId, { sortOrder: order });
     };
 
     // Cache axis ranges when locked
@@ -131,6 +142,9 @@ export const ScatterPlot: React.FC<ScatterPlotProps> = ({ plotId }) => {
         // Get sorted indices (z-ordering: low-grade first, high-grade last/on top)
         const sortedIndices = getSortedIndices(styleArrays);
 
+        // Marker size multiplier for presentation mode (makes markers much larger)
+        const sizeMultiplier = presentationMode ? 1.8 : 1;
+
         // Build arrays in sorted order for z-ordering
         const sortedData: Record<string, any>[] = [];
         const sortedColors: string[] = [];
@@ -144,7 +158,7 @@ export const ScatterPlot: React.FC<ScatterPlotProps> = ({ plotId }) => {
             const colorWithOpacity = applyOpacityToColor(styleArrays.colors[i], styleArrays.opacity[i]);
             sortedColors.push(colorWithOpacity);
             sortedShapes.push(styleArrays.shapes[i]);
-            sortedSizes.push(styleArrays.sizes[i]);
+            sortedSizes.push(styleArrays.sizes[i] * sizeMultiplier);
             sortedOriginalIndices.push(i);
         }
 
@@ -227,7 +241,7 @@ export const ScatterPlot: React.FC<ScatterPlotProps> = ({ plotId }) => {
                         mode: 'lines',
                         type: 'scatter',
                         name: `Regression (R²=${regression.rSquared.toFixed(3)})`,
-                        line: { color: 'red', width: 2, dash: 'dash' },
+                        line: { color: 'red', width: presentationMode ? 4 : 2, dash: 'dash' },
                         hovertemplate: `y = ${regression.slope.toFixed(4)}x + ${regression.intercept.toFixed(4)}<br>R² = ${regression.rSquared.toFixed(4)}<extra></extra>`
                     });
                 }
@@ -256,7 +270,7 @@ export const ScatterPlot: React.FC<ScatterPlotProps> = ({ plotId }) => {
                             mode: 'lines',
                             type: 'scatter',
                             name: `${category} (R²=${regression.rSquared.toFixed(3)})`,
-                            line: { color: lineColor, width: 2, dash: 'dash' },
+                            line: { color: lineColor, width: presentationMode ? 4 : 2, dash: 'dash' },
                             hovertemplate: `${category}<br>y = ${regression.slope.toFixed(4)}x + ${regression.intercept.toFixed(4)}<br>R² = ${regression.rSquared.toFixed(4)}<extra></extra>`,
                             showlegend: true
                         });
@@ -277,6 +291,35 @@ export const ScatterPlot: React.FC<ScatterPlotProps> = ({ plotId }) => {
 
     const handleDeselect = () => {
         setSelection([]);
+    };
+
+    const getSortedYAxes = (): string[] => {
+        if (sortOrder === 'default') return yAxes;
+        if (sortOrder === 'alphabetical') return [...yAxes].sort((a, b) => a.localeCompare(b));
+
+        if (sortOrder === 'r2-high' || sortOrder === 'r2-low' || sortOrder === 'r2-pos' || sortOrder === 'r2-neg') {
+            const r2Map = new Map<string, number>();
+            const signedR2Map = new Map<string, number>();
+            for (const yName of yAxes) {
+                const xValues = data.map(d => Number(d[xAxis])).filter(v => !isNaN(v) && isFinite(v));
+                const yValues = data.map(d => Number(d[yName])).filter(v => !isNaN(v) && isFinite(v));
+                const regression = calculateLinearRegression(xValues, yValues);
+                r2Map.set(yName, regression?.rSquared ?? -1);
+                const sign = regression && regression.slope >= 0 ? 1 : -1;
+                signedR2Map.set(yName, (regression?.rSquared ?? 0) * sign);
+            }
+            return [...yAxes].sort((a, b) => {
+                if (sortOrder === 'r2-pos' || sortOrder === 'r2-neg') {
+                    const sA = signedR2Map.get(a) ?? 0;
+                    const sB = signedR2Map.get(b) ?? 0;
+                    return sortOrder === 'r2-pos' ? sB - sA : sA - sB;
+                }
+                const rA = r2Map.get(a) ?? -1;
+                const rB = r2Map.get(b) ?? -1;
+                return sortOrder === 'r2-high' ? rB - rA : rA - rB;
+            });
+        }
+        return yAxes;
     };
 
     return (
@@ -359,13 +402,41 @@ export const ScatterPlot: React.FC<ScatterPlotProps> = ({ plotId }) => {
                         <ToggleButton value="y" size="small">Y</ToggleButton>
                     </ToggleButtonGroup>
                 </Box>
+
+                {/* Presentation Mode Toggle */}
+                <Tooltip title="Use much larger text and markers for PowerPoint exports (when placing multiple small plots on a slide)">
+                    <FormControlLabel
+                        control={
+                            <Checkbox
+                                checked={presentationMode}
+                                onChange={(e) => setPresentationMode(e.target.checked)}
+                                size="small"
+                            />
+                        }
+                        label={<Typography variant="body2">Presentation Mode</Typography>}
+                    />
+                </Tooltip>
+
+                {yAxes.length > 1 && (
+                    <FormControl sx={{ minWidth: 170 }} size="small">
+                        <InputLabel>Sort Plots</InputLabel>
+                        <Select value={sortOrder} onChange={(e) => setSortOrder(e.target.value)} label="Sort Plots">
+                            <MenuItem value="default">Default (Selection Order)</MenuItem>
+                            <MenuItem value="alphabetical">Alphabetical (A→Z)</MenuItem>
+                            <MenuItem value="r2-high">Highest R²</MenuItem>
+                            <MenuItem value="r2-low">Lowest R²</MenuItem>
+                            <MenuItem value="r2-pos">Strongest Positive R²</MenuItem>
+                            <MenuItem value="r2-neg">Strongest Negative R²</MenuItem>
+                        </Select>
+                    </FormControl>
+                )}
             </Box>
 
             {!xAxis || yAxes.length === 0 ? (
                 <Typography color="text.secondary">Select X-axis and at least one Y-axis to display plots</Typography>
             ) : (
                 <Grid container spacing={2}>
-                    {yAxes.map((yAxisName) => {
+                    {getSortedYAxes().map((yAxisName) => {
                         const plotData = getPlotDataForAxis(yAxisName);
                         const traces = [...plotData];
 
@@ -394,31 +465,45 @@ export const ScatterPlot: React.FC<ScatterPlotProps> = ({ plotId }) => {
                                         <Plot
                                             data={traces}
                                             layout={{
-                                                title: { text: `${xAxis} vs ${yAxisName}`, font: { size: 14 } },
+                                                title: {
+                                                    text: `${xAxis} vs ${yAxisName}`,
+                                                    font: { size: presentationMode ? PRESENTATION_FONT_SIZES.title : EXPORT_FONT_SIZES.title }
+                                                },
                                                 autosize: true,
-                                                height: 400,
+                                                height: presentationMode ? 500 : 400,
                                                 hovermode: 'closest',
                                                 dragmode: 'lasso',
                                                 selectdirection: 'any',
+                                                font: { size: presentationMode ? PRESENTATION_FONT_SIZES.tickLabels : EXPORT_FONT_SIZES.tickLabels },
                                                 xaxis: {
-                                                    title: { text: xAxis, font: { size: 11 } },
+                                                    title: {
+                                                        text: xAxis,
+                                                        font: { size: presentationMode ? PRESENTATION_FONT_SIZES.axisTitle : EXPORT_FONT_SIZES.axisTitle }
+                                                    },
+                                                    tickfont: { size: presentationMode ? PRESENTATION_FONT_SIZES.tickLabels : EXPORT_FONT_SIZES.tickLabels },
                                                     type: logScaleX ? 'log' : 'linear',
                                                     ...(lockAxes && axisRangesRef.current[yAxisName]?.xRange
                                                         ? { range: axisRangesRef.current[yAxisName].xRange, autorange: false }
                                                         : {})
                                                 },
                                                 yaxis: {
-                                                    title: { text: yAxisName, font: { size: 11 } },
+                                                    title: {
+                                                        text: yAxisName,
+                                                        font: { size: presentationMode ? PRESENTATION_FONT_SIZES.axisTitle : EXPORT_FONT_SIZES.axisTitle }
+                                                    },
+                                                    tickfont: { size: presentationMode ? PRESENTATION_FONT_SIZES.tickLabels : EXPORT_FONT_SIZES.tickLabels },
                                                     type: logScaleY ? 'log' : 'linear',
                                                     ...(lockAxes && axisRangesRef.current[yAxisName]?.yRange
                                                         ? { range: axisRangesRef.current[yAxisName].yRange, autorange: false }
                                                         : {})
                                                 },
                                                 showlegend: false,
-                                                margin: { l: 50, r: 30, t: 40, b: 50 },
+                                                margin: presentationMode
+                                                    ? { l: 100, r: 50, t: 80, b: 100 }
+                                                    : { l: 70, r: 40, t: 60, b: 70 },
                                                 uirevision: lockAxes ? 'locked' : Date.now()
                                             }}
-                                            config={{ displayModeBar: true, displaylogo: false, responsive: true }}
+                                            config={getPlotConfig({ filename: `scatter_${xAxis}_${yAxisName}` })}
                                             style={{ width: '100%' }}
                                             useResizeHandler={true}
                                             onSelected={handleSelected}

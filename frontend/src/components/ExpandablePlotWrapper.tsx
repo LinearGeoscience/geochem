@@ -17,7 +17,7 @@ export const ExpandablePlotWrapper: React.FC<ExpandablePlotWrapperProps> = ({ ch
                     onClick={() => setExpanded(true)}
                     sx={{
                         position: 'absolute',
-                        top: 8,
+                        top: 36,
                         right: 8,
                         zIndex: 10,
                         backgroundColor: 'background.paper',

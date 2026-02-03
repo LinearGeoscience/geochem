@@ -13,6 +13,8 @@ import {
 } from '@mui/icons-material';
 import { useAppStore } from '../../store/appStore';
 import { useClassificationStore, TOTAL_DIAGRAMS } from '../../store/classificationStore';
+import { getPlotConfig, EXPORT_FONT_SIZES } from '../../utils/plotConfig';
+import { ExpandablePlotWrapper } from '../../components/ExpandablePlotWrapper';
 import {
     xmlCartesianToTernary,
     calculatePolygonCentroid,
@@ -318,14 +320,15 @@ export const ClassificationPlot: React.FC<ClassificationPlotProps> = ({ plotId }
         }
 
         const layout: any = {
-            title: { text: `<b>${selectedDiagram.name}</b>`, x: 0.5, font: { size: 14 } },
+            title: { text: `<b>${selectedDiagram.name}</b>`, x: 0.5, font: { size: EXPORT_FONT_SIZES.title } },
             autosize: true,
             height: 650,
+            font: { size: EXPORT_FONT_SIZES.tickLabels },
             ternary: {
                 sum: 100,
                 aaxis: {
-                    title: { text: `<b>${selectedDiagram.axes.a?.name || axisA}</b>`, font: { size: 12 } },
-                    tickfont: { size: 10 },
+                    title: { text: `<b>${selectedDiagram.axes.a?.name || axisA}</b>`, font: { size: EXPORT_FONT_SIZES.axisTitle } },
+                    tickfont: { size: EXPORT_FONT_SIZES.tickLabels },
                     min: 0,
                     linewidth: 2.5,
                     linecolor: 'black',
@@ -333,8 +336,8 @@ export const ClassificationPlot: React.FC<ClassificationPlotProps> = ({ plotId }
                     gridcolor: 'rgba(0,0,0,0.15)'
                 },
                 baxis: {
-                    title: { text: `<b>${selectedDiagram.axes.b?.name || axisB}</b>`, font: { size: 12 } },
-                    tickfont: { size: 10 },
+                    title: { text: `<b>${selectedDiagram.axes.b?.name || axisB}</b>`, font: { size: EXPORT_FONT_SIZES.axisTitle } },
+                    tickfont: { size: EXPORT_FONT_SIZES.tickLabels },
                     min: 0,
                     linewidth: 2.5,
                     linecolor: 'black',
@@ -342,8 +345,8 @@ export const ClassificationPlot: React.FC<ClassificationPlotProps> = ({ plotId }
                     gridcolor: 'rgba(0,0,0,0.15)'
                 },
                 caxis: {
-                    title: { text: `<b>${selectedDiagram.axes.c?.name || axisC}</b>`, font: { size: 12 } },
-                    tickfont: { size: 10 },
+                    title: { text: `<b>${selectedDiagram.axes.c?.name || axisC}</b>`, font: { size: EXPORT_FONT_SIZES.axisTitle } },
+                    tickfont: { size: EXPORT_FONT_SIZES.tickLabels },
                     min: 0,
                     linewidth: 2.5,
                     linecolor: 'black',
@@ -465,11 +468,13 @@ export const ClassificationPlot: React.FC<ClassificationPlotProps> = ({ plotId }
         }
 
         const layout: any = {
-            title: { text: `<b>${selectedDiagram.name}</b>`, x: 0.5, font: { size: 14 } },
+            title: { text: `<b>${selectedDiagram.name}</b>`, x: 0.5, font: { size: EXPORT_FONT_SIZES.title } },
             autosize: true,
             height: 550,
+            font: { size: EXPORT_FONT_SIZES.tickLabels },
             xaxis: {
-                title: { text: `<b>${selectedDiagram.axes.x?.name || axisX}</b>`, font: { size: 12 } },
+                title: { text: `<b>${selectedDiagram.axes.x?.name || axisX}</b>`, font: { size: EXPORT_FONT_SIZES.axisTitle } },
+                tickfont: { size: EXPORT_FONT_SIZES.tickLabels },
                 range: [xMin - 1, xMax + 1],
                 showgrid: renderOptions.showGrid,
                 gridcolor: 'rgba(0,0,0,0.12)',
@@ -479,7 +484,8 @@ export const ClassificationPlot: React.FC<ClassificationPlotProps> = ({ plotId }
                 mirror: true
             },
             yaxis: {
-                title: { text: `<b>${selectedDiagram.axes.y?.name || axisY}</b>`, font: { size: 12 } },
+                title: { text: `<b>${selectedDiagram.axes.y?.name || axisY}</b>`, font: { size: EXPORT_FONT_SIZES.axisTitle } },
+                tickfont: { size: EXPORT_FONT_SIZES.tickLabels },
                 range: [yMin - 0.5, yMax + 0.5],
                 showgrid: renderOptions.showGrid,
                 gridcolor: 'rgba(0,0,0,0.12)',
@@ -838,12 +844,14 @@ export const ClassificationPlot: React.FC<ClassificationPlotProps> = ({ plotId }
             {/* Plot */}
             {plotData ? (
                 <Paper sx={{ p: 1 }}>
-                    <Plot
-                        data={plotData.traces}
-                        layout={plotData.layout}
-                        config={{ responsive: true, displayModeBar: true }}
-                        style={{ width: '100%' }}
-                    />
+                    <ExpandablePlotWrapper>
+                        <Plot
+                            data={plotData.traces}
+                            layout={plotData.layout}
+                            config={getPlotConfig({ filename: `classification_${selectedDiagram?.name?.replace(/\s+/g, '_') || 'diagram'}` })}
+                            style={{ width: '100%' }}
+                        />
+                    </ExpandablePlotWrapper>
                 </Paper>
             ) : (
                 <Paper sx={{ p: 4, textAlign: 'center' }}>

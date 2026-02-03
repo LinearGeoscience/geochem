@@ -7,7 +7,7 @@
 // TRANSFORMATION TYPES
 // ============================================================================
 
-export type TransformationType = 'plr' | 'alr' | 'clr' | 'ilr' | 'slr' | 'chipower' | 'none';
+export type TransformationType = 'plr' | 'alr' | 'clr' | 'ilr' | 'slr' | 'chipower' | 'log-additive' | 'none';
 
 export type ZeroHandlingStrategy =
   | 'half-min'
@@ -146,6 +146,60 @@ export interface PCAResult {
   columns: string[];            // Column names
 }
 
+/**
+ * Full PCA Result with all outputs for the exploration geochemistry workflow
+ * Includes scaled eigenvectors (loadings) for element association analysis
+ */
+export interface FullPCAResult {
+  /** Sample scores projected onto principal components [n_samples x n_components] */
+  scores: number[][];
+  /** Scaled eigenvectors (loadings) [n_variables x n_components] - key for element associations */
+  loadings: number[][];
+  /** Raw eigenvectors (unscaled) [n_components x n_variables] */
+  eigenvectors: number[][];
+  /** Eigenvalues for each component */
+  eigenvalues: number[];
+  /** Percentage of variance explained by each component */
+  varianceExplained: number[];
+  /** Cumulative variance explained */
+  cumulativeVariance: number[];
+  /** Correlation matrix of CLR-transformed data */
+  correlationMatrix: number[][];
+  /** Column/variable names */
+  columns: string[];
+  /** Column means (for centering) */
+  means: number[];
+  /** Number of samples used in analysis */
+  nSamples: number;
+  /** Number of zeros replaced during CLR transformation */
+  zerosReplaced: number;
+}
+
+/**
+ * Element quality assessment for PCA element selection
+ */
+export interface ElementQualityInfo {
+  element: string;
+  /** N-score position of Below Detection Limit values */
+  bldNScore: number;
+  /** Percentage of values below detection limit */
+  percentBLD: number;
+  /** Count of BLD values */
+  countBLD: number;
+  /** Total count of values */
+  totalCount: number;
+  /** Whether element passes quality check (BLD N-score < -1) */
+  isAcceptable: boolean;
+}
+
+/**
+ * Sorted loading for a single element in a PC
+ */
+export interface SortedLoading {
+  element: string;
+  loading: number;
+}
+
 export interface BiplotData {
   samples: Array<{
     id: string | number;
@@ -272,4 +326,29 @@ export interface TransformationUIState {
   currentResult?: TransformationResult;
   varianceDecomposition?: VarianceDecompositionResult;
   procrustesAnalysis?: ProcrustesResult;
+}
+
+// ============================================================================
+// LOG ADDITIVE INDEX TYPES
+// ============================================================================
+
+export interface LogAdditiveIndexConfig {
+  name: string;
+  columns: string[];
+  zeroStrategy: ZeroHandlingStrategy;
+  customZeroValue?: number;
+}
+
+export interface LogAdditiveIndexResult {
+  id: string;
+  name: string;
+  columns: string[];
+  values: (number | null)[];
+  statistics: {
+    min: number;
+    max: number;
+    mean: number;
+    zerosReplaced: number;
+  };
+  timestamp: Date;
 }

@@ -15,7 +15,8 @@ router = APIRouter()
 qgis_data_cache = {
     'data': [],
     'columns': [],
-    'styles': {}  # Attribute styling from frontend
+    'styles': {},  # Attribute styling from frontend
+    'pathfinders': {}  # Pathfinder configuration from frontend
 }
 
 
@@ -283,6 +284,36 @@ async def sync_styles_from_frontend(payload: Dict[str, Any] = Body(...)):
 async def get_qgis_styles():
     """Get attribute styling configuration for QGIS plugin"""
     return qgis_data_cache.get('styles', {})
+
+
+@router.post("/sync-pathfinders")
+async def sync_pathfinders_from_frontend(payload: Dict[str, Any] = Body(...)):
+    """
+    Receive pathfinder configuration from frontend for QGIS sync.
+    Creates styled layers for each pathfinder element.
+    """
+    qgis_data_cache['pathfinders'] = payload
+
+    elements = payload.get('elements', [])
+
+    # Notify QGIS clients that pathfinders are available
+    await manager.broadcast_to_qgis({
+        'type': 'pathfinders_available',
+        'elements': elements,
+        'count': len(elements)
+    })
+
+    return {
+        'status': 'ok',
+        'elements': len(elements),
+        'element_list': elements
+    }
+
+
+@router.get("/pathfinders")
+async def get_pathfinders():
+    """Get pathfinder configuration for QGIS plugin"""
+    return qgis_data_cache.get('pathfinders', {})
 
 
 # ============================================================================

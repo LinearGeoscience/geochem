@@ -23,6 +23,7 @@ from .core.data_sync import DataSyncManager
 from .core.style_manager import GeochemStyleManager
 from .core.style_sync import StyleSyncManager
 from .core.geopackage import GeopackageExporter
+from .core.pathfinder_sync import PathfinderSyncManager
 from .ui.main_dock import GeochemDockWidget
 from .ui.connection_dialog import ConnectionDialog
 from .ui.export_dialog import ExportDialog
@@ -59,6 +60,7 @@ class GeochemProPlugin:
         self.data_sync: Optional[DataSyncManager] = None
         self.style_manager: Optional[GeochemStyleManager] = None
         self.style_sync: Optional[StyleSyncManager] = None
+        self.pathfinder_sync: Optional[PathfinderSyncManager] = None
 
         # UI components
         self.dock_widget: Optional[GeochemDockWidget] = None
@@ -105,6 +107,18 @@ class GeochemProPlugin:
         self.style_sync = StyleSyncManager(self.connection_manager)
         self.style_sync.style_applied.connect(self._on_webapp_style_applied)
         self.style_sync.style_error.connect(self._on_webapp_style_error)
+
+        # Initialize pathfinder sync manager
+        self.pathfinder_sync = PathfinderSyncManager(
+            self.connection_manager,
+            self.data_sync
+        )
+        self.pathfinder_sync.layers_created.connect(self._on_pathfinder_layers_created)
+        self.pathfinder_sync.export_completed.connect(self._on_pathfinder_export_completed)
+        self.pathfinder_sync.error_occurred.connect(self._on_pathfinder_error)
+
+        # Connect pathfinders_available signal
+        self.connection_manager.pathfinders_available.connect(self._on_pathfinders_available)
 
         # Connect to layer selection changes
         self.iface.mapCanvas().selectionChanged.connect(self._on_qgis_selection_changed)
@@ -188,6 +202,7 @@ class GeochemProPlugin:
         self.dock_widget.export_requested.connect(self._export_geopackage)
         self.dock_widget.selection_sync_requested.connect(self._sync_selection_to_geochem)
         self.dock_widget.load_webapp_style_requested.connect(self._load_webapp_style)
+        self.dock_widget.export_pathfinders_requested.connect(self.export_pathfinders_to_geopackage)
 
     def _connect_connection_signals(self):
         """Connect connection manager signals"""
@@ -591,3 +606,120 @@ class GeochemProPlugin:
                 style_info = self.style_manager.get_current_style_info()
                 if style_info.get('type') == 'categorical' and style_info.get('column') == column:
                     self.style_manager.apply_classification_style(column)
+
+    # =========================================================================
+    # Pathfinder Handlers
+    # =========================================================================
+
+    def _on_pathfinders_available(self, message: dict):
+        """Handle pathfinders available notification from web app"""
+        elements = message.get('elements', [])
+        self.logger.info(f"Pathfinders available: {elements}")
+
+        if not self.pathfinder_sync:
+            self.logger.warning("Pathfinder sync manager not initialized")
+            self.iface.messageBar().pushWarning(
+                "GeoChem Pro",
+                "Pathfinder sync not initialized."
+            )
+            return
+
+        # Fetch full pathfinder configuration
+        config = self.connection_manager.fetch_pathfinders()
+        self.logger.info(f"Fetched pathfinder config: {config.get('elements', []) if config else 'None'}")
+
+        if not config or not config.get('elements'):
+            self.logger.warning("No pathfinder configuration available from server")
+            self.iface.messageBar().pushWarning(
+                "GeoChem Pro",
+                "No pathfinder configuration received from web app."
+            )
+            return
+
+        # Create pathfinder layers (fetches data directly from backend)
+        self.logger.info(f"Creating pathfinder layers for elements: {config.get('elements')}")
+        count = self.pathfinder_sync.create_pathfinder_layers(config)
+
+        if count > 0:
+            self.iface.messageBar().pushSuccess(
+                "GeoChem Pro",
+                f"Created {count} pathfinder layers"
+            )
+        else:
+            self.iface.messageBar().pushWarning(
+                "GeoChem Pro",
+                "No pathfinder layers created. Check element column mappings in QGIS log."
+            )
+
+    def _on_pathfinder_layers_created(self, count: int):
+        """Handle pathfinder layers created"""
+        self.logger.info(f"Created {count} pathfinder layers")
+        # Refresh map canvas
+        self.iface.mapCanvas().refresh()
+        # Update dock widget
+        if self.dock_widget and self.pathfinder_sync:
+            element_names = list(self.pathfinder_sync._element_layers.keys())
+            self.dock_widget.update_pathfinder_info(count, element_names)
+
+    def _on_pathfinder_export_completed(self, filepath: str):
+        """Handle pathfinder export completion"""
+        self.logger.info(f"Pathfinder layers exported to {filepath}")
+
+        # Ask if user wants to add exported layers to project
+        reply = QMessageBox.question(
+            self.iface.mainWindow(),
+            "Add to Project",
+            f"Pathfinder layers exported successfully.\n\nAdd exported layers to project?",
+            QMessageBox.Yes | QMessageBox.No,
+            QMessageBox.Yes
+        )
+
+        if reply == QMessageBox.Yes:
+            # Load the geopackage layers
+            from qgis.core import QgsVectorLayer
+            import sqlite3
+
+            try:
+                # Get layer names from geopackage
+                conn = sqlite3.connect(filepath)
+                cursor = conn.cursor()
+                cursor.execute("SELECT table_name FROM gpkg_contents WHERE data_type='features'")
+                layer_names = [row[0] for row in cursor.fetchall()]
+                conn.close()
+
+                for layer_name in layer_names:
+                    layer = QgsVectorLayer(
+                        f"{filepath}|layername={layer_name}",
+                        layer_name,
+                        "ogr"
+                    )
+                    if layer.isValid():
+                        QgsProject.instance().addMapLayer(layer)
+
+            except Exception as e:
+                self.logger.warning(f"Could not load exported layers: {e}")
+
+    def _on_pathfinder_error(self, error: str):
+        """Handle pathfinder sync error"""
+        self.logger.error(f"Pathfinder error: {error}")
+        self.iface.messageBar().pushCritical(
+            "GeoChem Pro",
+            f"Pathfinder error: {error}"
+        )
+
+    def export_pathfinders_to_geopackage(self, filepath: str):
+        """Export current pathfinder layers to GeoPackage"""
+        if not self.pathfinder_sync:
+            return
+
+        result = self.pathfinder_sync.export_to_geopackage(filepath)
+        if result['success']:
+            self.iface.messageBar().pushSuccess(
+                "GeoChem Pro",
+                result['message']
+            )
+        else:
+            self.iface.messageBar().pushCritical(
+                "GeoChem Pro",
+                f"Export failed: {result['message']}"
+            )

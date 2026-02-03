@@ -125,6 +125,7 @@ class GeochemConnectionManager(QObject):
     data_received = pyqtSignal(dict)
     selection_changed = pyqtSignal(list)
     classification_changed = pyqtSignal(str, dict)  # column, {index: class}
+    pathfinders_available = pyqtSignal(dict)  # pathfinder config available
 
     def __init__(self, host: str = "localhost", port: int = 8000, parent=None):
         super().__init__(parent)
@@ -298,6 +299,10 @@ class GeochemConnectionManager(QObject):
             assignments = {int(k): v for k, v in assignments.items()}
             self.classification_changed.emit(column, assignments)
 
+        elif msg_type == 'pathfinders_available':
+            # Pathfinder configuration available from web app
+            self.pathfinders_available.emit(data)
+
         elif msg_type == 'ping':
             self.send_message({'type': 'pong'})
 
@@ -435,6 +440,24 @@ class GeochemConnectionManager(QObject):
         except Exception as e:
             QgsMessageLog.logMessage(
                 f"Failed to fetch styles: {str(e)}",
+                "GeoChem Pro",
+                Qgis.Warning
+            )
+            return {}
+
+    def fetch_pathfinders(self) -> Dict[str, Any]:
+        """
+        Fetch pathfinder configuration from GeoChem Pro.
+
+        Returns:
+            Dict with elements, column mappings, and coordinate fields
+        """
+        try:
+            result = self._http_get(f"{self.qgis_api_url}/pathfinders")
+            return result if isinstance(result, dict) else {}
+        except Exception as e:
+            QgsMessageLog.logMessage(
+                f"Failed to fetch pathfinder config: {str(e)}",
                 "GeoChem Pro",
                 Qgis.Warning
             )

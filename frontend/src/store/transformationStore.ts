@@ -14,7 +14,19 @@ import {
   ProcrustesResult,
   ZeroSummary,
   PCAResult,
+  FullPCAResult,
+  ElementQualityInfo,
+  LogAdditiveIndexResult,
 } from '../types/compositional';
+import {
+  createLogAdditiveIndex,
+  suggestIndexName,
+} from '../utils/calculations/logAdditiveIndex';
+import {
+  fullPCA,
+  assessAllElementQuality,
+  filterQualityElements,
+} from '../utils/calculations/pcaAnalysis';
 import {
   plrTransform,
   alrTransform,
@@ -60,6 +72,16 @@ interface TransformationState {
   pcaResult: PCAResult | null;
   zeroSummary: ZeroSummary | null;
 
+  // Full PCA workflow state
+  fullPcaResult: FullPCAResult | null;
+  pcaSelectedElements: string[];
+  elementQualityInfo: ElementQualityInfo[];
+
+  // Log Additive Index state
+  logAdditiveIndices: LogAdditiveIndexResult[];
+  logAdditiveSelectedColumns: string[];
+  logAdditiveIndexName: string;
+
   // Amalgamation library
   customAmalgamations: AmalgamationDefinition[];
 
@@ -91,6 +113,19 @@ interface TransformationState {
   runProcrustesAnalysis: (data: Record<string, any>[], columns: string[]) => void;
   runPCA: (data: Record<string, any>[], columns: string[], nComponents?: number) => void;
   analyzeZeros: (data: Record<string, any>[], columns: string[], detectionLimits?: Record<string, number>) => void;
+
+  // Full PCA workflow
+  setPcaSelectedElements: (elements: string[]) => void;
+  runElementQualityAssessment: (data: Record<string, any>[], columns: string[], detectionLimits?: Record<string, number>) => void;
+  runFullPCA: (data: Record<string, any>[], columns: string[], nComponents?: number) => void;
+  clearFullPcaResult: () => void;
+
+  // Log Additive Index
+  setLogAdditiveSelectedColumns: (columns: string[]) => void;
+  setLogAdditiveIndexName: (name: string) => void;
+  createLogAdditiveIndex: (data: Record<string, any>[], columns: string[], name: string) => LogAdditiveIndexResult | null;
+  suggestLogAdditiveIndexName: (columns: string[]) => string;
+  clearLogAdditiveIndices: () => void;
 
   // Amalgamation management
   addCustomAmalgamation: (amalgamation: AmalgamationDefinition) => void;
@@ -126,6 +161,16 @@ export const useTransformationStore = create<TransformationState>()(
       procrustesResult: null,
       pcaResult: null,
       zeroSummary: null,
+
+      // Full PCA workflow
+      fullPcaResult: null,
+      pcaSelectedElements: [],
+      elementQualityInfo: [],
+
+      // Log Additive Index
+      logAdditiveIndices: [],
+      logAdditiveSelectedColumns: [],
+      logAdditiveIndexName: '',
 
       customAmalgamations: [],
 
@@ -491,6 +536,101 @@ export const useTransformationStore = create<TransformationState>()(
         }
       },
 
+      // Full PCA workflow methods
+      setPcaSelectedElements: (elements) => set({ pcaSelectedElements: elements }),
+
+      runElementQualityAssessment: (data, columns, detectionLimits) => {
+        set({ isProcessing: true, error: null });
+
+        try {
+          const qualityInfo = assessAllElementQuality(data, columns, detectionLimits);
+          const acceptableElements = filterQualityElements(columns, qualityInfo);
+
+          set({
+            elementQualityInfo: qualityInfo,
+            pcaSelectedElements: acceptableElements,
+            isProcessing: false
+          });
+        } catch (error) {
+          set({
+            error: error instanceof Error ? error.message : 'Element quality assessment failed',
+            isProcessing: false
+          });
+        }
+      },
+
+      runFullPCA: (data, columns, nComponents = 8) => {
+        const state = get();
+        set({ isProcessing: true, error: null });
+
+        try {
+          const result = fullPCA(data, columns, nComponents, state.zeroStrategy as any);
+
+          set({
+            fullPcaResult: result,
+            isProcessing: false
+          });
+        } catch (error) {
+          set({
+            error: error instanceof Error ? error.message : 'Full PCA failed',
+            isProcessing: false
+          });
+        }
+      },
+
+      clearFullPcaResult: () => set({
+        fullPcaResult: null,
+        elementQualityInfo: [],
+        pcaSelectedElements: []
+      }),
+
+      // Log Additive Index methods
+      setLogAdditiveSelectedColumns: (columns) => set({ logAdditiveSelectedColumns: columns }),
+
+      setLogAdditiveIndexName: (name) => set({ logAdditiveIndexName: name }),
+
+      suggestLogAdditiveIndexName: (columns) => suggestIndexName(columns),
+
+      createLogAdditiveIndex: (data, columns, name) => {
+        const state = get();
+        set({ isProcessing: true, error: null });
+
+        try {
+          const result = createLogAdditiveIndex(data, {
+            name,
+            columns,
+            zeroStrategy: state.zeroStrategy,
+            customZeroValue: state.customZeroValue
+          });
+
+          if (result) {
+            set({
+              logAdditiveIndices: [...state.logAdditiveIndices, result],
+              isProcessing: false
+            });
+            return result;
+          } else {
+            set({
+              error: 'Failed to create log additive index',
+              isProcessing: false
+            });
+            return null;
+          }
+        } catch (error) {
+          set({
+            error: error instanceof Error ? error.message : 'Log additive index creation failed',
+            isProcessing: false
+          });
+          return null;
+        }
+      },
+
+      clearLogAdditiveIndices: () => set({
+        logAdditiveIndices: [],
+        logAdditiveSelectedColumns: [],
+        logAdditiveIndexName: ''
+      }),
+
       // Amalgamation management
       addCustomAmalgamation: (amalgamation) => {
         set(state => ({
@@ -530,6 +670,11 @@ export const useTransformationStore = create<TransformationState>()(
         procrustesResult: null,
         pcaResult: null,
         zeroSummary: null,
+        fullPcaResult: null,
+        elementQualityInfo: [],
+        logAdditiveIndices: [],
+        logAdditiveSelectedColumns: [],
+        logAdditiveIndexName: '',
         error: null
       }),
 

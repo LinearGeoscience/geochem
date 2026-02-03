@@ -61,7 +61,8 @@ const InfoTooltip: React.FC<{ text: string }> = ({ text }) => (
 // ============================================================================
 
 export const TransformationManager: React.FC = () => {
-  const { data, columns, addColumn } = useAppStore();
+  const { data, addColumn, getFilteredColumns } = useAppStore();
+  const filteredColumns = getFilteredColumns();
   const {
     activeTransformation,
     selectedColumns,
@@ -91,22 +92,30 @@ export const TransformationManager: React.FC = () => {
     runProcrustesAnalysis,
     runPCA,
     analyzeZeros,
-    getAllAmalgamations
+    getAllAmalgamations,
+    // Log Additive Index
+    logAdditiveIndices,
+    logAdditiveSelectedColumns,
+    logAdditiveIndexName,
+    setLogAdditiveSelectedColumns,
+    setLogAdditiveIndexName,
+    createLogAdditiveIndex,
+    suggestLogAdditiveIndexName
   } = useTransformationStore();
 
-  const [activeTab, setActiveTab] = useState<'transform' | 'variance' | 'pca' | 'zeros'>('transform');
+  const [activeTab, setActiveTab] = useState<'transform' | 'variance' | 'pca' | 'zeros' | 'logindex'>('transform');
   const [groupColumn, setGroupColumn] = useState<string>('');
 
-  // Get numeric columns
+  // Get numeric columns - respects RAW/CLR filter
   const numericColumns = useMemo(() =>
-    columns.filter(col => col.type === 'numeric').map(col => col.name),
-    [columns]
+    filteredColumns.filter(col => col.type === 'numeric').map(col => col.name),
+    [filteredColumns]
   );
 
   // Get categorical columns for grouping
   const categoricalColumns = useMemo(() =>
-    columns.filter(col => col.type === 'categorical' || col.type === 'text').map(col => col.name),
-    [columns]
+    filteredColumns.filter(col => col.type === 'categorical' || col.type === 'text').map(col => col.name),
+    [filteredColumns]
   );
 
   // Auto-select columns on mount
@@ -173,6 +182,29 @@ export const TransformationManager: React.FC = () => {
   const handleZeroAnalysis = () => {
     if (selectedColumns.length < 1) return;
     analyzeZeros(data, selectedColumns);
+  };
+
+  // Handle log additive index creation
+  const handleCreateLogAdditiveIndex = () => {
+    if (logAdditiveSelectedColumns.length < 2) {
+      alert('Please select at least 2 columns for the log additive index');
+      return;
+    }
+    const name = logAdditiveIndexName.trim() || suggestLogAdditiveIndexName(logAdditiveSelectedColumns);
+    const result = createLogAdditiveIndex(data, logAdditiveSelectedColumns, name);
+    if (result) {
+      // Add the index column to the main data store
+      addColumn(result.name, result.values, 'numeric', 'Index', 'log-additive');
+      // Clear the name field for next index
+      setLogAdditiveIndexName('');
+    }
+  };
+
+  // Auto-suggest log additive index name
+  const handleAutoSuggestName = () => {
+    if (logAdditiveSelectedColumns.length > 0) {
+      setLogAdditiveIndexName(suggestLogAdditiveIndexName(logAdditiveSelectedColumns));
+    }
   };
 
   // Render transformation options based on type
@@ -366,6 +398,9 @@ export const TransformationManager: React.FC = () => {
         </Tab>
         <Tab active={activeTab === 'zeros'} onClick={() => setActiveTab('zeros')}>
           Zero Analysis
+        </Tab>
+        <Tab active={activeTab === 'logindex'} onClick={() => setActiveTab('logindex')}>
+          Log Index
         </Tab>
       </div>
 
@@ -814,6 +849,279 @@ export const TransformationManager: React.FC = () => {
                       </span>
                     </div>
                   ))}
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Log Index Tab */}
+      {activeTab === 'logindex' && (
+        <div>
+          <div style={{
+            padding: '12px',
+            background: '#f0f9ff',
+            borderRadius: '4px',
+            marginBottom: '16px',
+            border: '1px solid #bae6fd'
+          }}>
+            <div style={{ fontWeight: 500, marginBottom: '4px', color: '#0369a1' }}>
+              Log Additive Index
+            </div>
+            <p style={{ fontSize: '13px', color: '#6b7280', margin: 0 }}>
+              Sum of log10 values for selected elements. Useful for highlighting mineralisation
+              signatures without being affected by different units and orders of magnitude.
+            </p>
+            <div style={{ fontSize: '12px', color: '#9ca3af', marginTop: '4px', fontFamily: 'monospace' }}>
+              Index = LOG10(E1) + LOG10(E2) + ... + LOG10(En)
+            </div>
+          </div>
+
+          {/* Index Name Input */}
+          <div style={{ marginBottom: '16px' }}>
+            <label style={{ display: 'block', marginBottom: '8px', fontWeight: 500 }}>
+              Index Name
+              <InfoTooltip text="Name for the new index column. Use auto-suggest for automatic naming based on selected elements." />
+            </label>
+            <div style={{ display: 'flex', gap: '8px' }}>
+              <input
+                type="text"
+                value={logAdditiveIndexName}
+                onChange={(e) => setLogAdditiveIndexName(e.target.value)}
+                placeholder="e.g., Log_CuZnPbAg"
+                style={{
+                  flex: 1,
+                  padding: '8px',
+                  borderRadius: '4px',
+                  border: '1px solid #d1d5db'
+                }}
+              />
+              <button
+                onClick={handleAutoSuggestName}
+                disabled={logAdditiveSelectedColumns.length === 0}
+                style={{
+                  padding: '8px 12px',
+                  borderRadius: '4px',
+                  border: '1px solid #d1d5db',
+                  background: '#f3f4f6',
+                  cursor: logAdditiveSelectedColumns.length > 0 ? 'pointer' : 'not-allowed',
+                  fontSize: '13px',
+                  whiteSpace: 'nowrap'
+                }}
+              >
+                Auto-suggest
+              </button>
+            </div>
+          </div>
+
+          {/* Column Selection */}
+          <div style={{ marginBottom: '16px' }}>
+            <label style={{ display: 'block', marginBottom: '8px', fontWeight: 500 }}>
+              Select Elements ({logAdditiveSelectedColumns.length} selected)
+              <InfoTooltip text="Select the element columns to combine into the index. Minimum 2 required." />
+            </label>
+            <div style={{
+              maxHeight: '200px',
+              overflow: 'auto',
+              border: '1px solid #d1d5db',
+              borderRadius: '4px',
+              padding: '8px'
+            }}>
+              {numericColumns.map(col => (
+                <label
+                  key={col}
+                  style={{
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    padding: '4px 8px',
+                    cursor: 'pointer',
+                    minWidth: '120px'
+                  }}
+                >
+                  <input
+                    type="checkbox"
+                    checked={logAdditiveSelectedColumns.includes(col)}
+                    onChange={(e) => {
+                      if (e.target.checked) {
+                        setLogAdditiveSelectedColumns([...logAdditiveSelectedColumns, col]);
+                      } else {
+                        setLogAdditiveSelectedColumns(logAdditiveSelectedColumns.filter(c => c !== col));
+                      }
+                    }}
+                    style={{ marginRight: '6px' }}
+                  />
+                  <span style={{ fontSize: '13px' }}>{col}</span>
+                </label>
+              ))}
+            </div>
+            <div style={{ marginTop: '8px', display: 'flex', gap: '8px' }}>
+              <button
+                onClick={() => setLogAdditiveSelectedColumns(numericColumns)}
+                style={{
+                  padding: '4px 8px',
+                  fontSize: '12px',
+                  borderRadius: '4px',
+                  border: '1px solid #d1d5db',
+                  background: 'white',
+                  cursor: 'pointer'
+                }}
+              >
+                Select All
+              </button>
+              <button
+                onClick={() => setLogAdditiveSelectedColumns([])}
+                style={{
+                  padding: '4px 8px',
+                  fontSize: '12px',
+                  borderRadius: '4px',
+                  border: '1px solid #d1d5db',
+                  background: 'white',
+                  cursor: 'pointer'
+                }}
+              >
+                Clear All
+              </button>
+            </div>
+          </div>
+
+          {/* Zero Handling */}
+          <div style={{ marginBottom: '16px' }}>
+            <label style={{ display: 'block', marginBottom: '8px', fontWeight: 500 }}>
+              Zero Handling
+              <InfoTooltip text="How to handle zero/negative values before log transformation" />
+            </label>
+            <select
+              value={zeroStrategy}
+              onChange={(e) => setZeroStrategy(e.target.value as ZeroHandlingStrategy)}
+              style={{
+                width: '100%',
+                padding: '8px',
+                borderRadius: '4px',
+                border: '1px solid #d1d5db'
+              }}
+            >
+              <option value="half-min">Half Minimum (1/2 x min non-zero)</option>
+              <option value="half-dl">Half Detection Limit</option>
+              <option value="small-constant">Small Constant (0.65 x min)</option>
+              <option value="multiplicative">Multiplicative Replacement</option>
+              <option value="custom">Custom Value</option>
+            </select>
+            {zeroStrategy === 'custom' && (
+              <input
+                type="number"
+                value={customZeroValue}
+                onChange={(e) => setCustomZeroValue(parseFloat(e.target.value))}
+                step="0.001"
+                min="0"
+                style={{
+                  width: '100%',
+                  padding: '8px',
+                  borderRadius: '4px',
+                  border: '1px solid #d1d5db',
+                  marginTop: '8px'
+                }}
+                placeholder="Enter custom replacement value"
+              />
+            )}
+          </div>
+
+          {/* Create Button */}
+          <button
+            onClick={handleCreateLogAdditiveIndex}
+            disabled={isProcessing || logAdditiveSelectedColumns.length < 2}
+            style={{
+              width: '100%',
+              padding: '12px',
+              borderRadius: '4px',
+              border: 'none',
+              background: isProcessing || logAdditiveSelectedColumns.length < 2 ? '#9ca3af' : '#3b82f6',
+              color: 'white',
+              fontWeight: 600,
+              cursor: isProcessing || logAdditiveSelectedColumns.length < 2 ? 'not-allowed' : 'pointer'
+            }}
+          >
+            {isProcessing ? 'Creating...' : 'Create Log Additive Index'}
+          </button>
+
+          {/* Validation feedback */}
+          {logAdditiveSelectedColumns.length > 0 && logAdditiveSelectedColumns.length < 2 && (
+            <div style={{
+              marginTop: '8px',
+              padding: '8px',
+              background: '#fef3c7',
+              borderRadius: '4px',
+              fontSize: '12px',
+              color: '#92400e'
+            }}>
+              Select at least 2 columns to create an index
+            </div>
+          )}
+
+          {/* Results - Created Indices */}
+          {logAdditiveIndices.length > 0 && (
+            <div style={{ marginTop: '24px' }}>
+              <h4 style={{ margin: '0 0 12px 0', fontSize: '14px', fontWeight: 500 }}>
+                Created Indices ({logAdditiveIndices.length})
+              </h4>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                {logAdditiveIndices.map((idx) => (
+                  <div
+                    key={idx.id}
+                    style={{
+                      padding: '12px',
+                      background: '#f0fdf4',
+                      borderRadius: '4px',
+                      border: '1px solid #86efac'
+                    }}
+                  >
+                    <div style={{ display: 'flex', alignItems: 'center', marginBottom: '8px' }}>
+                      <span style={{ color: '#166534', marginRight: '8px' }}>✓</span>
+                      <span style={{ fontWeight: 500 }}>{idx.name}</span>
+                      <span style={{ fontSize: '12px', color: '#6b7280', marginLeft: '8px' }}>
+                        ({idx.columns.length} elements, {idx.values.filter(v => v !== null).length} samples)
+                      </span>
+                    </div>
+                    <div style={{
+                      display: 'grid',
+                      gridTemplateColumns: 'repeat(4, 1fr)',
+                      gap: '8px',
+                      fontSize: '12px',
+                      color: '#6b7280'
+                    }}>
+                      <div>
+                        <span style={{ fontWeight: 500 }}>Min:</span> {idx.statistics.min.toFixed(2)}
+                      </div>
+                      <div>
+                        <span style={{ fontWeight: 500 }}>Max:</span> {idx.statistics.max.toFixed(2)}
+                      </div>
+                      <div>
+                        <span style={{ fontWeight: 500 }}>Mean:</span> {idx.statistics.mean.toFixed(2)}
+                      </div>
+                      <div>
+                        <span style={{ fontWeight: 500 }}>Zeros:</span> {idx.statistics.zerosReplaced}
+                      </div>
+                    </div>
+                    <div style={{
+                      marginTop: '8px',
+                      fontSize: '11px',
+                      color: '#9ca3af',
+                      wordBreak: 'break-word'
+                    }}>
+                      Elements: {idx.columns.join(', ')}
+                    </div>
+                  </div>
+                ))}
+              </div>
+              <div style={{
+                marginTop: '12px',
+                padding: '8px',
+                background: '#dcfce7',
+                borderRadius: '4px',
+                fontSize: '12px',
+                color: '#166534'
+              }}>
+                These indices are now available in Data View, Plots, and other analyses.
+                Use the column filter dropdown to show only Log Additive Index columns.
               </div>
             </div>
           )}

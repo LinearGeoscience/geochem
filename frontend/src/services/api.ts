@@ -106,6 +106,24 @@ export const qgisApi = {
     health: async () => {
         const response = await api.get('/qgis/health');
         return response.data;
+    },
+
+    /**
+     * Push pathfinder configuration to backend for QGIS sync.
+     * Creates styled layers for each pathfinder element in QGIS.
+     */
+    syncPathfinders: async (config: {
+        elements: string[];
+        xField: string;
+        yField: string;
+        zField?: string;
+        normalization: 'none' | 'sc' | 'k';
+        scColumn?: string;
+        kColumn?: string;
+        elementColumnMapping: Record<string, string>;
+    }) => {
+        const response = await api.post('/qgis/sync-pathfinders', config);
+        return response.data;
     }
 };
 

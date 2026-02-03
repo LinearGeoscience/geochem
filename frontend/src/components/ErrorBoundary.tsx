@@ -23,18 +23,31 @@ export class ErrorBoundary extends Component<Props, State> {
     }
 
     public componentDidCatch(error: Error, errorInfo: ErrorInfo) {
-        console.error("Uncaught error:", error, errorInfo);
+        console.error("=== ERROR BOUNDARY CAUGHT ERROR ===");
+        console.error("Error:", error);
+        console.error("Error message:", error.message);
+        console.error("Error stack:", error.stack);
+        console.error("Component stack:", errorInfo.componentStack);
+        console.error("=== END ERROR DETAILS ===");
         this.setState({ errorInfo });
     }
 
     public render() {
         if (this.state.hasError) {
             return (
-                <Box sx={{ p: 2, color: 'error.main', bgcolor: '#fff0f0', border: '1px solid red', borderRadius: 1 }}>
+                <Box sx={{ p: 2, color: 'error.main', bgcolor: '#fff0f0', border: '1px solid red', borderRadius: 1, maxHeight: '80vh', overflow: 'auto' }}>
                     <Typography variant="h6">Something went wrong.</Typography>
                     <Typography variant="body2" sx={{ mt: 1, fontFamily: 'monospace', whiteSpace: 'pre-wrap' }}>
                         {this.state.error?.toString()}
                     </Typography>
+                    <Typography variant="caption" sx={{ mt: 2, display: 'block', fontFamily: 'monospace', whiteSpace: 'pre-wrap', fontSize: '10px', color: 'text.secondary' }}>
+                        Stack trace:{'\n'}{this.state.error?.stack}
+                    </Typography>
+                    {this.state.errorInfo && (
+                        <Typography variant="caption" sx={{ mt: 2, display: 'block', fontFamily: 'monospace', whiteSpace: 'pre-wrap', fontSize: '10px', color: 'text.secondary' }}>
+                            Component stack:{'\n'}{this.state.errorInfo.componentStack}
+                        </Typography>
+                    )}
                     <Button
                         variant="outlined"
                         color="error"

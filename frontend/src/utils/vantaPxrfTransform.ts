@@ -29,6 +29,7 @@ export const VANTA_COLUMN_PATTERNS = {
 };
 
 // Essential metadata columns to keep (case-insensitive matching used)
+// Note: Custom user columns not in this list will ALSO be kept (see keepCustomColumns option)
 export const VANTA_METADATA_COLUMNS = [
     'Instrument Serial Num',
     'Reading #',
@@ -38,6 +39,7 @@ export const VANTA_METADATA_COLUMNS = [
     'sampleID',
     'SampleID',
     'Sample ID',
+    'Sample_ID',
     'SampleName',
     'Sample Name',
     'Sample_Name',
@@ -74,6 +76,15 @@ export const VANTA_METADATA_COLUMNS = [
     'Depth',
     'From',
     'To',
+];
+
+// Vanta element-related column suffixes that should be REMOVED (not custom data)
+const VANTA_REMOVE_SUFFIXES = [
+    ' Compound',
+    ' Compound Level',
+    ' Compound Error',
+    ' User Factor Slope',
+    ' User Factor Offset',
 ];
 
 // Priority groups for element ordering in dropdowns
@@ -126,6 +137,7 @@ export interface VantaTransformOptions {
     includeErrors: boolean;      // Include error columns
     lodHandling: LODHandling;    // How to handle <LOD values
     keepMetadata: boolean;       // Keep metadata columns
+    keepCustomColumns: boolean;  // Keep any custom user-added columns (not in standard Vanta format)
     detectUnits: boolean;        // Auto-detect units from Units column
 }
 
@@ -133,6 +145,7 @@ export const DEFAULT_TRANSFORM_OPTIONS: VantaTransformOptions = {
     includeErrors: true,
     lodHandling: 'sqrt2',  // Scientifically recommended
     keepMetadata: true,
+    keepCustomColumns: true,  // Always keep custom columns by default
     detectUnits: true,
 };
 
@@ -294,7 +307,7 @@ export function transformVantaData(
                         columnMapping[header] = null; // Remove
                     }
                 }
-                // Other element columns - REMOVE
+                // Other element columns (Compound, Compound Level, etc.) - REMOVE
                 else {
                     columnMapping[header] = null;
                 }
@@ -302,9 +315,24 @@ export function transformVantaData(
             }
         }
 
-        // If not matched and not in our lists, remove it
+        // If not matched to element patterns, check if it should be kept as custom column
         if (!matched && !columnMapping.hasOwnProperty(header)) {
-            columnMapping[header] = null;
+            // Check if it's a Vanta-specific column that should be removed
+            const isVantaRemoveColumn = VANTA_REMOVE_SUFFIXES.some(suffix =>
+                trimmedHeader.endsWith(suffix)
+            );
+
+            if (isVantaRemoveColumn) {
+                columnMapping[header] = null; // Remove Vanta-specific columns
+            } else if (options.keepCustomColumns) {
+                // Keep custom user columns with normalized name
+                const normalizedName = trimmedHeader.replace(/[^a-zA-Z0-9_]/g, '_');
+                columnMapping[header] = normalizedName;
+                newHeaders.push(normalizedName);
+                columnPriorities[normalizedName] = 9; // Custom columns get priority 9 (after metadata, before errors)
+            } else {
+                columnMapping[header] = null; // Remove if keepCustomColumns is false
+            }
         }
     }
 
@@ -379,6 +407,7 @@ function normalizeMetadataColumn(header: string): string {
     const normalizations: Record<string, string> = {
         'sampleid': 'Sample_ID',
         'sample id': 'Sample_ID',
+        'sample_id': 'Sample_ID',
         'samplename': 'Sample_Name',
         'sample name': 'Sample_Name',
         'sample_name': 'Sample_Name',

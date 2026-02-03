@@ -18,6 +18,8 @@ import { ExpandMore, ExpandLess, AutoFixHigh } from '@mui/icons-material';
 import { MultiColumnSelector } from '../../components/MultiColumnSelector';
 import { useAttributeStore } from '../../store/attributeStore';
 import { getStyleArrays, applyOpacityToColor, getSortedIndices, sortColumnsByPriority } from '../../utils/attributeUtils';
+import { getPlotConfig, EXPORT_FONT_SIZES } from '../../utils/plotConfig';
+import { ExpandablePlotWrapper } from '../../components/ExpandablePlotWrapper';
 import { buildSpiderHoverText } from '../../utils/tooltipUtils';
 import {
     ELEMENT_ORDERS,
@@ -319,30 +321,34 @@ export const SpiderPlot: React.FC<SpiderPlotProps> = ({ plotId }) => {
                 <Typography color="text.secondary">Select elements to display spider plot</Typography>
             ) : (
                 <Paper sx={{ p: 2 }}>
-                    <Plot
-                        data={plotData}
-                        layout={{
-                            title: { text: normalizationId !== 'none' ? `Spider Plot - ${normalization?.name}` : 'Spider Plot' },
-                            autosize: true,
-                            height: 500,
-                            margin: { l: 60, r: 30, t: 50, b: 60 },
-                            xaxis: { title: { text: 'Elements' } },
-                            yaxis: {
-                                title: { text: yAxisTitle },
-                                type: 'log',
-                                ...(lockAxes && rangesRef.current.yRange
-                                    ? { range: rangesRef.current.yRange, autorange: false }
-                                    : { autorange: true })
-                            },
-                            hovermode: 'closest',
-                            showlegend: false,
-                            uirevision: lockAxes ? 'locked' : Date.now()
-                        }}
-                        config={{ displayModeBar: true, displaylogo: false }}
-                        useResizeHandler={true}
-                        style={{ width: '100%' }}
-                        onRelayout={handleRelayout}
-                    />
+                    <ExpandablePlotWrapper>
+                        <Plot
+                            data={plotData}
+                            layout={{
+                                title: { text: normalizationId !== 'none' ? `Spider Plot - ${normalization?.name}` : 'Spider Plot', font: { size: EXPORT_FONT_SIZES.title }, x: 0, xanchor: 'left' },
+                                autosize: true,
+                                height: 500,
+                                font: { size: EXPORT_FONT_SIZES.tickLabels },
+                                margin: { l: 70, r: 40, t: 60, b: 70 },
+                                xaxis: { title: { text: 'Elements', font: { size: EXPORT_FONT_SIZES.axisTitle } }, tickfont: { size: EXPORT_FONT_SIZES.tickLabels } },
+                                yaxis: {
+                                    title: { text: yAxisTitle, font: { size: EXPORT_FONT_SIZES.axisTitle } },
+                                    tickfont: { size: EXPORT_FONT_SIZES.tickLabels },
+                                    type: 'log',
+                                    ...(lockAxes && rangesRef.current.yRange
+                                        ? { range: rangesRef.current.yRange, autorange: false }
+                                        : { autorange: true })
+                                },
+                                hovermode: 'closest',
+                                showlegend: false,
+                                uirevision: lockAxes ? 'locked' : Date.now()
+                            }}
+                            config={getPlotConfig({ filename: `spider_${normalization}` })}
+                            useResizeHandler={true}
+                            style={{ width: '100%' }}
+                            onRelayout={handleRelayout}
+                        />
+                    </ExpandablePlotWrapper>
                 </Paper>
             )}
         </Box>

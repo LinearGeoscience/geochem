@@ -17,7 +17,9 @@ import {
     Tooltip,
 } from '@mui/material';
 import { MultiColumnSelector } from '../../components/MultiColumnSelector';
+import { ExpandablePlotWrapper } from '../../components/ExpandablePlotWrapper';
 import { useAttributeStore } from '../../store/attributeStore';
+import { getPlotConfig, EXPORT_FONT_SIZES } from '../../utils/plotConfig';
 import { getStyleArrays, sortColumnsByPriority } from '../../utils/attributeUtils';
 
 const HISTOGRAM_COLORS = [
@@ -201,15 +203,16 @@ export const HistogramPlot: React.FC<HistogramPlotProps> = ({ plotId }) => {
                 : 'Histogram (Overlay)';
 
             const layout: any = {
-                title: { text: title, font: { size: 14 } },
+                title: { text: title, font: { size: EXPORT_FONT_SIZES.title }, x: 0, xanchor: 'left' },
                 barmode: hasCategories ? barMode : 'overlay',
                 autosize: true,
                 height: 350,
                 showlegend: true,
-                legend: { x: 1, y: 1, xanchor: 'right' },
-                xaxis: { title: selectedColumns.length === 1 ? selectedColumns[0] : 'Value' },
-                yaxis: { title: yAxisTitle },
-                margin: { l: 50, r: 30, t: 40, b: 50 },
+                legend: { x: 1, y: 1, xanchor: 'right', font: { size: EXPORT_FONT_SIZES.legend } },
+                font: { size: EXPORT_FONT_SIZES.tickLabels },
+                xaxis: { title: { text: selectedColumns.length === 1 ? selectedColumns[0] : 'Value', font: { size: EXPORT_FONT_SIZES.axisTitle } }, tickfont: { size: EXPORT_FONT_SIZES.tickLabels } },
+                yaxis: { title: { text: yAxisTitle, font: { size: EXPORT_FONT_SIZES.axisTitle } }, tickfont: { size: EXPORT_FONT_SIZES.tickLabels } },
+                margin: { l: 70, r: 40, t: 60, b: 70 },
                 uirevision: lockAxes ? 'locked' : Date.now(),
             };
 
@@ -246,11 +249,12 @@ export const HistogramPlot: React.FC<HistogramPlotProps> = ({ plotId }) => {
             const rows = Math.ceil(selectedColumns.length / cols);
 
             const layout: any = {
-                title: { text: 'Histograms', font: { size: 14 } },
+                title: { text: 'Histograms', font: { size: EXPORT_FONT_SIZES.title }, x: 0, xanchor: 'left' },
                 autosize: true,
                 height: Math.max(300, rows * 200),
                 showlegend: false,
-                margin: { l: 50, r: 30, t: 40, b: 40 },
+                font: { size: EXPORT_FONT_SIZES.tickLabels },
+                margin: { l: 70, r: 40, t: 60, b: 70 },
                 grid: {
                     rows,
                     columns: cols,
@@ -263,8 +267,8 @@ export const HistogramPlot: React.FC<HistogramPlotProps> = ({ plotId }) => {
             selectedColumns.forEach((col, i) => {
                 const xKey = i === 0 ? 'xaxis' : `xaxis${i + 1}`;
                 const yKey = i === 0 ? 'yaxis' : `yaxis${i + 1}`;
-                layout[xKey] = { title: col };
-                layout[yKey] = { title: yAxisTitle };
+                layout[xKey] = { title: { text: col, font: { size: EXPORT_FONT_SIZES.axisTitle } }, tickfont: { size: EXPORT_FONT_SIZES.tickLabels } };
+                layout[yKey] = { title: { text: yAxisTitle, font: { size: EXPORT_FONT_SIZES.axisTitle } }, tickfont: { size: EXPORT_FONT_SIZES.tickLabels } };
             });
 
             return { traces, layout };
@@ -381,13 +385,15 @@ export const HistogramPlot: React.FC<HistogramPlotProps> = ({ plotId }) => {
                 </Typography>
             ) : (
                 <Paper sx={{ p: 2 }}>
-                    <Plot
-                        data={traces}
-                        layout={layout}
-                        config={{ displayModeBar: true, displaylogo: false, responsive: true }}
-                        style={{ width: '100%' }}
-                        useResizeHandler={true}
-                    />
+                    <ExpandablePlotWrapper>
+                        <Plot
+                            data={traces}
+                            layout={layout}
+                            config={getPlotConfig({ filename: `histogram_${selectedColumns.join('_')}` })}
+                            style={{ width: '100%' }}
+                            useResizeHandler={true}
+                        />
+                    </ExpandablePlotWrapper>
 
                     {/* Statistics summary */}
                     <Box sx={{ mt: 2, display: 'flex', gap: 3, flexWrap: 'wrap' }}>

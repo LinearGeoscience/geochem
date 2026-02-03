@@ -20,6 +20,12 @@ export * from './petrochemical';
 export * from './weathering';
 export * from './reeNormalization';
 export * from './explorationRatios';
+export * from './molarConversion';
+export * from './diagramFormulas';
+export * from './pathfinderConstants';
+export * from './pathfinderClassification';
+export * from './pcaAnalysis';
+export * from './logAdditiveIndex';
 
 // Import all definition generators
 import { generateUnitConversionCalculations } from './unitConversion';
@@ -28,6 +34,9 @@ import { generatePetrochemicalDefinitions } from './petrochemical';
 import { generateWeatheringDefinitions } from './weathering';
 import { generateREEDefinitions } from './reeNormalization';
 import { generateExplorationDefinitions } from './explorationRatios';
+import { generateMolarConversionCalculations } from './molarConversion';
+import { generateDiagramFormulaDefinitions } from './diagramFormulas';
+import { generatePathfinderCalculations } from './pathfinderClassification';
 import { CalculationDefinition, CalculationCategory } from '../../types/calculations';
 
 /**
@@ -36,11 +45,14 @@ import { CalculationDefinition, CalculationCategory } from '../../types/calculat
 export function getAllCalculationDefinitions(): CalculationDefinition[] {
     return [
         ...generateUnitConversionCalculations(),
+        ...generateMolarConversionCalculations(),
         ...generateElementOxideDefinitions(),
         ...generatePetrochemicalDefinitions(),
         ...generateWeatheringDefinitions(),
         ...generateREEDefinitions(),
         ...generateExplorationDefinitions(),
+        ...generateDiagramFormulaDefinitions(),
+        ...generatePathfinderCalculations(),
     ];
 }
 

@@ -12,6 +12,7 @@ import { DownholePlot } from './features/plots/DownholePlot';
 import { HistogramPlot } from './features/plots/HistogramPlot';
 import { CLRPlot } from './features/plots/CLRPlot';
 import { ClassificationPlot } from './features/plots/ClassificationPlot';
+import { PathfinderMap } from './features/plots/PathfinderMap';
 import { DataView } from './features/data_features/DataView';
 import { ColumnManager } from './features/data_features/ColumnManager';
 import { SelectionManager } from './features/data_features/SelectionManager';
@@ -20,6 +21,7 @@ import { CorrelationMatrix } from './features/analysis/CorrelationMatrix';
 import { ProbabilityPlot } from './features/analysis/ProbabilityPlot';
 import { BoxPlot } from './features/analysis/BoxPlot';
 import { TransformationManager } from './features/analysis/TransformationManager';
+import { PCAWorkflow } from './features/analysis/PCAWorkflow';
 import { VectoringManager } from './features/vectoring/VectoringManager';
 import { CalculationManager } from './features/calculations/CalculationManager';
 import { QAQCManager, ControlChart, DuplicateAnalysis, BlankAnalysis, QAQCDashboard } from './features/qaqc';
@@ -115,6 +117,7 @@ function App() {
                                                 case 'histogram': return <HistogramPlot key={plotId} plotId={plotId} />;
                                                 case 'clr': return <CLRPlot key={plotId} plotId={plotId} />;
                                                 case 'classification': return <ClassificationPlot key={plotId} plotId={plotId} />;
+                                                case 'pathfinder': return <PathfinderMap key={plotId} plotId={plotId} />;
                                                 default: return null;
                                             }
                                         })()}
@@ -197,14 +200,17 @@ function App() {
                                 <Tab label="Correlation Matrix" />
                                 <Tab label="Probability Plot" />
                                 <Tab label="Transformations" />
+                                <Tab label="PCA Analysis" />
                                 <Tab label="Deposit Vectoring" />
                             </Tabs>
-                            {analysisTab === 0 && <SummaryStats />}
-                            {analysisTab === 1 && <BoxPlot />}
-                            {analysisTab === 2 && <CorrelationMatrix />}
-                            {analysisTab === 3 && <ProbabilityPlot />}
-                            {analysisTab === 4 && <TransformationManager />}
-                            {analysisTab === 5 && <VectoringManager />}
+                            {/* Keep all tabs mounted for state persistence, hide inactive with display:none */}
+                            <Box sx={{ display: analysisTab === 0 ? 'block' : 'none' }}><SummaryStats /></Box>
+                            <Box sx={{ display: analysisTab === 1 ? 'block' : 'none' }}><BoxPlot /></Box>
+                            <Box sx={{ display: analysisTab === 2 ? 'block' : 'none' }}><CorrelationMatrix /></Box>
+                            <Box sx={{ display: analysisTab === 3 ? 'block' : 'none' }}><ProbabilityPlot /></Box>
+                            <Box sx={{ display: analysisTab === 4 ? 'block' : 'none' }}><TransformationManager /></Box>
+                            <Box sx={{ display: analysisTab === 5 ? 'block' : 'none' }}><PCAWorkflow /></Box>
+                            <Box sx={{ display: analysisTab === 6 ? 'block' : 'none' }}><VectoringManager /></Box>
                         </Box>
                         {/* Right sidebar */}
                         <Box sx={{ position: 'relative', width: rightSidebarOpen ? sidebarWidth : 40, flexShrink: 0, display: 'flex' }}>
@@ -277,25 +283,30 @@ function App() {
                                 <Tab label="Blanks" />
                                 <Tab label="Dashboard" />
                             </Tabs>
-                            {qaqcTab === 0 && <QAQCManager onNavigate={(view) => {
-                                switch (view) {
-                                    case 'control-chart': setQaqcTab(1); break;
-                                    case 'duplicates': setQaqcTab(2); break;
-                                    case 'blanks': setQaqcTab(3); break;
-                                    case 'dashboard': setQaqcTab(4); break;
-                                }
-                            }} />}
-                            {qaqcTab === 1 && <ControlChart />}
-                            {qaqcTab === 2 && <DuplicateAnalysis />}
-                            {qaqcTab === 3 && <BlankAnalysis />}
-                            {qaqcTab === 4 && <QAQCDashboard onNavigate={(view) => {
-                                switch (view) {
-                                    case 'manager': setQaqcTab(0); break;
-                                    case 'control-chart': setQaqcTab(1); break;
-                                    case 'duplicates': setQaqcTab(2); break;
-                                    case 'blanks': setQaqcTab(3); break;
-                                }
-                            }} />}
+                            {/* Keep all tabs mounted for state persistence, hide inactive with display:none */}
+                            <Box sx={{ display: qaqcTab === 0 ? 'block' : 'none' }}>
+                                <QAQCManager onNavigate={(view) => {
+                                    switch (view) {
+                                        case 'control-chart': setQaqcTab(1); break;
+                                        case 'duplicates': setQaqcTab(2); break;
+                                        case 'blanks': setQaqcTab(3); break;
+                                        case 'dashboard': setQaqcTab(4); break;
+                                    }
+                                }} />
+                            </Box>
+                            <Box sx={{ display: qaqcTab === 1 ? 'block' : 'none' }}><ControlChart /></Box>
+                            <Box sx={{ display: qaqcTab === 2 ? 'block' : 'none' }}><DuplicateAnalysis /></Box>
+                            <Box sx={{ display: qaqcTab === 3 ? 'block' : 'none' }}><BlankAnalysis /></Box>
+                            <Box sx={{ display: qaqcTab === 4 ? 'block' : 'none' }}>
+                                <QAQCDashboard onNavigate={(view) => {
+                                    switch (view) {
+                                        case 'manager': setQaqcTab(0); break;
+                                        case 'control-chart': setQaqcTab(1); break;
+                                        case 'duplicates': setQaqcTab(2); break;
+                                        case 'blanks': setQaqcTab(3); break;
+                                    }
+                                }} />
+                            </Box>
                         </Box>
                         {/* Right sidebar */}
                         <Box sx={{ position: 'relative', width: rightSidebarOpen ? sidebarWidth : 40, flexShrink: 0, display: 'flex' }}>

@@ -8,11 +8,11 @@ interface ColumnInfo {
     role: string | null;
     alias: string | null;
     priority?: number; // Lower = higher priority in dropdowns (1-10)
-    transformationType?: 'raw' | 'clr' | 'alr' | 'ilr' | 'plr' | 'slr' | 'chipower' | null; // Which transformation created this column
+    transformationType?: 'raw' | 'clr' | 'alr' | 'ilr' | 'plr' | 'slr' | 'chipower' | 'log-additive' | null; // Which transformation created this column
 }
 
 // Column filter options
-export type ColumnFilterType = 'all' | 'raw' | 'clr' | 'alr' | 'ilr' | 'plr' | 'slr' | 'chipower';
+export type ColumnFilterType = 'all' | 'raw' | 'clr' | 'alr' | 'ilr' | 'plr' | 'slr' | 'chipower' | 'log-additive';
 
 export const COLUMN_FILTER_LABELS: Record<ColumnFilterType, string> = {
     all: 'All Columns',
@@ -22,10 +22,11 @@ export const COLUMN_FILTER_LABELS: Record<ColumnFilterType, string> = {
     ilr: 'ILR Transformed',
     plr: 'PLR Transformed',
     slr: 'SLR Transformed',
-    chipower: 'Chi-Power Transformed'
+    chipower: 'Chi-Power Transformed',
+    'log-additive': 'Log Additive Index'
 };
 
-type PlotType = 'scatter' | 'ternary' | 'spider' | 'map' | 'map3d' | 'downhole' | 'histogram' | 'clr' | 'classification';
+type PlotType = 'scatter' | 'ternary' | 'spider' | 'map' | 'map3d' | 'downhole' | 'histogram' | 'clr' | 'classification' | 'pathfinder';
 
 // Per-plot settings storage
 interface PlotSettings {
@@ -78,6 +79,7 @@ interface AppState {
     uploadDrillhole: (collar: File, survey: File, assay: File) => Promise<void>;
     updateColumn: (column: string, role?: string, alias?: string) => Promise<void>;
     updateColumnType: (column: string, newType: string, treatNegativeAsZero?: boolean) => void;
+    updateColumnTypes: (columns: string[], newType: string, treatNegativeAsZero?: boolean) => void;
     setCurrentView: (view: 'import' | 'data' | 'columns' | 'plots' | 'analysis' | 'qaqc' | 'statistics' | 'settings') => void;
 
     // Plot actions
@@ -407,6 +409,58 @@ export const useAppStore = create<CombinedState>()((set, get, api) => ({
             );
 
             console.log(`[updateColumnType] Column "${column}" converted to ${newType}`);
+            return { data: newData, columns: newColumns };
+        });
+    },
+
+    updateColumnTypes: (columnNames: string[], newType: string, treatNegativeAsZero: boolean = true) => {
+        set((state) => {
+            // Helper function to convert a single value
+            const convertValue = (value: any): any => {
+                if (newType === 'numeric' || newType === 'float' || newType === 'integer') {
+                    if (value === null || value === undefined || value === '' || value === 'NA' || value === 'N/A' || value === '-') {
+                        return 0;
+                    } else if (typeof value === 'string') {
+                        const cleaned = value.replace(/[<>,%$]/g, '').trim();
+                        const parsed = parseFloat(cleaned);
+                        if (isNaN(parsed)) {
+                            return 0;
+                        } else if (parsed < 0 && treatNegativeAsZero) {
+                            return 0;
+                        } else {
+                            return newType === 'integer' ? Math.round(parsed) : parsed;
+                        }
+                    } else if (typeof value === 'number') {
+                        if (value < 0 && treatNegativeAsZero) {
+                            return 0;
+                        } else {
+                            return newType === 'integer' ? Math.round(value) : value;
+                        }
+                    }
+                    return value;
+                } else if (newType === 'text' || newType === 'categorical') {
+                    return value === null || value === undefined ? '' : String(value);
+                }
+                return value;
+            };
+
+            // Convert data for all specified columns in a single pass
+            const newData = state.data.map(row => {
+                const updatedRow = { ...row };
+                columnNames.forEach(colName => {
+                    updatedRow[colName] = convertValue(row[colName]);
+                });
+                return updatedRow;
+            });
+
+            // Update column types
+            const newColumns = state.columns.map(col =>
+                columnNames.includes(col.name)
+                    ? { ...col, type: newType }
+                    : col
+            );
+
+            console.log(`[updateColumnTypes] ${columnNames.length} columns converted to ${newType}`);
             return { data: newData, columns: newColumns };
         });
     },

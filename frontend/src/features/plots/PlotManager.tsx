@@ -42,6 +42,9 @@ export const PlotManager: React.FC = () => {
                     <Button variant="outlined" startIcon={<AddCircle />} onClick={() => addPlot('classification')} fullWidth size="small" color="secondary">
                         CLASSIFICATION
                     </Button>
+                    <Button variant="outlined" startIcon={<AddCircle />} onClick={() => addPlot('pathfinder')} fullWidth size="small" color="success">
+                        PATHFINDER
+                    </Button>
                 </Box>
             </Box>
 

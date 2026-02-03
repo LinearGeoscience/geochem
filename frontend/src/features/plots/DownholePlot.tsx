@@ -19,6 +19,8 @@ import { ExpandMore, ExpandLess } from '@mui/icons-material';
 import { MultiColumnSelector } from '../../components/MultiColumnSelector';
 import { useAttributeStore } from '../../store/attributeStore';
 import { getStyleArrays, sortColumnsByPriority } from '../../utils/attributeUtils';
+import { getDownholePlotConfig, EXPORT_FONT_SIZES } from '../../utils/plotConfig';
+import { ExpandablePlotWrapper } from '../../components/ExpandablePlotWrapper';
 
 // Default color palette for traces
 const DEFAULT_TRACE_COLORS = [
@@ -106,19 +108,22 @@ const DownholeHoleView: React.FC<DownholeHoleViewProps> = ({
         const totalWidth = trackWidth * (categoryField ? 1.3 : 1);
 
         const layout: any = {
-            title: { text: holeName, font: { size: 14 } },
+            title: { text: holeName, font: { size: EXPORT_FONT_SIZES.title }, x: 0, xanchor: 'left' },
             height: plotHeight,
             width: totalWidth,
             showlegend: false,
-            margin: { l: 50, r: 20, t: 40, b: 40 },
+            font: { size: EXPORT_FONT_SIZES.tickLabels },
+            margin: { l: 60, r: 30, t: 50, b: 50 },
             xaxis: {
-                title: visibleTraces.length === 1 ? visibleTraces[0].field : 'Value',
+                title: { text: visibleTraces.length === 1 ? visibleTraces[0].field : 'Value', font: { size: EXPORT_FONT_SIZES.axisTitle } },
+                tickfont: { size: EXPORT_FONT_SIZES.tickLabels },
                 side: 'top',
                 showgrid: true,
                 gridcolor: 'rgba(0,0,0,0.1)',
             },
             yaxis: {
-                title: 'Depth',
+                title: { text: 'Depth', font: { size: EXPORT_FONT_SIZES.axisTitle } },
+                tickfont: { size: EXPORT_FONT_SIZES.tickLabels },
                 autorange: 'reversed',
                 showgrid: true,
                 gridcolor: 'rgba(0,0,0,0.1)',
@@ -217,12 +222,14 @@ const DownholeHoleView: React.FC<DownholeHoleViewProps> = ({
             )}
 
             {/* Main plot */}
-            <Plot
-                data={traces}
-                layout={layout}
-                config={{ displayModeBar: false, responsive: false }}
-                style={{ display: 'inline-block' }}
-            />
+            <ExpandablePlotWrapper>
+                <Plot
+                    data={traces}
+                    layout={layout}
+                    config={getDownholePlotConfig(`downhole_${holeName || 'all'}`)}
+                    style={{ display: 'inline-block' }}
+                />
+            </ExpandablePlotWrapper>
         </Box>
     );
 };

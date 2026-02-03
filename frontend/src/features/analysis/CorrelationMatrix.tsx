@@ -5,6 +5,8 @@ import Plot from 'react-plotly.js';
 import { useAppStore, COLUMN_FILTER_LABELS } from '../../store/appStore';
 import { useAttributeStore } from '../../store/attributeStore';
 import { getStyleArrays, sortColumnsByPriority } from '../../utils/attributeUtils';
+import { getPlotConfig, EXPORT_FONT_SIZES } from '../../utils/plotConfig';
+import { ExpandablePlotWrapper } from '../../components/ExpandablePlotWrapper';
 
 // Helper function to calculate Pearson correlation
 const pearsonCorrelation = (x: number[], y: number[]): number => {
@@ -223,65 +225,68 @@ export const CorrelationMatrix: React.FC = () => {
                 </Box>
             ) : correlationData ? (
                 <Paper sx={{ p: 2, display: 'inline-block' }}>
-                    <Plot
-                        data={[{
-                            z: correlationData.matrix,
-                            x: correlationData.columns,
-                            y: correlationData.columns,
-                            type: 'heatmap',
-                            colorscale: [
-                                [0, 'rgb(33,102,172)'],      // Strong negative - dark blue
-                                [0.25, 'rgb(103,169,207)'],  // Moderate negative - light blue
-                                [0.5, 'rgb(247,247,247)'],   // Zero - off-white
-                                [0.75, 'rgb(239,138,98)'],   // Moderate positive - light red
-                                [1, 'rgb(178,24,43)']        // Strong positive - dark red
-                            ],
-                            zmin: -1,
-                            zmax: 1,
-                            hoverongaps: false,
-                            hovertemplate: '%{y} vs %{x}<br>Correlation: %{z:.2f}<extra></extra>',
-                            showscale: true,
-                            colorbar: {
-                                title: { text: '', font: { size: 12 } },
-                                tickvals: [-1, -0.75, -0.5, -0.25, 0, 0.25, 0.5, 0.75, 1],
-                                ticktext: ['-1.00', '-0.75', '-0.50', '-0.25', '0.00', '0.25', '0.50', '0.75', '1.00'],
-                                len: 0.9,
-                                thickness: 15,
-                            }
-                        }]}
-                        layout={{
-                            title: {
-                                text: 'Geochemical Correlation Matrix',
-                                font: { size: 16 }
-                            },
-                            autosize: false,
-                            width: Math.max(500, correlationData.columns.length * 50 + 150),
-                            height: Math.max(500, correlationData.columns.length * 50 + 100),
-                            margin: { l: 60, r: 80, t: 60, b: 60 },
-                            xaxis: {
-                                tickangle: 0,
-                                side: 'bottom',
-                                tickfont: { size: 11 },
-                            },
-                            yaxis: {
-                                autorange: 'reversed',
-                                tickfont: { size: 11 },
-                            },
-                            annotations: correlationData.matrix.flatMap((row, i) =>
-                                row.map((value, j) => ({
-                                    x: correlationData.columns[j],
-                                    y: correlationData.columns[i],
-                                    text: value.toFixed(2),
-                                    font: {
-                                        size: correlationData.columns.length > 15 ? 8 : 10,
-                                        color: Math.abs(value) > 0.5 ? 'white' : 'black'
-                                    },
-                                    showarrow: false,
-                                }))
-                            ),
-                        }}
-                        config={{ displayModeBar: true, displaylogo: false }}
-                    />
+                    <ExpandablePlotWrapper>
+                        <Plot
+                            data={[{
+                                z: correlationData.matrix,
+                                x: correlationData.columns,
+                                y: correlationData.columns,
+                                type: 'heatmap',
+                                colorscale: [
+                                    [0, 'rgb(33,102,172)'],      // Strong negative - dark blue
+                                    [0.25, 'rgb(103,169,207)'],  // Moderate negative - light blue
+                                    [0.5, 'rgb(247,247,247)'],   // Zero - off-white
+                                    [0.75, 'rgb(239,138,98)'],   // Moderate positive - light red
+                                    [1, 'rgb(178,24,43)']        // Strong positive - dark red
+                                ],
+                                zmin: -1,
+                                zmax: 1,
+                                hoverongaps: false,
+                                hovertemplate: '%{y} vs %{x}<br>Correlation: %{z:.2f}<extra></extra>',
+                                showscale: true,
+                                colorbar: {
+                                    title: { text: '', font: { size: 12 } },
+                                    tickvals: [-1, -0.75, -0.5, -0.25, 0, 0.25, 0.5, 0.75, 1],
+                                    ticktext: ['-1.00', '-0.75', '-0.50', '-0.25', '0.00', '0.25', '0.50', '0.75', '1.00'],
+                                    len: 0.9,
+                                    thickness: 15,
+                                }
+                            }]}
+                            layout={{
+                                title: {
+                                    text: 'Geochemical Correlation Matrix',
+                                    font: { size: EXPORT_FONT_SIZES.title }
+                                },
+                                autosize: false,
+                                width: Math.max(500, correlationData.columns.length * 50 + 150),
+                                height: Math.max(500, correlationData.columns.length * 50 + 100),
+                                font: { size: EXPORT_FONT_SIZES.tickLabels },
+                                margin: { l: 70, r: 80, t: 70, b: 70 },
+                                xaxis: {
+                                    tickangle: 0,
+                                    side: 'bottom',
+                                    tickfont: { size: EXPORT_FONT_SIZES.tickLabels },
+                                },
+                                yaxis: {
+                                    autorange: 'reversed',
+                                    tickfont: { size: EXPORT_FONT_SIZES.tickLabels },
+                                },
+                                annotations: correlationData.matrix.flatMap((row, i) =>
+                                    row.map((value, j) => ({
+                                        x: correlationData.columns[j],
+                                        y: correlationData.columns[i],
+                                        text: value.toFixed(2),
+                                        font: {
+                                            size: correlationData.columns.length > 15 ? 8 : 10,
+                                            color: Math.abs(value) > 0.5 ? 'white' : 'black'
+                                        },
+                                        showarrow: false,
+                                    }))
+                                ),
+                            }}
+                            config={getPlotConfig({ filename: 'correlation_matrix' })}
+                        />
+                    </ExpandablePlotWrapper>
                 </Paper>
             ) : (
                 <Typography color="text.secondary">

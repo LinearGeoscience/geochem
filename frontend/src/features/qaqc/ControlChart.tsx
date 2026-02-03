@@ -29,6 +29,7 @@ import {
 } from '@mui/icons-material';
 import { useQAQCStore } from '../../store/qaqcStore';
 import { ControlChartData } from '../../types/qaqc';
+import { ExpandablePlotWrapper } from '../../components/ExpandablePlotWrapper';
 
 type ChartMode = 'values' | 'recovery';
 
@@ -290,13 +291,15 @@ export const ControlChart: React.FC = () => {
       {chartData && (
         <>
           <Paper sx={{ p: 2, mb: 2 }}>
-            <Plot
-              data={traces}
-              layout={layout}
-              config={{ displayModeBar: true, displaylogo: false, responsive: true }}
-              style={{ width: '100%' }}
-              useResizeHandler={true}
-            />
+            <ExpandablePlotWrapper>
+              <Plot
+                data={traces}
+                layout={layout}
+                config={{ displayModeBar: true, displaylogo: false, responsive: true }}
+                style={{ width: '100%' }}
+                useResizeHandler={true}
+              />
+            </ExpandablePlotWrapper>
           </Paper>
 
           {/* Statistics Summary */}

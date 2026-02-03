@@ -8,6 +8,7 @@ import { useAttributeStore } from '../../store/attributeStore';
 import { getStyleArrays, shapeToPlotlySymbol, applyOpacityToColor, getSortedIndices, sortColumnsByPriority } from '../../utils/attributeUtils';
 import { buildCustomData, build3DHoverTemplate } from '../../utils/tooltipUtils';
 import { AxisRangeSlider } from '../../components/AxisRangeSlider';
+import { getPlotConfig } from '../../utils/plotConfig';
 
 interface CameraState {
     eye?: { x: number; y: number; z: number };
@@ -291,7 +292,7 @@ export const AttributeMap3D: React.FC<AttributeMap3DProps> = ({ plotId }) => {
                             <Plot
                                 data={traces}
                                 layout={{
-                                    title: { text: '3D Spatial Map', font: { size: 14 } },
+                                    title: { text: '3D Spatial Map', font: { size: 14 }, x: 0, xanchor: 'left' },
                                     autosize: true,
                                     height: 600,
                                     scene: {
@@ -314,7 +315,7 @@ export const AttributeMap3D: React.FC<AttributeMap3DProps> = ({ plotId }) => {
                                     margin: { l: 0, r: 0, t: 40, b: 0 },
                                     uirevision: lockAxes ? 'locked' : Date.now()
                                 }}
-                                config={{ displayModeBar: true, displaylogo: false, responsive: true }}
+                                config={getPlotConfig({ filename: `map3d_${colorAttribute || 'default'}` })}
                                 style={{ width: '100%' }}
                                 useResizeHandler={true}
                                 onRelayout={handleRelayout}

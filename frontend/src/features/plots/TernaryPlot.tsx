@@ -1,10 +1,12 @@
 import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import Plot from 'react-plotly.js';
 import { useAppStore } from '../../store/appStore';
-import { Box, Paper, Typography } from '@mui/material';
+import { Box, Paper, Typography, FormControl, InputLabel, Select, MenuItem } from '@mui/material';
 import { useAttributeStore } from '../../store/attributeStore';
 import { getStyleArrays, shapeToPlotlySymbol, applyOpacityToColor, getSortedIndices, sortColumnsByPriority } from '../../utils/attributeUtils';
 import { buildCustomData, buildTernaryHoverTemplate } from '../../utils/tooltipUtils';
+import { getPlotConfig, EXPORT_FONT_SIZES } from '../../utils/plotConfig';
+import { ExpandablePlotWrapper } from '../../components/ExpandablePlotWrapper';
 
 interface TernaryRanges {
     aRange?: [number, number];
@@ -72,9 +74,42 @@ export const TernaryPlot: React.FC<TernaryPlotProps> = ({ plotId }) => {
         }
     }, [columns, numericColumns, storedSettings]);
 
+    // Render axis selectors for the early return case
+    const axisSelectors = (
+        <Box sx={{ mb: 3, display: 'flex', gap: 2, flexWrap: 'wrap', alignItems: 'flex-start' }}>
+            <FormControl sx={{ minWidth: 150 }}>
+                <InputLabel>A-Axis (Top)</InputLabel>
+                <Select value={aAxis} onChange={(e) => setAAxis(e.target.value)} label="A-Axis (Top)">
+                    {numericColumns.map(col => (
+                        <MenuItem key={col.name} value={col.name}>{col.alias || col.name}</MenuItem>
+                    ))}
+                </Select>
+            </FormControl>
+
+            <FormControl sx={{ minWidth: 150 }}>
+                <InputLabel>B-Axis (Bottom Left)</InputLabel>
+                <Select value={bAxis} onChange={(e) => setBAxis(e.target.value)} label="B-Axis (Bottom Left)">
+                    {numericColumns.map(col => (
+                        <MenuItem key={col.name} value={col.name}>{col.alias || col.name}</MenuItem>
+                    ))}
+                </Select>
+            </FormControl>
+
+            <FormControl sx={{ minWidth: 150 }}>
+                <InputLabel>C-Axis (Bottom Right)</InputLabel>
+                <Select value={cAxis} onChange={(e) => setCAxis(e.target.value)} label="C-Axis (Bottom Right)">
+                    {numericColumns.map(col => (
+                        <MenuItem key={col.name} value={col.name}>{col.alias || col.name}</MenuItem>
+                    ))}
+                </Select>
+            </FormControl>
+        </Box>
+    );
+
     if (!data.length || !aAxis || !bAxis || !cAxis) {
         return (
             <Box sx={{ p: 2 }}>
+                {axisSelectors}
                 <Typography color="text.secondary">Select A, B, and C axes to display ternary plot</Typography>
             </Box>
         );
@@ -128,36 +163,44 @@ export const TernaryPlot: React.FC<TernaryPlotProps> = ({ plotId }) => {
 
     return (
         <Box sx={{ p: 2 }}>
+            {axisSelectors}
+
             <Paper sx={{ p: 2 }}>
-                <Plot
-                    data={[trace]}
-                    layout={{
-                        title: { text: `Ternary: ${aAxis} - ${bAxis} - ${cAxis}` },
-                        autosize: true,
-                        height: 600,
-                        ternary: {
-                            sum: 1,
-                            aaxis: {
-                                title: aAxis,
-                                min: lockAxes && rangesRef.current.aRange ? rangesRef.current.aRange[0] : 0
+                <ExpandablePlotWrapper>
+                    <Plot
+                        data={[trace]}
+                        layout={{
+                            title: { text: `Ternary: ${aAxis} - ${bAxis} - ${cAxis}`, font: { size: EXPORT_FONT_SIZES.title }, x: 0, xanchor: 'left' },
+                            autosize: true,
+                            height: 600,
+                            font: { size: EXPORT_FONT_SIZES.tickLabels },
+                            ternary: {
+                                sum: 1,
+                                aaxis: {
+                                    title: { text: aAxis, font: { size: EXPORT_FONT_SIZES.axisTitle } },
+                                    tickfont: { size: EXPORT_FONT_SIZES.tickLabels },
+                                    min: lockAxes && rangesRef.current.aRange ? rangesRef.current.aRange[0] : 0
+                                },
+                                baxis: {
+                                    title: { text: bAxis, font: { size: EXPORT_FONT_SIZES.axisTitle } },
+                                    tickfont: { size: EXPORT_FONT_SIZES.tickLabels },
+                                    min: lockAxes && rangesRef.current.bRange ? rangesRef.current.bRange[0] : 0
+                                },
+                                caxis: {
+                                    title: { text: cAxis, font: { size: EXPORT_FONT_SIZES.axisTitle } },
+                                    tickfont: { size: EXPORT_FONT_SIZES.tickLabels },
+                                    min: lockAxes && rangesRef.current.cRange ? rangesRef.current.cRange[0] : 0
+                                }
                             },
-                            baxis: {
-                                title: bAxis,
-                                min: lockAxes && rangesRef.current.bRange ? rangesRef.current.bRange[0] : 0
-                            },
-                            caxis: {
-                                title: cAxis,
-                                min: lockAxes && rangesRef.current.cRange ? rangesRef.current.cRange[0] : 0
-                            }
-                        },
-                        margin: { l: 80, r: 80, t: 80, b: 80 },
-                        uirevision: lockAxes ? 'locked' : Date.now()
-                    }}
-                    config={{ displayModeBar: true, displaylogo: false }}
-                    style={{ width: '100%' }}
-                    useResizeHandler={true}
-                    onRelayout={handleRelayout}
-                />
+                            margin: { l: 80, r: 80, t: 80, b: 80 },
+                            uirevision: lockAxes ? 'locked' : Date.now()
+                        }}
+                        config={getPlotConfig({ filename: `ternary_${aAxis}_${bAxis}_${cAxis}` })}
+                        style={{ width: '100%' }}
+                        useResizeHandler={true}
+                        onRelayout={handleRelayout}
+                    />
+                </ExpandablePlotWrapper>
             </Paper>
         </Box>
     );

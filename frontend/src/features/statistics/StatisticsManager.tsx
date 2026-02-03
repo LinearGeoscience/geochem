@@ -23,7 +23,8 @@ import {
 // =============================================================================
 
 const RegressionTab: React.FC = () => {
-    const { columns, data } = useAppStore();
+    const { data, getFilteredColumns } = useAppStore();
+    const filteredColumns = getFilteredColumns();
     const {
         regressionResult,
         setRegressionConfig,
@@ -33,8 +34,8 @@ const RegressionTab: React.FC = () => {
     } = useStatisticsStore();
 
     const numericColumns = useMemo(() =>
-        columns.filter(c => c.type === 'numeric').map(c => c.name),
-        [columns]
+        filteredColumns.filter(c => c.type === 'numeric').map(c => c.name),
+        [filteredColumns]
     );
 
     const [config, setConfig] = useState<Partial<RobustRegressionConfig>>({
@@ -229,7 +230,8 @@ const RegressionTab: React.FC = () => {
 };
 
 const AnomalyTab: React.FC = () => {
-    const { columns } = useAppStore();
+    const { getFilteredColumns } = useAppStore();
+    const filteredColumns = getFilteredColumns();
     const {
         anomalyConfigs,
         anomalyResults,
@@ -241,8 +243,8 @@ const AnomalyTab: React.FC = () => {
     } = useStatisticsStore();
 
     const numericColumns = useMemo(() =>
-        columns.filter(c => c.type === 'numeric').map(c => c.name),
-        [columns]
+        filteredColumns.filter(c => c.type === 'numeric').map(c => c.name),
+        [filteredColumns]
     );
 
     const [newConfig, setNewConfig] = useState<Partial<AnomalyDetectionConfig>>({
@@ -448,7 +450,8 @@ const AnomalyTab: React.FC = () => {
 };
 
 const ClusteringTab: React.FC = () => {
-    const { columns } = useAppStore();
+    const { getFilteredColumns } = useAppStore();
+    const filteredColumns = getFilteredColumns();
     const {
         clusteringResult,
         setClusteringConfig,
@@ -457,8 +460,8 @@ const ClusteringTab: React.FC = () => {
     } = useStatisticsStore();
 
     const numericColumns = useMemo(() =>
-        columns.filter(c => c.type === 'numeric').map(c => c.name),
-        [columns]
+        filteredColumns.filter(c => c.type === 'numeric').map(c => c.name),
+        [filteredColumns]
     );
 
     const [config, setConfig] = useState<Partial<EnhancedClusteringConfig>>({
@@ -648,7 +651,8 @@ const ClusteringTab: React.FC = () => {
 };
 
 const ClassificationTab: React.FC = () => {
-    const { columns } = useAppStore();
+    const { getFilteredColumns } = useAppStore();
+    const filteredColumns = getFilteredColumns();
     const {
         classificationResult,
         setClassificationConfig,
@@ -657,13 +661,13 @@ const ClassificationTab: React.FC = () => {
     } = useStatisticsStore();
 
     const numericColumns = useMemo(() =>
-        columns.filter(c => c.type === 'numeric').map(c => c.name),
-        [columns]
+        filteredColumns.filter(c => c.type === 'numeric').map(c => c.name),
+        [filteredColumns]
     );
 
     const categoricalColumns = useMemo(() =>
-        columns.filter(c => c.type === 'string' || c.type === 'category').map(c => c.name),
-        [columns]
+        filteredColumns.filter(c => c.type === 'string' || c.type === 'category').map(c => c.name),
+        [filteredColumns]
     );
 
     const [config, setConfig] = useState<Partial<ClassificationConfig>>({
@@ -863,7 +867,8 @@ const ClassificationTab: React.FC = () => {
 };
 
 const PopulationTab: React.FC = () => {
-    const { columns } = useAppStore();
+    const { getFilteredColumns } = useAppStore();
+    const filteredColumns = getFilteredColumns();
     const {
         populationResult,
         setPopulationConfig,
@@ -872,8 +877,8 @@ const PopulationTab: React.FC = () => {
     } = useStatisticsStore();
 
     const numericColumns = useMemo(() =>
-        columns.filter(c => c.type === 'numeric').map(c => c.name),
-        [columns]
+        filteredColumns.filter(c => c.type === 'numeric').map(c => c.name),
+        [filteredColumns]
     );
 
     const [config, setConfig] = useState<Partial<PopulationSeparationConfig>>({
@@ -1060,13 +1065,13 @@ export const StatisticsManager: React.FC = () => {
                 </div>
             )}
 
-            {/* Tab content */}
+            {/* Tab content - all tabs stay mounted for state persistence */}
             <div style={{ flex: 1, overflow: 'auto' }}>
-                {activeTab === 'regression' && <RegressionTab />}
-                {activeTab === 'anomaly' && <AnomalyTab />}
-                {activeTab === 'population' && <PopulationTab />}
-                {activeTab === 'clustering' && <ClusteringTab />}
-                {activeTab === 'classification' && <ClassificationTab />}
+                <div style={{ display: activeTab === 'regression' ? 'block' : 'none' }}><RegressionTab /></div>
+                <div style={{ display: activeTab === 'anomaly' ? 'block' : 'none' }}><AnomalyTab /></div>
+                <div style={{ display: activeTab === 'population' ? 'block' : 'none' }}><PopulationTab /></div>
+                <div style={{ display: activeTab === 'clustering' ? 'block' : 'none' }}><ClusteringTab /></div>
+                <div style={{ display: activeTab === 'classification' ? 'block' : 'none' }}><ClassificationTab /></div>
             </div>
         </div>
     );

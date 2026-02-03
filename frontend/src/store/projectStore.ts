@@ -2,6 +2,7 @@ import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import { useAppStore } from './appStore';
 import { useAttributeStore } from './attributeStore';
+import { useClassificationStore } from './classificationStore';
 
 // File extension for project files
 export const PROJECT_FILE_EXTENSION = '.chem';
@@ -46,6 +47,10 @@ export interface ProjectData {
         globalOpacity: number;
         emphasis: any;
     };
+    classificationState?: {
+        selectedDiagramId: string | null;
+        renderOptions: any;
+    };
     settings: {
         autosaveEnabled: boolean;
         autosaveIntervalMinutes: number;
@@ -57,6 +62,10 @@ interface ProjectState {
     currentProject: ProjectMetadata | null;
     isDirty: boolean;
     lastSaved: string | null;
+
+    // File handle for save-in-place (File System Access API)
+    // Not persisted - only valid during the session
+    fileHandle: FileSystemFileHandle | null;
 
     // Autosave settings
     autosaveEnabled: boolean;
@@ -74,6 +83,7 @@ interface ProjectState {
     setCurrentProject: (project: ProjectMetadata | null) => void;
     setDirty: (dirty: boolean) => void;
     setLastSaved: (date: string | null) => void;
+    setFileHandle: (handle: FileSystemFileHandle | null) => void;
     addRecentProject: (project: RecentProject) => void;
     removeRecentProject: (filePath: string) => void;
     clearRecentProjects: () => void;
@@ -93,7 +103,7 @@ interface ProjectState {
     importProject: (data: ProjectData) => boolean;
 
     // File operations (client-side)
-    saveProjectToFile: (savePath?: string) => Promise<boolean>;
+    saveProjectToFile: (saveAs?: boolean) => Promise<boolean>;
     loadProjectFromFile: () => Promise<boolean>;
     triggerAutosave: () => Promise<boolean>;
 }
@@ -104,6 +114,7 @@ export const useProjectStore = create<ProjectState>()(
             currentProject: null,
             isDirty: false,
             lastSaved: null,
+            fileHandle: null,
             autosaveEnabled: true,
             autosaveIntervalMinutes: 5,
             lastAutosave: null,
@@ -116,6 +127,8 @@ export const useProjectStore = create<ProjectState>()(
             setDirty: (dirty) => set({ isDirty: dirty }),
 
             setLastSaved: (date) => set({ lastSaved: date }),
+
+            setFileHandle: (handle) => set({ fileHandle: handle }),
 
             addRecentProject: (project) => set((state) => {
                 const filtered = state.recentProjects.filter(p => p.filePath !== project.filePath);
@@ -161,7 +174,7 @@ export const useProjectStore = create<ProjectState>()(
                 // Reset attributes
                 attributeStore.removeGlobalEntries();
 
-                // Set new project metadata
+                // Set new project metadata and clear file handle
                 const now = new Date().toISOString();
                 set({
                     currentProject: {
@@ -175,6 +188,7 @@ export const useProjectStore = create<ProjectState>()(
                         rowCount: 0,
                         columnCount: 0
                     },
+                    fileHandle: null, // Clear file handle for new project
                     isDirty: false,
                     lastSaved: null,
                     loadError: null
@@ -184,6 +198,7 @@ export const useProjectStore = create<ProjectState>()(
             exportProject: () => {
                 const appState = useAppStore.getState();
                 const attributeState = useAttributeStore.getState();
+                const classificationState = useClassificationStore.getState();
                 const projectState = get();
 
                 const now = new Date().toISOString();
@@ -218,6 +233,10 @@ export const useProjectStore = create<ProjectState>()(
                         customEntries: attributeState.customEntries,
                         globalOpacity: attributeState.globalOpacity,
                         emphasis: attributeState.emphasis
+                    },
+                    classificationState: {
+                        selectedDiagramId: classificationState.selectedDiagramId,
+                        renderOptions: classificationState.renderOptions
                     },
                     settings: {
                         autosaveEnabled: projectState.autosaveEnabled,
@@ -273,6 +292,20 @@ export const useProjectStore = create<ProjectState>()(
                         });
                     }
 
+                    // Restore classification state
+                    if (data.classificationState) {
+                        useClassificationStore.setState({
+                            selectedDiagramId: data.classificationState.selectedDiagramId || null,
+                            renderOptions: data.classificationState.renderOptions || {
+                                style: 'color',
+                                showLabels: true,
+                                showGrid: true,
+                                showData: true,
+                                fillOpacity: 0.35
+                            }
+                        });
+                    }
+
                     // Restore settings
                     if (data.settings) {
                         set({
@@ -300,11 +333,11 @@ export const useProjectStore = create<ProjectState>()(
                 }
             },
 
-            saveProjectToFile: async (savePath?: string) => {
+            saveProjectToFile: async (saveAs: boolean = false) => {
                 const state = get();
                 const projectData = state.exportProject();
                 const projectName = projectData.metadata.name || 'project';
-                const fileName = savePath || `${projectName.replace(/[^a-z0-9]/gi, '_')}${PROJECT_FILE_EXTENSION}`;
+                const suggestedFileName = `${projectName.replace(/[^a-z0-9]/gi, '_')}${PROJECT_FILE_EXTENSION}`;
 
                 try {
                     set({ isLoading: true });
@@ -312,11 +345,39 @@ export const useProjectStore = create<ProjectState>()(
                     const jsonString = JSON.stringify(projectData);
                     const blob = new Blob([jsonString], { type: 'application/json' });
 
-                    // Use File System Access API if available for better UX
-                    if ('showSaveFilePicker' in window && !savePath) {
+                    // Try to use existing file handle for save-in-place (not "Save As")
+                    if (!saveAs && state.fileHandle) {
                         try {
+                            console.log('[Save] Using existing file handle for save-in-place');
+                            const writable = await state.fileHandle.createWritable();
+                            await writable.write(blob);
+                            await writable.close();
+
+                            const now = new Date().toISOString();
+                            set((s) => ({
+                                isDirty: false,
+                                lastSaved: now,
+                                isLoading: false,
+                                currentProject: s.currentProject ? {
+                                    ...s.currentProject,
+                                    modified: now
+                                } : null
+                            }));
+
+                            console.log('[Save] Project saved successfully to existing location');
+                            return true;
+                        } catch (err: any) {
+                            console.warn('[Save] Failed to write to existing handle, will prompt for new location:', err.message);
+                            // Fall through to show picker
+                        }
+                    }
+
+                    // No handle, saveAs requested, or handle failed - show picker
+                    if ('showSaveFilePicker' in window) {
+                        try {
+                            console.log('[Save] Showing save file picker');
                             const handle = await (window as any).showSaveFilePicker({
-                                suggestedName: fileName,
+                                suggestedName: suggestedFileName,
                                 types: [{
                                     description: 'Geochem Project Files',
                                     accept: { 'application/json': [PROJECT_FILE_EXTENSION] }
@@ -328,6 +389,7 @@ export const useProjectStore = create<ProjectState>()(
 
                             const now = new Date().toISOString();
                             set((s) => ({
+                                fileHandle: handle, // Store handle for future saves
                                 isDirty: false,
                                 lastSaved: now,
                                 isLoading: false,
@@ -345,29 +407,32 @@ export const useProjectStore = create<ProjectState>()(
                                 lastOpened: now
                             });
 
+                            console.log('[Save] Project saved to new location:', handle.name);
                             return true;
                         } catch (err: any) {
-                            // User cancelled or API not supported
+                            // User cancelled
                             if (err.name === 'AbortError') {
                                 set({ isLoading: false });
                                 return false;
                             }
+                            console.warn('[Save] File System Access API failed, falling back to download:', err.message);
                             // Fall through to legacy method
                         }
                     }
 
-                    // Legacy download method
+                    // Legacy download method (Firefox, Safari, or API failure)
+                    console.log('[Save] Using legacy download method');
                     const link = document.createElement('a');
                     const url = URL.createObjectURL(blob);
                     link.setAttribute('href', url);
-                    link.setAttribute('download', fileName);
+                    link.setAttribute('download', suggestedFileName);
                     link.style.visibility = 'hidden';
                     document.body.appendChild(link);
                     link.click();
                     document.body.removeChild(link);
                     URL.revokeObjectURL(url);
 
-                    // Update project state
+                    // Update project state (no fileHandle for legacy method)
                     const now = new Date().toISOString();
                     set((s) => ({
                         isDirty: false,
@@ -376,14 +441,14 @@ export const useProjectStore = create<ProjectState>()(
                         currentProject: s.currentProject ? {
                             ...s.currentProject,
                             modified: now,
-                            filePath: fileName
+                            filePath: suggestedFileName
                         } : null
                     }));
 
                     // Add to recent projects
                     state.addRecentProject({
                         name: projectData.metadata.name,
-                        filePath: fileName,
+                        filePath: suggestedFileName,
                         lastOpened: now
                     });
 
@@ -419,8 +484,9 @@ export const useProjectStore = create<ProjectState>()(
                                 const success = get().importProject(data);
 
                                 if (success) {
-                                    // Update file path
+                                    // Store file handle for save-in-place and update file path
                                     set((s) => ({
+                                        fileHandle: handle, // Store handle for future saves!
                                         currentProject: s.currentProject ? {
                                             ...s.currentProject,
                                             filePath: file.name
@@ -433,6 +499,8 @@ export const useProjectStore = create<ProjectState>()(
                                         filePath: file.name,
                                         lastOpened: new Date().toISOString()
                                     });
+
+                                    console.log('[Load] Project loaded with file handle for save-in-place:', file.name);
                                 }
 
                                 set({ isLoading: false });
@@ -472,8 +540,9 @@ export const useProjectStore = create<ProjectState>()(
                                 const success = get().importProject(data);
 
                                 if (success) {
-                                    // Update file path
+                                    // Update file path (no file handle in legacy mode)
                                     set((s) => ({
+                                        fileHandle: null, // No handle in legacy mode
                                         currentProject: s.currentProject ? {
                                             ...s.currentProject,
                                             filePath: file.name
@@ -486,6 +555,8 @@ export const useProjectStore = create<ProjectState>()(
                                         filePath: file.name,
                                         lastOpened: new Date().toISOString()
                                     });
+
+                                    console.log('[Load] Project loaded via legacy method (no save-in-place):', file.name);
                                 }
 
                                 set({ isLoading: false });
@@ -512,15 +583,18 @@ export const useProjectStore = create<ProjectState>()(
 
             triggerAutosave: async () => {
                 const state = get();
-                if (!state.isDirty || !state.currentProject?.filePath) {
+
+                // Only autosave if dirty AND we have a file handle (can save in place)
+                if (!state.isDirty || !state.fileHandle) {
                     return false;
                 }
 
-                console.log('[Autosave] Saving project...');
-                const success = await state.saveProjectToFile(state.currentProject.filePath);
+                console.log('[Autosave] Saving project to existing location...');
+                const success = await state.saveProjectToFile(false); // false = not "Save As"
 
                 if (success) {
                     set({ lastAutosave: new Date().toISOString() });
+                    console.log('[Autosave] Project saved successfully');
                 }
 
                 return success;
@@ -559,7 +633,8 @@ class AutosaveManager {
 
         this.intervalId = setInterval(async () => {
             const state = useProjectStore.getState();
-            if (state.autosaveEnabled && state.isDirty && state.currentProject?.filePath) {
+            // Only autosave if enabled, dirty, and we have a file handle (can save in place)
+            if (state.autosaveEnabled && state.isDirty && state.fileHandle) {
                 await state.triggerAutosave();
             }
         }, minutes * 60 * 1000);
@@ -606,6 +681,15 @@ useAttributeStore.subscribe((state, prevState) => {
         state.shape !== prevState.shape ||
         state.size !== prevState.size ||
         state.customEntries !== prevState.customEntries
+    ) {
+        useProjectStore.getState().setDirty(true);
+    }
+});
+
+useClassificationStore.subscribe((state, prevState) => {
+    if (
+        state.selectedDiagramId !== prevState.selectedDiagramId ||
+        state.renderOptions !== prevState.renderOptions
     ) {
         useProjectStore.getState().setDirty(true);
     }

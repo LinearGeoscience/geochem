@@ -29,6 +29,7 @@ import {
 } from '@mui/material';
 import {
     Save,
+    SaveAs,
     FolderOpen,
     Add,
     Delete,
@@ -50,6 +51,7 @@ export const ProjectManager: React.FC<ProjectManagerProps> = ({ variant = 'toolb
         currentProject,
         isDirty,
         lastSaved,
+        fileHandle,
         autosaveEnabled,
         autosaveIntervalMinutes,
         lastAutosave,
@@ -64,6 +66,9 @@ export const ProjectManager: React.FC<ProjectManagerProps> = ({ variant = 'toolb
         setAutosaveInterval,
         setLoadError,
     } = useProjectStore();
+
+    // Check if File System Access API is supported (Chromium browsers)
+    const hasFileSystemAccess = 'showSaveFilePicker' in window;
 
     const [newProjectDialogOpen, setNewProjectDialogOpen] = useState(false);
     const [newProjectName, setNewProjectName] = useState('');
@@ -149,7 +154,12 @@ export const ProjectManager: React.FC<ProjectManagerProps> = ({ variant = 'toolb
     };
 
     const handleSave = async () => {
-        await saveProjectToFile();
+        await saveProjectToFile(false); // false = regular save (use existing handle if available)
+        handleMenuClose();
+    };
+
+    const handleSaveAs = async () => {
+        await saveProjectToFile(true); // true = save as (always show picker)
         handleMenuClose();
     };
 
@@ -230,14 +240,27 @@ export const ProjectManager: React.FC<ProjectManagerProps> = ({ variant = 'toolb
                 </Box>
 
                 {/* Autosave status */}
-                {autosaveEnabled && currentProject?.filePath && (
+                {autosaveEnabled && fileHandle && (
                     <>
                         <Divider orientation="vertical" flexItem />
-                        <Tooltip title={`Autosave every ${autosaveIntervalMinutes} min`}>
+                        <Tooltip title={`Autosave every ${autosaveIntervalMinutes} min - saves to existing file`}>
                             <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-                                <Schedule fontSize="inherit" sx={{ color: 'text.secondary', fontSize: 14 }} />
-                                <Typography variant="caption" color="text.secondary">
+                                <Schedule fontSize="inherit" sx={{ color: 'success.main', fontSize: 14 }} />
+                                <Typography variant="caption" color="success.main">
                                     Autosave ON
+                                </Typography>
+                            </Box>
+                        </Tooltip>
+                    </>
+                )}
+                {autosaveEnabled && !fileHandle && currentProject?.filePath && (
+                    <>
+                        <Divider orientation="vertical" flexItem />
+                        <Tooltip title="Save project to enable autosave">
+                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                                <Schedule fontSize="inherit" sx={{ color: 'text.disabled', fontSize: 14 }} />
+                                <Typography variant="caption" color="text.disabled">
+                                    Autosave (save first)
                                 </Typography>
                             </Box>
                         </Tooltip>
@@ -276,8 +299,13 @@ export const ProjectManager: React.FC<ProjectManagerProps> = ({ variant = 'toolb
                         <Add sx={{ mr: 1 }} /> New Project
                     </MenuItem>
                     <MenuItem onClick={handleSave} disabled={isLoading}>
-                        <Save sx={{ mr: 1 }} /> Save Project
+                        <Save sx={{ mr: 1 }} /> Save{fileHandle ? '' : ' As...'}
                     </MenuItem>
+                    {fileHandle && (
+                        <MenuItem onClick={handleSaveAs} disabled={isLoading}>
+                            <SaveAs sx={{ mr: 1 }} /> Save As...
+                        </MenuItem>
+                    )}
                     <MenuItem onClick={() => { handleMenuClose(); checkUnsavedChanges('load'); }} disabled={isLoading}>
                         <FolderOpen sx={{ mr: 1 }} /> Open Project
                     </MenuItem>
@@ -326,16 +354,31 @@ export const ProjectManager: React.FC<ProjectManagerProps> = ({ variant = 'toolb
                 >
                     New
                 </Button>
-                <Button
-                    size="small"
-                    startIcon={isLoading ? <CircularProgress size={16} /> : <Save />}
-                    onClick={handleSave}
-                    variant={isDirty ? 'contained' : 'text'}
-                    color={isDirty ? 'primary' : 'inherit'}
-                    disabled={isLoading}
-                >
-                    Save
-                </Button>
+                <Tooltip title={fileHandle ? 'Save to current file' : 'Save as new file'}>
+                    <Button
+                        size="small"
+                        startIcon={isLoading ? <CircularProgress size={16} /> : <Save />}
+                        onClick={handleSave}
+                        variant={isDirty ? 'contained' : 'text'}
+                        color={isDirty ? 'primary' : 'inherit'}
+                        disabled={isLoading}
+                    >
+                        Save
+                    </Button>
+                </Tooltip>
+                {fileHandle && (
+                    <Tooltip title="Save to a new location">
+                        <Button
+                            size="small"
+                            color="inherit"
+                            startIcon={<SaveAs />}
+                            onClick={handleSaveAs}
+                            disabled={isLoading}
+                        >
+                            Save As
+                        </Button>
+                    </Tooltip>
+                )}
                 <Button
                     size="small"
                     color="inherit"
@@ -432,16 +475,23 @@ export const ProjectManager: React.FC<ProjectManagerProps> = ({ variant = 'toolb
                         <Box>
                             <Typography variant="subtitle2" gutterBottom>Autosave</Typography>
                             <Paper variant="outlined" sx={{ p: 2 }}>
+                                {!hasFileSystemAccess && (
+                                    <Alert severity="warning" sx={{ mb: 2 }}>
+                                        Your browser (Firefox/Safari) doesn't support save-in-place.
+                                        Autosave is disabled. Use Chrome or Edge for full save functionality.
+                                    </Alert>
+                                )}
                                 <FormControlLabel
                                     control={
                                         <Switch
                                             checked={autosaveEnabled}
                                             onChange={(e) => setAutosaveEnabled(e.target.checked)}
+                                            disabled={!hasFileSystemAccess}
                                         />
                                     }
                                     label="Enable autosave"
                                 />
-                                {autosaveEnabled && (
+                                {autosaveEnabled && hasFileSystemAccess && (
                                     <Box sx={{ mt: 2, px: 1 }}>
                                         <Typography variant="body2" gutterBottom>
                                             Save every {autosaveIntervalMinutes} minutes
@@ -464,6 +514,15 @@ export const ProjectManager: React.FC<ProjectManagerProps> = ({ variant = 'toolb
                                         <Typography variant="caption" color="text.secondary">
                                             Autosave only works after the project has been saved at least once.
                                         </Typography>
+                                        {fileHandle ? (
+                                            <Typography variant="caption" color="success.main" sx={{ display: 'block', mt: 1 }}>
+                                                Save location set - autosave will update the existing file.
+                                            </Typography>
+                                        ) : (
+                                            <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 1 }}>
+                                                Save the project first to enable autosave.
+                                            </Typography>
+                                        )}
                                     </Box>
                                 )}
                                 {lastAutosave && (

@@ -26,7 +26,7 @@ export interface StyleArrays {
 // Default style values
 const DEFAULT_COLOR = '#808080';
 const DEFAULT_SHAPE = 'circle';
-const DEFAULT_SIZE = 8;
+const DEFAULT_SIZE = 10; // Increased from 8 for better visibility in exports
 
 /**
  * Find which entry matches a data point based on its value and the config
@@ -83,13 +83,12 @@ export function getPointStyle(
     let pointVisible = true;
 
     // Get color
-    // Note: Default entries should NOT control visibility - only non-default entries can hide points
     if (colorField) {
         const value = dataPoint[colorField];
         const entry = findMatchingEntry(value, color.entries, customEntries, dataIndex);
         if (entry) {
             pointColor = entry.color || DEFAULT_COLOR;
-            if (!entry.isDefault && !entry.visible) pointVisible = false;
+            if (!entry.visible) pointVisible = false;
         }
     } else {
         // Check if any custom entry claims this point
@@ -106,7 +105,7 @@ export function getPointStyle(
         const entry = findMatchingEntry(value, shape.entries, customEntries, dataIndex);
         if (entry) {
             pointShape = entry.shape || DEFAULT_SHAPE;
-            if (!entry.isDefault && !entry.visible) pointVisible = false;
+            if (!entry.visible) pointVisible = false;
         }
     } else {
         const customMatch = customEntries.find(e => e.assignedIndices.includes(dataIndex));
@@ -121,7 +120,7 @@ export function getPointStyle(
         const entry = findMatchingEntry(value, size.entries, customEntries, dataIndex);
         if (entry) {
             pointSize = entry.size || DEFAULT_SIZE;
-            if (!entry.isDefault && !entry.visible) pointVisible = false;
+            if (!entry.visible) pointVisible = false;
         }
     } else {
         const customMatch = customEntries.find(e => e.assignedIndices.includes(dataIndex));
@@ -162,14 +161,13 @@ export function getStyleArrays(data: Record<string, any>[]): StyleArrays {
         const customMatch = customEntries.find(e => e.assignedIndices.includes(i));
 
         // Get color
-        // Note: Default entries should NOT control visibility - only non-default entries can hide points
         if (color.field) {
             const value = dataPoint[color.field];
             const entry = findMatchingEntry(value, color.entries, customEntries, i);
             if (entry) {
                 pointColor = entry.color || DEFAULT_COLOR;
-                // Only hide if it's a non-default entry that's not visible
-                if (!entry.isDefault && !entry.visible) {
+                // Hide if entry is not visible (including default entry)
+                if (!entry.visible) {
                     pointVisible = false;
                 }
             }
@@ -186,8 +184,8 @@ export function getStyleArrays(data: Record<string, any>[]): StyleArrays {
             const entry = findMatchingEntry(value, shape.entries, customEntries, i);
             if (entry) {
                 pointShape = entry.shape || DEFAULT_SHAPE;
-                // Only hide if it's a non-default entry that's not visible
-                if (!entry.isDefault && !entry.visible) {
+                // Hide if entry is not visible (including default entry)
+                if (!entry.visible) {
                     pointVisible = false;
                 }
             }
@@ -201,8 +199,8 @@ export function getStyleArrays(data: Record<string, any>[]): StyleArrays {
             const entry = findMatchingEntry(value, size.entries, customEntries, i);
             if (entry) {
                 pointSize = entry.size || DEFAULT_SIZE;
-                // Only hide if it's a non-default entry that's not visible
-                if (!entry.isDefault && !entry.visible) {
+                // Hide if entry is not visible (including default entry)
+                if (!entry.visible) {
                     pointVisible = false;
                 }
             }
@@ -211,14 +209,11 @@ export function getStyleArrays(data: Record<string, any>[]): StyleArrays {
         }
 
         // Check filter
-        // Only apply filter if there are non-default filter entries
-        // Default entries should NOT control visibility
-        const hasActiveFilterEntries = filter.field && filter.entries.some(e => !e.isDefault);
-        if (hasActiveFilterEntries && filter.field && pointVisible) {
+        if (filter.field && pointVisible) {
             const value = dataPoint[filter.field];
             const entry = findMatchingEntry(value, filter.entries, customEntries, i);
-            // Only hide if we matched a non-default entry that's not visible
-            if (entry && !entry.isDefault && !entry.visible) {
+            // Hide if entry is not visible (including default entry)
+            if (entry && !entry.visible) {
                 pointVisible = false;
             }
         }

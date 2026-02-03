@@ -3,6 +3,8 @@ import Plot from 'react-plotly.js';
 import { useAppStore } from '../../store/appStore';
 import { useAttributeStore } from '../../store/attributeStore';
 import { getStyleArrays, sortColumnsByPriority } from '../../utils/attributeUtils';
+import { getPlotConfig, EXPORT_FONT_SIZES } from '../../utils/plotConfig';
+import { ExpandablePlotWrapper } from '../../components/ExpandablePlotWrapper';
 import {
     Box,
     Paper,
@@ -30,7 +32,8 @@ const BOX_COLORS = [
 ];
 
 export const BoxPlot: React.FC = () => {
-    const { columns, data } = useAppStore();
+    const { data, getFilteredColumns } = useAppStore();
+    const filteredColumns = getFilteredColumns();
     useAttributeStore(); // Subscribe to visibility changes
 
     // State
@@ -42,23 +45,24 @@ export const BoxPlot: React.FC = () => {
     const [showNotches, setShowNotches] = useState(false);
     const [orientation, setOrientation] = useState<'v' | 'h'>('v');
     const [showMean, setShowMean] = useState(true);
+    const [categorySort, setCategorySort] = useState<'alpha' | 'asc' | 'desc'>('alpha');
 
-    // Get column lists (sorted by priority)
+    // Get column lists (sorted by priority) - respects RAW/CLR filter
     const numericColumnOptions = useMemo(() =>
-        sortColumnsByPriority(columns.filter(c => c.type === 'numeric' || c.type === 'float' || c.type === 'integer')),
-        [columns]
+        sortColumnsByPriority(filteredColumns.filter(c => c.type === 'numeric' || c.type === 'float' || c.type === 'integer')),
+        [filteredColumns]
     );
 
     // Include all non-numeric columns as potential category options
     const categoricalColumnOptions = useMemo(() =>
-        columns.filter(c =>
+        filteredColumns.filter(c =>
             c.type === 'string' ||
             c.type === 'category' ||
             c.type === 'text' ||
             // Also include any column that's not purely numeric
             (c.type !== 'numeric' && c.type !== 'float' && c.type !== 'integer')
         ),
-        [columns]
+        [filteredColumns]
     );
 
     // Get visible data
@@ -68,7 +72,7 @@ export const BoxPlot: React.FC = () => {
         return data.filter((_, i) => styleArrays.visible[i]);
     }, [data]);
 
-    // Get unique categories
+    // Get unique categories (with optional sorting by median value)
     const categories = useMemo(() => {
         if (!categoryColumn || !visibleData.length) return [];
         const uniqueValues = new Set<string>();
@@ -78,8 +82,41 @@ export const BoxPlot: React.FC = () => {
                 uniqueValues.add(String(val));
             }
         });
-        return Array.from(uniqueValues).sort();
-    }, [categoryColumn, visibleData]);
+        const categoryList = Array.from(uniqueValues);
+
+        // If sorting by value and we have numeric columns, calculate median for each category
+        if (categorySort !== 'alpha' && numericColumns.length > 0) {
+            const numCol = numericColumns[0]; // Sort by first selected numeric column
+            const categoryMedians: Record<string, number> = {};
+
+            categoryList.forEach(category => {
+                const values = visibleData
+                    .filter(row => String(row[categoryColumn]) === category)
+                    .map(row => Number(row[numCol]))
+                    .filter(v => !isNaN(v) && isFinite(v))
+                    .sort((a, b) => a - b);
+
+                if (values.length > 0) {
+                    const midIdx = Math.floor(values.length / 2);
+                    categoryMedians[category] = values.length % 2 === 0
+                        ? (values[midIdx - 1] + values[midIdx]) / 2
+                        : values[midIdx];
+                } else {
+                    categoryMedians[category] = 0;
+                }
+            });
+
+            categoryList.sort((a, b) => {
+                const diff = categoryMedians[a] - categoryMedians[b];
+                return categorySort === 'asc' ? diff : -diff;
+            });
+        } else {
+            // Alphabetical sort
+            categoryList.sort();
+        }
+
+        return categoryList;
+    }, [categoryColumn, visibleData, categorySort, numericColumns]);
 
     // Generate traces
     const traces = useMemo(() => {
@@ -91,10 +128,15 @@ export const BoxPlot: React.FC = () => {
             // Grouped box plots - one trace per category per numeric column
             numericColumns.forEach((numCol, numIdx) => {
                 categories.forEach((category, catIdx) => {
-                    const values = visibleData
+                    let values = visibleData
                         .filter(row => String(row[categoryColumn]) === category)
-                        .map(row => row[numCol])
-                        .filter(v => v != null && !isNaN(v));
+                        .map(row => Number(row[numCol]))
+                        .filter(v => v != null && !isNaN(v) && isFinite(v));
+
+                    // For log scale, filter out non-positive values
+                    if (logScale) {
+                        values = values.filter(v => v > 0);
+                    }
 
                     if (values.length === 0) return;
 
@@ -141,9 +183,14 @@ export const BoxPlot: React.FC = () => {
         } else {
             // Simple box plots - one trace per numeric column
             numericColumns.forEach((numCol, idx) => {
-                const values = visibleData
-                    .map(row => row[numCol])
-                    .filter(v => v != null && !isNaN(v));
+                let values = visibleData
+                    .map(row => Number(row[numCol]))
+                    .filter(v => v != null && !isNaN(v) && isFinite(v));
+
+                // For log scale, filter out non-positive values
+                if (logScale) {
+                    values = values.filter(v => v > 0);
+                }
 
                 if (values.length === 0) return;
 
@@ -183,7 +230,7 @@ export const BoxPlot: React.FC = () => {
         }
 
         return traces;
-    }, [numericColumns, categoryColumn, categories, visibleData, showViolin, showPoints, showMean, showNotches, orientation]);
+    }, [numericColumns, categoryColumn, categories, visibleData, showViolin, showPoints, showMean, showNotches, orientation, logScale]);
 
     // Calculate number of boxes for width calculation
     const numBoxes = useMemo(() => {
@@ -210,35 +257,92 @@ export const BoxPlot: React.FC = () => {
             : numericColumns.join(', ');
 
         const layout: any = {
-            title: { text: title, font: { size: 14 } },
+            title: { text: title, font: { size: EXPORT_FONT_SIZES.title }, x: 0, xanchor: 'left' },
             autosize: false,
             width: plotWidth,
             height: 350,
+            font: { size: EXPORT_FONT_SIZES.tickLabels },
             showlegend: numericColumns.length > 1 || categories.length > 5,
-            legend: { x: 1, y: 1, xanchor: 'right' },
-            margin: { l: 60, r: 30, t: 40, b: 60 },
+            legend: {
+                x: 1.02,
+                y: 1,
+                xanchor: 'left',
+                yanchor: 'top',
+                font: { size: EXPORT_FONT_SIZES.legend },
+                bgcolor: 'rgba(255,255,255,0.8)',
+            },
+            margin: { l: 70, r: 120, t: 60, b: 70 },
             boxgap: 0.3, // Gap between boxes in the same group
             boxgroupgap: 0.4, // Gap between box groups
         };
 
         if (orientation === 'v') {
+            // Calculate if we need angled labels based on number of categories
+            const needsAngledLabels = categoryColumn && categories.length > 3;
             layout.xaxis = {
-                title: categoryColumn || 'Variable',
+                title: { text: categoryColumn || 'Variable', font: { size: EXPORT_FONT_SIZES.axisTitle } },
+                tickfont: { size: EXPORT_FONT_SIZES.tickLabels },
                 type: categoryColumn ? 'category' : undefined,
+                tickangle: needsAngledLabels ? -45 : 0,
+                automargin: true, // Auto-expand margin to fit labels
             };
             layout.yaxis = {
-                title: numericColumns.length === 1 ? numericColumns[0] : 'Value',
+                title: { text: numericColumns.length === 1 ? numericColumns[0] : 'Value', font: { size: EXPORT_FONT_SIZES.axisTitle } },
+                tickfont: { size: EXPORT_FONT_SIZES.tickLabels },
                 type: logScale ? 'log' : 'linear',
+                ...(logScale && {
+                    // Show actual values (0.5, 0.005) instead of powers of 10
+                    exponentformat: 'none',
+                    // Classic log paper gridlines
+                    showgrid: true,
+                    gridcolor: 'rgba(0,0,0,0.15)',
+                    gridwidth: 1,
+                    minor: {
+                        showgrid: true,
+                        gridcolor: 'rgba(0,0,0,0.08)',
+                        gridwidth: 1,
+                        nticks: 9, // 9 minor ticks between major ticks for log scale
+                    },
+                    dtick: 1, // Major gridlines at each power of 10
+                }),
             };
+            // Increase bottom margin for angled labels
+            if (needsAngledLabels) {
+                layout.margin.b = 120;
+            }
         } else {
+            // For horizontal, angle y-axis labels if needed
+            const needsAngledLabels = categoryColumn && categories.length > 5;
             layout.yaxis = {
-                title: categoryColumn || 'Variable',
+                title: { text: categoryColumn || 'Variable', font: { size: EXPORT_FONT_SIZES.axisTitle } },
+                tickfont: { size: EXPORT_FONT_SIZES.tickLabels },
                 type: categoryColumn ? 'category' : undefined,
+                automargin: true, // Auto-expand margin to fit labels
             };
             layout.xaxis = {
-                title: numericColumns.length === 1 ? numericColumns[0] : 'Value',
+                title: { text: numericColumns.length === 1 ? numericColumns[0] : 'Value', font: { size: EXPORT_FONT_SIZES.axisTitle } },
+                tickfont: { size: EXPORT_FONT_SIZES.tickLabels },
                 type: logScale ? 'log' : 'linear',
+                ...(logScale && {
+                    // Show actual values (0.5, 0.005) instead of powers of 10
+                    exponentformat: 'none',
+                    // Classic log paper gridlines
+                    showgrid: true,
+                    gridcolor: 'rgba(0,0,0,0.15)',
+                    gridwidth: 1,
+                    minor: {
+                        showgrid: true,
+                        gridcolor: 'rgba(0,0,0,0.08)',
+                        gridwidth: 1,
+                        nticks: 9, // 9 minor ticks between major ticks for log scale
+                    },
+                    dtick: 1, // Major gridlines at each power of 10
+                }),
             };
+            // Increase left margin for longer labels
+            if (needsAngledLabels) {
+                layout.margin.l = 120;
+            }
         }
 
         return layout;
@@ -278,16 +382,16 @@ export const BoxPlot: React.FC = () => {
                 categories.forEach(category => {
                     const values = visibleData
                         .filter(row => String(row[categoryColumn]) === category)
-                        .map(row => row[numCol])
-                        .filter(v => v != null && !isNaN(v));
+                        .map(row => Number(row[numCol]))
+                        .filter(v => v != null && !isNaN(v) && isFinite(v));
                     calcStats(values, `${numCol} - ${category}`);
                 });
             });
         } else {
             numericColumns.forEach(numCol => {
                 const values = visibleData
-                    .map(row => row[numCol])
-                    .filter(v => v != null && !isNaN(v));
+                    .map(row => Number(row[numCol]))
+                    .filter(v => v != null && !isNaN(v) && isFinite(v));
                 calcStats(values, numCol);
             });
         }
@@ -326,7 +430,7 @@ export const BoxPlot: React.FC = () => {
                     </FormControl>
                 </Grid>
 
-                <Grid item xs={12} md={3}>
+                <Grid item xs={12} md={2}>
                     <FormControl fullWidth>
                         <InputLabel>Group By (Category)</InputLabel>
                         <Select
@@ -342,6 +446,21 @@ export const BoxPlot: React.FC = () => {
                                     {col.alias || col.name}
                                 </MenuItem>
                             ))}
+                        </Select>
+                    </FormControl>
+                </Grid>
+
+                <Grid item xs={12} md={2}>
+                    <FormControl fullWidth size="small" disabled={!categoryColumn}>
+                        <InputLabel>Sort Categories</InputLabel>
+                        <Select
+                            value={categorySort}
+                            onChange={(e) => setCategorySort(e.target.value as 'alpha' | 'asc' | 'desc')}
+                            label="Sort Categories"
+                        >
+                            <MenuItem value="alpha">Alphabetical</MenuItem>
+                            <MenuItem value="asc">By Median (Low → High)</MenuItem>
+                            <MenuItem value="desc">By Median (High → Low)</MenuItem>
                         </Select>
                     </FormControl>
                 </Grid>
@@ -406,11 +525,13 @@ export const BoxPlot: React.FC = () => {
             ) : (
                 <>
                     <Paper sx={{ p: 2, display: 'inline-block' }}>
-                        <Plot
-                            data={traces}
-                            layout={layout}
-                            config={{ displayModeBar: true, displaylogo: false, responsive: false }}
-                        />
+                        <ExpandablePlotWrapper>
+                            <Plot
+                                data={traces}
+                                layout={layout}
+                                config={getPlotConfig({ filename: 'boxplot', responsive: false })}
+                            />
+                        </ExpandablePlotWrapper>
                     </Paper>
 
                     {/* Statistics summary */}

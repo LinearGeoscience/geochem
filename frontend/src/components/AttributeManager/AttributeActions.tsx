@@ -1,7 +1,8 @@
-import React, { useRef } from 'react';
+import React, { useRef, useState } from 'react';
 import { Box, Button, Tooltip } from '@mui/material';
-import { Visibility, VisibilityOff, Save, FolderOpen } from '@mui/icons-material';
+import { Visibility, VisibilityOff, Save, FolderOpen, Photo } from '@mui/icons-material';
 import { useAttributeStore, AttributeType } from '../../store/attributeStore';
+import { LegendExportDialog } from './LegendExportDialog';
 
 interface AttributeActionsProps {
     tab: AttributeType;
@@ -20,6 +21,7 @@ export const AttributeActions: React.FC<AttributeActionsProps> = ({ tab }) => {
     } = useAttributeStore();
 
     const fileInputRef = useRef<HTMLInputElement>(null);
+    const [legendDialogOpen, setLegendDialogOpen] = useState(false);
 
     const handleAllVisible = () => {
         setAllVisible(tab, true);
@@ -147,12 +149,30 @@ export const AttributeActions: React.FC<AttributeActionsProps> = ({ tab }) => {
                 </Button>
             </Tooltip>
 
+            <Tooltip title="Export legend as image">
+                <Button
+                    size="small"
+                    variant="outlined"
+                    startIcon={<Photo />}
+                    onClick={() => setLegendDialogOpen(true)}
+                    disabled={!hasEntries}
+                    sx={{ fontSize: '0.65rem', flex: 1 }}
+                >
+                    Legend
+                </Button>
+            </Tooltip>
+
             <input
                 type="file"
                 ref={fileInputRef}
                 onChange={handleFileChange}
                 accept=".json"
                 style={{ display: 'none' }}
+            />
+
+            <LegendExportDialog
+                open={legendDialogOpen}
+                onClose={() => setLegendDialogOpen(false)}
             />
         </Box>
     );

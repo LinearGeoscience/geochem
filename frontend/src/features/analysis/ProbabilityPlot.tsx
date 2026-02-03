@@ -6,16 +6,18 @@ import { useAppStore } from '../../store/appStore';
 import { ExpandablePlotWrapper } from '../../components/ExpandablePlotWrapper';
 import { useAttributeStore } from '../../store/attributeStore';
 import { getStyleArrays, sortColumnsByPriority } from '../../utils/attributeUtils';
+import { getPlotConfig, EXPORT_FONT_SIZES } from '../../utils/plotConfig';
 
 export const ProbabilityPlot: React.FC = () => {
-    const { columns, data } = useAppStore();
+    const { data, getFilteredColumns } = useAppStore();
+    const filteredColumns = getFilteredColumns();
     useAttributeStore(); // Subscribe to changes
     const [selectedColumns, setSelectedColumns] = useState<string[]>([]);
     const [plotType, setPlotType] = useState<'probability' | 'cumulative'>('probability');
     const [xAxisType, setXAxisType] = useState<'nscore' | 'probability'>('nscore');
 
     const numericColumns = sortColumnsByPriority(
-        columns.filter(c => c.type === 'numeric' || c.type === 'float' || c.type === 'integer')
+        filteredColumns.filter(c => c.type === 'numeric' || c.type === 'float' || c.type === 'integer')
     );
 
     // Get style arrays for visibility and colors
@@ -189,31 +191,34 @@ export const ProbabilityPlot: React.FC = () => {
                                         <Plot
                                             data={[plotData as any]}
                                             layout={{
-                                                title: { text: columnName, font: { size: 14 } },
+                                                title: { text: columnName, font: { size: EXPORT_FONT_SIZES.title }, x: 0, xanchor: 'left' },
                                                 autosize: true,
                                                 height: 400,
-                                                margin: { l: 50, r: 30, t: 40, b: 50 },
+                                                font: { size: EXPORT_FONT_SIZES.tickLabels },
+                                                margin: { l: 70, r: 40, t: 60, b: 70 },
                                                 xaxis: {
                                                     title: {
                                                         text: plotType === 'probability'
                                                             ? (xAxisType === 'nscore' ? 'Theoretical Quantiles' : 'Probability (%)')
                                                             : 'Value',
-                                                        font: { size: 11 }
+                                                        font: { size: EXPORT_FONT_SIZES.axisTitle }
                                                     },
+                                                    tickfont: { size: EXPORT_FONT_SIZES.tickLabels },
                                                     gridcolor: '#e0e0e0'
                                                 },
                                                 yaxis: {
                                                     title: {
                                                         text: plotType === 'probability' ? 'Value' : 'Cumulative Frequency (%)',
-                                                        font: { size: 11 }
+                                                        font: { size: EXPORT_FONT_SIZES.axisTitle }
                                                     },
+                                                    tickfont: { size: EXPORT_FONT_SIZES.tickLabels },
                                                     gridcolor: '#e0e0e0'
                                                 },
                                                 plot_bgcolor: '#fafafa',
                                                 hovermode: 'closest',
                                                 showlegend: false
                                             }}
-                                            config={{ displayModeBar: true, displaylogo: false }}
+                                            config={getPlotConfig({ filename: `probability_${columnName}` })}
                                             style={{ width: '100%' }}
                                             useResizeHandler={true}
                                         />

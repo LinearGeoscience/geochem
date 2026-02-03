@@ -61,6 +61,7 @@ class GeochemDockWidget(QDockWidget):
     export_requested = pyqtSignal(dict)  # export config
     selection_sync_requested = pyqtSignal()
     load_webapp_style_requested = pyqtSignal()  # Request to load style from web app
+    export_pathfinders_requested = pyqtSignal(str)  # filepath for pathfinder export
 
     def __init__(self, parent=None):
         super().__init__("GeoChem Pro", parent)
@@ -358,6 +359,23 @@ class GeochemDockWidget(QDockWidget):
         self.export_btn.setEnabled(False)
         layout.addWidget(self.export_btn)
 
+        # Pathfinder export section
+        pathfinder_group = QGroupBox("Pathfinder Export")
+        pathfinder_layout = QVBoxLayout(pathfinder_group)
+
+        self.export_pathfinders_btn = QPushButton("Export Pathfinders to GeoPackage")
+        self.export_pathfinders_btn.setEnabled(False)
+        self.export_pathfinders_btn.setToolTip(
+            "Export all pathfinder element layers to a single GeoPackage with embedded styles"
+        )
+        pathfinder_layout.addWidget(self.export_pathfinders_btn)
+
+        self.pathfinder_info_label = QLabel("No pathfinder layers loaded")
+        self.pathfinder_info_label.setStyleSheet("color: #666; font-size: 10px;")
+        pathfinder_layout.addWidget(self.pathfinder_info_label)
+
+        layout.addWidget(pathfinder_group)
+
         layout.addStretch()
         return widget
 
@@ -385,6 +403,7 @@ class GeochemDockWidget(QDockWidget):
         self.clear_styles_btn.clicked.connect(self._on_clear_styles)
         self.style_type_combo.currentIndexChanged.connect(self._on_style_type_changed)
         self.load_webapp_style_btn.clicked.connect(self.load_webapp_style_requested.emit)
+        self.export_pathfinders_btn.clicked.connect(self._on_export_pathfinders_clicked)
 
     def _on_connect_clicked(self):
         """Handle connect/disconnect button click"""
@@ -470,6 +489,20 @@ class GeochemDockWidget(QDockWidget):
     def _on_clear_styles(self):
         """Clear export styles list"""
         self.export_styles_list.clear()
+
+    def _on_export_pathfinders_clicked(self):
+        """Handle export pathfinders button click"""
+        filepath, _ = QFileDialog.getSaveFileName(
+            self,
+            "Export Pathfinders to GeoPackage",
+            "Pathfinders_Export.gpkg",
+            "GeoPackage (*.gpkg)"
+        )
+
+        if not filepath:
+            return
+
+        self.export_pathfinders_requested.emit(filepath)
 
     def _on_style_type_changed(self, index: int):
         """Update UI based on style type selection"""
@@ -663,3 +696,23 @@ class GeochemDockWidget(QDockWidget):
     def webapp_style_failed(self, message: str):
         """Called when web app style application fails"""
         QMessageBox.warning(self, "Style Error", message)
+
+    def update_pathfinder_info(self, layer_count: int, element_names: List[str] = None):
+        """Update the pathfinder export section info"""
+        if layer_count > 0:
+            if element_names:
+                elements_str = ", ".join(element_names[:5])
+                if len(element_names) > 5:
+                    elements_str += f"... (+{len(element_names) - 5} more)"
+                self.pathfinder_info_label.setText(f"{layer_count} layers: {elements_str}")
+            else:
+                self.pathfinder_info_label.setText(f"{layer_count} pathfinder layers loaded")
+            self.export_pathfinders_btn.setEnabled(True)
+        else:
+            self.pathfinder_info_label.setText("No pathfinder layers loaded")
+            self.export_pathfinders_btn.setEnabled(False)
+
+    def pathfinder_layers_created(self, count: int):
+        """Called when pathfinder layers are created"""
+        self.update_pathfinder_info(count)
+        self.status_label.setText(f"Created {count} pathfinder layers")

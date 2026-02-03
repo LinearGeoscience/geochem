@@ -9,6 +9,8 @@ import {
     clrCorrelationMatrix,
     ZeroHandlingStrategy,
 } from '../../utils/clrTransform';
+import { getPlotConfig, EXPORT_FONT_SIZES } from '../../utils/plotConfig';
+import { ExpandablePlotWrapper } from '../../components/ExpandablePlotWrapper';
 import {
     Box,
     Paper,
@@ -275,8 +277,9 @@ export const CLRPlot: React.FC<CLRPlotProps> = ({ plotId }) => {
         const baseLayout: any = {
             autosize: true,
             height: 350,
-            margin: { l: 50, r: 30, t: 40, b: 50 },
+            margin: { l: 70, r: 40, t: 60, b: 70 },
             hovermode: 'closest',
+            font: { size: EXPORT_FONT_SIZES.tickLabels },
         };
 
         if (plotType === 'biplot' && biplotData) {
@@ -285,24 +288,24 @@ export const CLRPlot: React.FC<CLRPlotProps> = ({ plotId }) => {
 
             return {
                 ...baseLayout,
-                title: { text: 'CLR Biplot (PCA)', font: { size: 14 } },
-                xaxis: { title: `PC1 (${pc1Var}% var)`, zeroline: true, zerolinewidth: 1 },
-                yaxis: { title: `PC2 (${pc2Var}% var)`, zeroline: true, zerolinewidth: 1 },
+                title: { text: 'CLR Biplot (PCA)', font: { size: EXPORT_FONT_SIZES.title }, x: 0, xanchor: 'left' },
+                xaxis: { title: { text: `PC1 (${pc1Var}% var)`, font: { size: EXPORT_FONT_SIZES.axisTitle } }, tickfont: { size: EXPORT_FONT_SIZES.tickLabels }, zeroline: true, zerolinewidth: 1 },
+                yaxis: { title: { text: `PC2 (${pc2Var}% var)`, font: { size: EXPORT_FONT_SIZES.axisTitle } }, tickfont: { size: EXPORT_FONT_SIZES.tickLabels }, zeroline: true, zerolinewidth: 1 },
                 showlegend: false,
             };
         } else if (plotType === 'scatter') {
             return {
                 ...baseLayout,
-                title: { text: `CLR Scatter: ${scatterX} vs ${scatterY}`, font: { size: 14 } },
-                xaxis: { title: `clr(${scatterX})` },
-                yaxis: { title: `clr(${scatterY})` },
+                title: { text: `CLR Scatter: ${scatterX} vs ${scatterY}`, font: { size: EXPORT_FONT_SIZES.title }, x: 0, xanchor: 'left' },
+                xaxis: { title: { text: `clr(${scatterX})`, font: { size: EXPORT_FONT_SIZES.axisTitle } }, tickfont: { size: EXPORT_FONT_SIZES.tickLabels } },
+                yaxis: { title: { text: `clr(${scatterY})`, font: { size: EXPORT_FONT_SIZES.axisTitle } }, tickfont: { size: EXPORT_FONT_SIZES.tickLabels } },
             };
         } else if (plotType === 'correlation') {
             return {
                 ...baseLayout,
-                title: { text: 'CLR Correlation Matrix', font: { size: 14 } },
-                xaxis: { tickangle: 45 },
-                yaxis: { autorange: 'reversed' },
+                title: { text: 'CLR Correlation Matrix', font: { size: EXPORT_FONT_SIZES.title }, x: 0, xanchor: 'left' },
+                xaxis: { tickangle: 45, tickfont: { size: EXPORT_FONT_SIZES.tickLabels } },
+                yaxis: { autorange: 'reversed', tickfont: { size: EXPORT_FONT_SIZES.tickLabels } },
             };
         }
 
@@ -423,13 +426,15 @@ export const CLRPlot: React.FC<CLRPlotProps> = ({ plotId }) => {
             {/* Plot */}
             {selectedColumns.length >= 2 && traces.length > 0 ? (
                 <Paper sx={{ p: 2 }}>
-                    <Plot
-                        data={traces}
-                        layout={layout}
-                        config={{ displayModeBar: true, displaylogo: false, responsive: true }}
-                        style={{ width: '100%' }}
-                        useResizeHandler={true}
-                    />
+                    <ExpandablePlotWrapper>
+                        <Plot
+                            data={traces}
+                            layout={layout}
+                            config={getPlotConfig({ filename: 'clr_biplot' })}
+                            style={{ width: '100%' }}
+                            useResizeHandler={true}
+                        />
+                    </ExpandablePlotWrapper>
 
                     {/* Summary info */}
                     <Box sx={{ mt: 2, display: 'flex', gap: 2, flexWrap: 'wrap' }}>

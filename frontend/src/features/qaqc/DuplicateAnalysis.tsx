@@ -33,6 +33,7 @@ import {
 } from '@mui/icons-material';
 import { useQAQCStore } from '../../store/qaqcStore';
 import { DuplicateAnalysis as DuplicateAnalysisType } from '../../types/qaqc';
+import { ExpandablePlotWrapper } from '../../components/ExpandablePlotWrapper';
 
 type DuplicateTypeFilter = 'field_duplicate' | 'pulp_duplicate' | 'core_duplicate' | 'all';
 type PlotType = 'scatter' | 'rpd' | 'histogram';
@@ -382,13 +383,15 @@ export const DuplicateAnalysis: React.FC = () => {
       {currentAnalysis && (
         <>
           <Paper sx={{ p: 2, mb: 2 }}>
-            <Plot
-              data={traces}
-              layout={layout}
-              config={{ displayModeBar: true, displaylogo: false, responsive: true }}
-              style={{ width: '100%' }}
-              useResizeHandler={true}
-            />
+            <ExpandablePlotWrapper>
+              <Plot
+                data={traces}
+                layout={layout}
+                config={{ displayModeBar: true, displaylogo: false, responsive: true }}
+                style={{ width: '100%' }}
+                useResizeHandler={true}
+              />
+            </ExpandablePlotWrapper>
           </Paper>
 
           {/* Statistics Summary */}
