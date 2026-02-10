@@ -7,7 +7,7 @@
  * 3. Results visualization (Scree Plot, Sorted Loading Matrix, Ranked Eigenvector Plots)
  */
 
-import React, { useState, useMemo, useCallback } from 'react';
+import React, { useState, useMemo, useCallback, useEffect } from 'react';
 import {
   Box,
   Paper,
@@ -20,8 +20,6 @@ import {
   InputLabel,
   Select,
   MenuItem,
-  Checkbox,
-  FormControlLabel,
   Slider,
   Alert,
   CircularProgress,
@@ -29,90 +27,27 @@ import {
   Tab,
   Grid,
   Chip,
-  Tooltip,
-  ToggleButton,
-  ToggleButtonGroup,
 } from '@mui/material';
-import Plot from 'react-plotly.js';
 import { useAppStore } from '../../store/appStore';
 import { useTransformationStore } from '../../store/transformationStore';
 import { useAttributeStore } from '../../store/attributeStore';
 import { sortColumnsByPriority, getStyleArrays } from '../../utils/attributeUtils';
-import { ExpandablePlotWrapper } from '../../components/ExpandablePlotWrapper';
-import { getPlotConfig, EXPORT_FONT_SIZES } from '../../utils/plotConfig';
 import { ZeroHandlingStrategy } from '../../types/compositional';
+import { PCAssociationAnalysis, MatchingOptions } from '../../types/associations';
+import { matchAssociations } from '../../utils/calculations/associationMatcher';
+import {
+  createElementMappings,
+  buildMappingMap,
+  getMappingSummary,
+} from '../../utils/calculations/elementNameNormalizer';
 
-// Import visualization components (to be created)
+// Import visualization components
 import { ScreePlot } from './pca/ScreePlot';
 import { SortedLoadingMatrix } from './pca/SortedLoadingMatrix';
 import { RankedEigenvectorPlot } from './pca/RankedEigenvectorPlot';
 import { PCAReportExport } from './pca/PCAReportExport';
-
-// ============================================================================
-// TYPES
-// ============================================================================
-
-interface ElementCheckboxProps {
-  element: string;
-  bldNScore: number;
-  percentBLD: number;
-  isAcceptable: boolean;
-  isSelected: boolean;
-  onToggle: (element: string) => void;
-}
-
-// ============================================================================
-// SUB-COMPONENTS
-// ============================================================================
-
-const ElementCheckbox: React.FC<ElementCheckboxProps> = ({
-  element,
-  bldNScore,
-  percentBLD,
-  isAcceptable,
-  isSelected,
-  onToggle,
-}) => {
-  const bgColor = isAcceptable ? '#f0fdf4' : '#fef2f2';
-  const borderColor = isAcceptable ? '#86efac' : '#fecaca';
-
-  return (
-    <Paper
-      sx={{
-        p: 1,
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'space-between',
-        bgcolor: bgColor,
-        border: `1px solid ${borderColor}`,
-        borderRadius: 1,
-      }}
-    >
-      <FormControlLabel
-        control={
-          <Checkbox
-            checked={isSelected}
-            onChange={() => onToggle(element)}
-            size="small"
-          />
-        }
-        label={
-          <Typography variant="body2" fontWeight={500}>
-            {element}
-          </Typography>
-        }
-      />
-      <Tooltip title={`BLD N-Score: ${bldNScore.toFixed(2)}, ${percentBLD.toFixed(1)}% BLD`}>
-        <Chip
-          label={isAcceptable ? 'OK' : 'BLD>-1'}
-          size="small"
-          color={isAcceptable ? 'success' : 'error'}
-          variant="outlined"
-        />
-      </Tooltip>
-    </Paper>
-  );
-};
+import { AssociationResults } from './pca/AssociationResults';
+import { ExpandableElementRow } from './pca/ExpandableElementRow';
 
 // ============================================================================
 // MAIN COMPONENT
@@ -159,7 +94,11 @@ export const PCAWorkflow: React.FC = () => {
   const [activeStep, setActiveStep] = useState(0);
   const [nComponents, setNComponents] = useState(8);
   const [resultsTab, setResultsTab] = useState(0);
-  const [step1View, setStep1View] = useState<'selection' | 'plots'>('selection');
+  const [expandedElement, setExpandedElement] = useState<string | null>(null);
+
+  // Shared association analysis state (lifted from AssociationResults)
+  const [associationAnalyses, setAssociationAnalyses] = useState<PCAssociationAnalysis[]>([]);
+  const [loadingThreshold] = useState(0.3);
 
   // Get style arrays for probability plots (respects visibility and coloring)
   const styleArrays = useMemo(() => getStyleArrays(data), [data]);
@@ -175,12 +114,47 @@ export const PCAWorkflow: React.FC = () => {
     [filteredColumns]
   );
 
+  // Compute association analyses when PCA result changes
+  useEffect(() => {
+    if (!fullPcaResult || !fullPcaResult.columns) {
+      setAssociationAnalyses([]);
+      return;
+    }
+
+    // Auto-detect element mappings
+    const mappings = createElementMappings(fullPcaResult.columns);
+    const summary = getMappingSummary(mappings);
+
+    // Build element mapping map
+    let elementMappingMap: Map<string, string>;
+    if (summary.low === 0 && summary.unknown === 0) {
+      // All high/medium confidence
+      elementMappingMap = buildMappingMap(mappings);
+    } else {
+      // Use only high confidence mappings
+      elementMappingMap = buildMappingMap(mappings.filter((m) => m.confidence === 'high'));
+    }
+
+    // Run association matching
+    const options: MatchingOptions = {
+      loadingThreshold,
+      maxMatches: 5,
+      minimumConfidence: 25,
+      applyDiscrimination: true,
+      elementMapping: elementMappingMap.size > 0 ? elementMappingMap : undefined,
+    };
+
+    const analyses = matchAssociations(fullPcaResult, options);
+    setAssociationAnalyses(analyses);
+  }, [fullPcaResult, loadingThreshold]);
+
   // Step handlers
   const handleNext = () => setActiveStep((prev) => prev + 1);
   const handleBack = () => setActiveStep((prev) => prev - 1);
   const handleReset = () => {
     setActiveStep(0);
     clearFullPcaResult();
+    setAssociationAnalyses([]);
   };
 
   // Element selection handlers
@@ -214,6 +188,10 @@ export const PCAWorkflow: React.FC = () => {
   const handleClearSelection = useCallback(() => {
     setPcaSelectedElements([]);
   }, [setPcaSelectedElements]);
+
+  const handleExpandToggle = useCallback((element: string) => {
+    setExpandedElement((prev) => (prev === element ? null : element));
+  }, []);
 
   // Generate probability plot data for an element
   const getProbabilityPlotData = useCallback(
@@ -305,6 +283,7 @@ export const PCAWorkflow: React.FC = () => {
       <Typography variant="body2" color="text.secondary" paragraph>
         Assess element quality using probability plots. Elements with Below Detection Limit (BLD)
         values above N-score = -1 should be excluded from PCA to avoid spurious associations.
+        Click the expand button on each element to view its probability plot.
       </Typography>
 
       {elementQualityInfo.length === 0 ? (
@@ -337,150 +316,40 @@ export const PCAWorkflow: React.FC = () => {
               color="primary"
               variant="outlined"
             />
-            <Box sx={{ flexGrow: 1 }} />
-            <ToggleButtonGroup
-              value={step1View}
-              exclusive
-              onChange={(_, v) => v && setStep1View(v)}
-              size="small"
-            >
-              <ToggleButton value="selection">Element Selection</ToggleButton>
-              <ToggleButton value="plots">Probability Plots</ToggleButton>
-            </ToggleButtonGroup>
           </Box>
 
-          {step1View === 'selection' ? (
-            <>
-              <Grid container spacing={1}>
-                {elementQualityInfo.map((info) => (
-                  <Grid item xs={12} sm={6} md={4} lg={3} key={info.element}>
-                    <ElementCheckbox
-                      element={info.element}
-                      bldNScore={info.bldNScore}
-                      percentBLD={info.percentBLD}
-                      isAcceptable={info.isAcceptable}
-                      isSelected={pcaSelectedElements.includes(info.element)}
-                      onToggle={handleToggleElement}
-                    />
-                  </Grid>
-                ))}
+          <Grid container spacing={1}>
+            {elementQualityInfo.map((info) => {
+              const isExpanded = expandedElement === info.element;
+              return (
+              <Grid
+                item
+                xs={12}
+                sm={isExpanded ? 12 : 6}
+                md={isExpanded ? 12 : 4}
+                key={info.element}
+              >
+                <ExpandableElementRow
+                  element={info.element}
+                  bldNScore={info.bldNScore}
+                  percentBLD={info.percentBLD}
+                  isAcceptable={info.isAcceptable}
+                  isSelected={pcaSelectedElements.includes(info.element)}
+                  onToggle={handleToggleElement}
+                  getPlotData={() => getProbabilityPlotData(info.element)}
+                  isExpanded={isExpanded}
+                  onExpandToggle={handleExpandToggle}
+                />
               </Grid>
+            );
+            })}
+          </Grid>
 
-              <Alert severity="info" sx={{ mt: 2 }}>
-                Elements with BLD N-score &gt; -1 are flagged in red. Including these elements can
-                lead to spurious element associations in PCA.
-              </Alert>
-            </>
-          ) : (
-            <>
-              <Alert severity="info" sx={{ mb: 2 }}>
-                Probability plots with BLD threshold line at N-score = -1 (dashed red line). Elements
-                with significant data below this threshold may produce spurious associations.
-              </Alert>
-              <Grid container spacing={2}>
-                {pcaSelectedElements.length > 0 ? (
-                  pcaSelectedElements.map((columnName) => {
-                    const plotData = getProbabilityPlotData(columnName);
-                    const qualityInfo = elementQualityInfo.find((q) => q.element === columnName);
-                    if (!plotData) return null;
-                    return (
-                      <Grid item xs={12} sm={6} lg={4} key={columnName}>
-                        <Paper sx={{ p: 1 }}>
-                          <ExpandablePlotWrapper>
-                            <Plot
-                              data={[plotData as any]}
-                              layout={{
-                                title: {
-                                  text: `${columnName} ${qualityInfo?.isAcceptable ? '✓' : '⚠'}`,
-                                  font: { size: EXPORT_FONT_SIZES.title },
-                                  x: 0,
-                                  xanchor: 'left',
-                                },
-                                autosize: true,
-                                height: 350,
-                                font: { size: EXPORT_FONT_SIZES.tickLabels },
-                                margin: { l: 70, r: 40, t: 60, b: 70 },
-                                xaxis: {
-                                  title: {
-                                    text: 'N-Score (Theoretical Quantiles)',
-                                    font: { size: EXPORT_FONT_SIZES.axisTitle },
-                                  },
-                                  tickfont: { size: EXPORT_FONT_SIZES.tickLabels },
-                                  gridcolor: '#e0e0e0',
-                                },
-                                yaxis: {
-                                  title: {
-                                    text: 'Value',
-                                    font: { size: EXPORT_FONT_SIZES.axisTitle },
-                                  },
-                                  tickfont: { size: EXPORT_FONT_SIZES.tickLabels },
-                                  gridcolor: '#e0e0e0',
-                                  type: 'log',
-                                },
-                                plot_bgcolor: '#fafafa',
-                                hovermode: 'closest',
-                                showlegend: false,
-                                // BLD threshold line at N-score = -1
-                                shapes: [
-                                  {
-                                    type: 'line',
-                                    x0: -1,
-                                    x1: -1,
-                                    y0: 0,
-                                    y1: 1,
-                                    yref: 'paper',
-                                    line: { color: '#dc2626', width: 2, dash: 'dash' },
-                                  },
-                                ],
-                                annotations: [
-                                  {
-                                    x: -1,
-                                    y: 1,
-                                    yref: 'paper',
-                                    text: 'BLD Threshold',
-                                    showarrow: false,
-                                    font: { size: 10, color: '#dc2626' },
-                                    xanchor: 'left',
-                                    yanchor: 'top',
-                                  },
-                                  {
-                                    x: 0,
-                                    y: 0,
-                                    xref: 'paper',
-                                    yref: 'paper',
-                                    text: `${qualityInfo?.percentBLD.toFixed(1)}% BLD`,
-                                    showarrow: false,
-                                    font: {
-                                      size: 11,
-                                      color: qualityInfo?.isAcceptable ? '#166534' : '#991b1b',
-                                    },
-                                    bgcolor: qualityInfo?.isAcceptable ? '#dcfce7' : '#fee2e2',
-                                    borderpad: 4,
-                                    xanchor: 'left',
-                                    yanchor: 'bottom',
-                                  },
-                                ],
-                              }}
-                              config={getPlotConfig({ filename: `probability_${columnName}` })}
-                              style={{ width: '100%' }}
-                              useResizeHandler={true}
-                            />
-                          </ExpandablePlotWrapper>
-                        </Paper>
-                      </Grid>
-                    );
-                  })
-                ) : (
-                  <Grid item xs={12}>
-                    <Typography color="text.secondary" textAlign="center" py={4}>
-                      Select elements from the "Element Selection" view to see their probability
-                      plots.
-                    </Typography>
-                  </Grid>
-                )}
-              </Grid>
-            </>
-          )}
+          <Alert severity="info" sx={{ mt: 2 }}>
+            Elements with BLD N-score &gt; -1 are flagged in red. Including these elements can
+            lead to spurious element associations in PCA. Click the expand button (▼) on any
+            element to view its probability plot.
+          </Alert>
         </>
       )}
     </Box>
@@ -607,12 +476,21 @@ export const PCAWorkflow: React.FC = () => {
             <Tab label="Scree Plot" />
             <Tab label="Loading Matrix" />
             <Tab label="Eigenvector Plots" />
+            <Tab label="Association Analysis" />
           </Tabs>
         </Box>
 
         {resultsTab === 0 && <ScreePlot pcaResult={fullPcaResult} />}
         {resultsTab === 1 && <SortedLoadingMatrix pcaResult={fullPcaResult} nComponents={nComponents} />}
-        {resultsTab === 2 && <RankedEigenvectorPlot pcaResult={fullPcaResult} nComponents={nComponents} />}
+        {resultsTab === 2 && (
+          <RankedEigenvectorPlot
+            pcaResult={fullPcaResult}
+            nComponents={nComponents}
+            associationAnalyses={associationAnalyses}
+            showInterpretations={true}
+          />
+        )}
+        {resultsTab === 3 && <AssociationResults pcaResult={fullPcaResult} nComponents={nComponents} />}
       </Box>
     );
   };

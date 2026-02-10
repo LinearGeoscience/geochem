@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Box, Paper, Typography, FormControl, InputLabel, Select, MenuItem, OutlinedInput, Chip, ToggleButtonGroup, ToggleButton, Button, Stack, Grid } from '@mui/material';
+import { Box, Paper, Typography, FormControl, InputLabel, Select, MenuItem, OutlinedInput, Chip, ToggleButtonGroup, ToggleButton, Button, Stack, Grid, Alert } from '@mui/material';
 import { SelectChangeEvent } from '@mui/material';
 import Plot from 'react-plotly.js';
 import { useAppStore } from '../../store/appStore';
@@ -7,6 +7,9 @@ import { ExpandablePlotWrapper } from '../../components/ExpandablePlotWrapper';
 import { useAttributeStore } from '../../store/attributeStore';
 import { getStyleArrays, sortColumnsByPriority } from '../../utils/attributeUtils';
 import { getPlotConfig, EXPORT_FONT_SIZES } from '../../utils/plotConfig';
+
+// Maximum number of plots to render simultaneously to prevent crashes
+const MAX_SIMULTANEOUS_PLOTS = 12;
 
 export const ProbabilityPlot: React.FC = () => {
     const { data, getFilteredColumns } = useAppStore();
@@ -181,53 +184,61 @@ export const ProbabilityPlot: React.FC = () => {
             </Box>
 
             {selectedColumns.length > 0 && data.length > 0 ? (
-                <Grid container spacing={2}>
-                    {selectedColumns.map((columnName) => {
-                        const plotData = getColumnPlotData(columnName);
-                        return (
-                            <Grid item xs={12} sm={6} lg={4} key={columnName}>
-                                <Paper sx={{ p: 1 }}>
-                                    <ExpandablePlotWrapper>
-                                        <Plot
-                                            data={[plotData as any]}
-                                            layout={{
-                                                title: { text: columnName, font: { size: EXPORT_FONT_SIZES.title }, x: 0, xanchor: 'left' },
-                                                autosize: true,
-                                                height: 400,
-                                                font: { size: EXPORT_FONT_SIZES.tickLabels },
-                                                margin: { l: 70, r: 40, t: 60, b: 70 },
-                                                xaxis: {
-                                                    title: {
-                                                        text: plotType === 'probability'
-                                                            ? (xAxisType === 'nscore' ? 'Theoretical Quantiles' : 'Probability (%)')
-                                                            : 'Value',
-                                                        font: { size: EXPORT_FONT_SIZES.axisTitle }
+                <>
+                    {selectedColumns.length > MAX_SIMULTANEOUS_PLOTS && (
+                        <Alert severity="warning" sx={{ mb: 2 }}>
+                            Showing first {MAX_SIMULTANEOUS_PLOTS} of {selectedColumns.length} selected columns.
+                            Deselect some columns to see others.
+                        </Alert>
+                    )}
+                    <Grid container spacing={2}>
+                        {selectedColumns.slice(0, MAX_SIMULTANEOUS_PLOTS).map((columnName) => {
+                            const plotData = getColumnPlotData(columnName);
+                            return (
+                                <Grid item xs={12} sm={6} lg={4} key={columnName}>
+                                    <Paper sx={{ p: 1 }}>
+                                        <ExpandablePlotWrapper>
+                                            <Plot
+                                                data={[plotData as any]}
+                                                layout={{
+                                                    title: { text: columnName, font: { size: EXPORT_FONT_SIZES.title }, x: 0, xanchor: 'left' },
+                                                    autosize: true,
+                                                    height: 400,
+                                                    font: { size: EXPORT_FONT_SIZES.tickLabels },
+                                                    margin: { l: 70, r: 40, t: 60, b: 70 },
+                                                    xaxis: {
+                                                        title: {
+                                                            text: plotType === 'probability'
+                                                                ? (xAxisType === 'nscore' ? 'Theoretical Quantiles' : 'Probability (%)')
+                                                                : 'Value',
+                                                            font: { size: EXPORT_FONT_SIZES.axisTitle }
+                                                        },
+                                                        tickfont: { size: EXPORT_FONT_SIZES.tickLabels },
+                                                        gridcolor: '#e0e0e0'
                                                     },
-                                                    tickfont: { size: EXPORT_FONT_SIZES.tickLabels },
-                                                    gridcolor: '#e0e0e0'
-                                                },
-                                                yaxis: {
-                                                    title: {
-                                                        text: plotType === 'probability' ? 'Value' : 'Cumulative Frequency (%)',
-                                                        font: { size: EXPORT_FONT_SIZES.axisTitle }
+                                                    yaxis: {
+                                                        title: {
+                                                            text: plotType === 'probability' ? 'Value' : 'Cumulative Frequency (%)',
+                                                            font: { size: EXPORT_FONT_SIZES.axisTitle }
+                                                        },
+                                                        tickfont: { size: EXPORT_FONT_SIZES.tickLabels },
+                                                        gridcolor: '#e0e0e0'
                                                     },
-                                                    tickfont: { size: EXPORT_FONT_SIZES.tickLabels },
-                                                    gridcolor: '#e0e0e0'
-                                                },
-                                                plot_bgcolor: '#fafafa',
-                                                hovermode: 'closest',
-                                                showlegend: false
-                                            }}
-                                            config={getPlotConfig({ filename: `probability_${columnName}` })}
-                                            style={{ width: '100%' }}
-                                            useResizeHandler={true}
-                                        />
-                                    </ExpandablePlotWrapper>
-                                </Paper>
-                            </Grid>
-                        );
-                    })}
-                </Grid>
+                                                    plot_bgcolor: '#fafafa',
+                                                    hovermode: 'closest',
+                                                    showlegend: false
+                                                }}
+                                                config={getPlotConfig({ filename: `probability_${columnName}` })}
+                                                style={{ width: '100%' }}
+                                                useResizeHandler={true}
+                                            />
+                                        </ExpandablePlotWrapper>
+                                    </Paper>
+                                </Grid>
+                            );
+                        })}
+                    </Grid>
+                </>
             ) : (
                 <Typography color="text.secondary">
                     Select one or more columns to display probability plots

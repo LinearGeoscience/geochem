@@ -18,6 +18,7 @@ import {
   ElementQualityInfo,
   LogAdditiveIndexResult,
 } from '../types/compositional';
+import { CustomAssociation } from '../types/associations';
 import {
   createLogAdditiveIndex,
   suggestIndexName,
@@ -85,6 +86,9 @@ interface TransformationState {
   // Amalgamation library
   customAmalgamations: AmalgamationDefinition[];
 
+  // Custom associations (user-defined element groupings)
+  customAssociations: CustomAssociation[];
+
   // UI state
   isProcessing: boolean;
   error: string | null;
@@ -133,6 +137,11 @@ interface TransformationState {
   getAllAmalgamations: () => AmalgamationDefinition[];
   findMatchingColumns: (amalgamationId: string, availableColumns: string[]) => string[];
 
+  // Custom association management
+  addCustomAssociation: (association: Omit<CustomAssociation, 'id' | 'createdAt'>) => CustomAssociation;
+  removeCustomAssociation: (id: string) => void;
+  getCustomAssociations: () => CustomAssociation[];
+
   // Utility
   clearResults: () => void;
   clearError: () => void;
@@ -173,6 +182,7 @@ export const useTransformationStore = create<TransformationState>()(
       logAdditiveIndexName: '',
 
       customAmalgamations: [],
+      customAssociations: [],
 
       isProcessing: false,
       error: null,
@@ -663,6 +673,31 @@ export const useTransformationStore = create<TransformationState>()(
         return findAmalgamationColumns(availableColumns, amalgamation as any);
       },
 
+      // Custom association management
+      addCustomAssociation: (associationData) => {
+        const newAssociation: CustomAssociation = {
+          ...associationData,
+          id: `custom_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+          createdAt: new Date(),
+        };
+
+        set(state => ({
+          customAssociations: [...state.customAssociations, newAssociation]
+        }));
+
+        return newAssociation;
+      },
+
+      removeCustomAssociation: (id) => {
+        set(state => ({
+          customAssociations: state.customAssociations.filter(a => a.id !== id)
+        }));
+      },
+
+      getCustomAssociations: () => {
+        return get().customAssociations;
+      },
+
       // Utility
       clearResults: () => set({
         currentResult: null,
@@ -684,6 +719,7 @@ export const useTransformationStore = create<TransformationState>()(
       name: 'transformation-storage',
       partialize: (state) => ({
         customAmalgamations: state.customAmalgamations,
+        customAssociations: state.customAssociations,
         zeroStrategy: state.zeroStrategy,
         customZeroValue: state.customZeroValue,
         chiPowerLambda: state.chiPowerLambda
