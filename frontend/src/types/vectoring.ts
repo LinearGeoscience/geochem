@@ -261,11 +261,22 @@ export interface NiCuPGEResult {
 // COMPREHENSIVE VECTORING RESULT
 // ============================================================================
 
+export interface MissingIndicatorInfo {
+  indicatorId: string;
+  name: string;
+  missingElements: string[];
+}
+
 export interface VectoringResult {
   depositType: DepositType;
   timestamp: Date;
   sampleCount: number;
   indicators: CalculatedIndicator[];
+  missingIndicators: MissingIndicatorInfo[];
+  elementAvailability: {
+    found: string[];
+    missing: string[];
+  };
   summary: {
     overallAssessment: string;
     keyFindings: string[];

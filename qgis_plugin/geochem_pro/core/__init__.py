@@ -1,5 +1,5 @@
 """
-Core modules for GeoChem Pro QGIS Plugin
+Core modules for GeoChem QGIS Plugin
 """
 
 from .connection import GeochemConnectionManager

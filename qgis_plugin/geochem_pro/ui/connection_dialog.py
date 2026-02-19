@@ -1,5 +1,5 @@
 """
-Connection Settings Dialog for GeoChem Pro QGIS Plugin
+Connection Settings Dialog for GeoChem QGIS Plugin
 """
 
 from typing import Tuple, Optional
@@ -18,7 +18,7 @@ class ConnectionDialog(QDialog):
 
     def __init__(self, parent=None, host: str = "localhost", port: int = 8000):
         super().__init__(parent)
-        self.setWindowTitle("GeoChem Pro Connection Settings")
+        self.setWindowTitle("GeoChem Connection Settings")
         self.setMinimumWidth(350)
 
         self._host = host
@@ -62,7 +62,7 @@ class ConnectionDialog(QDialog):
 
         # Connection info
         info_label = QLabel(
-            "<small>The GeoChem Pro application should be running "
+            "<small>The GeoChem application should be running "
             "with the API server enabled.</small>"
         )
         info_label.setWordWrap(True)

@@ -1,5 +1,5 @@
 """
-Pathfinder Synchronization Manager for GeoChem Pro QGIS Plugin
+Pathfinder Synchronization Manager for GeoChem QGIS Plugin
 Handles syncing pathfinder element layers from web app to QGIS.
 
 Based on Dr. Scott Halley's pathfinder chemistry methodology.
@@ -126,7 +126,7 @@ class PathfinderSyncManager(QObject):
                 return 0
             QgsMessageLog.logMessage(
                 f"Fetched {len(self._cached_data)} rows from backend",
-                "GeoChem Pro",
+                "GeoChem",
                 Qgis.Info
             )
         except Exception as e:
@@ -146,12 +146,12 @@ class PathfinderSyncManager(QObject):
 
         QgsMessageLog.logMessage(
             f"Coordinate fields: x={x_field}, y={y_field}, z={z_field}",
-            "GeoChem Pro",
+            "GeoChem",
             Qgis.Info
         )
         QgsMessageLog.logMessage(
             f"Element mapping: {element_mapping}",
-            "GeoChem Pro",
+            "GeoChem",
             Qgis.Info
         )
 
@@ -161,7 +161,7 @@ class PathfinderSyncManager(QObject):
             available_columns = set(self._cached_data[0].keys())
             QgsMessageLog.logMessage(
                 f"Available columns ({len(available_columns)}): {sorted(list(available_columns))[:20]}...",
-                "GeoChem Pro",
+                "GeoChem",
                 Qgis.Info
             )
 
@@ -175,7 +175,7 @@ class PathfinderSyncManager(QObject):
             if z_field and z_field not in available_columns:
                 QgsMessageLog.logMessage(
                     f"Z coordinate field '{z_field}' not found, creating 2D layers",
-                    "GeoChem Pro",
+                    "GeoChem",
                     Qgis.Warning
                 )
                 z_field = None
@@ -190,7 +190,7 @@ class PathfinderSyncManager(QObject):
             if element_column not in available_columns:
                 QgsMessageLog.logMessage(
                     f"Column '{element_column}' not found for element {element}, skipping",
-                    "GeoChem Pro",
+                    "GeoChem",
                     Qgis.Warning
                 )
                 continue
@@ -213,20 +213,20 @@ class PathfinderSyncManager(QObject):
                 created_count += 1
                 QgsMessageLog.logMessage(
                     f"Created layer for {element} with {layer.featureCount()} features",
-                    "GeoChem Pro",
+                    "GeoChem",
                     Qgis.Info
                 )
             else:
                 QgsMessageLog.logMessage(
                     f"No valid features for element {element}",
-                    "GeoChem Pro",
+                    "GeoChem",
                     Qgis.Warning
                 )
 
         if created_count > 0:
             QgsMessageLog.logMessage(
                 f"Created {created_count} pathfinder layers",
-                "GeoChem Pro",
+                "GeoChem",
                 Qgis.Info
             )
             self.layers_created.emit(created_count)
@@ -291,7 +291,7 @@ class PathfinderSyncManager(QObject):
             if not layer.isValid():
                 QgsMessageLog.logMessage(
                     f"Failed to create valid layer for {element}",
-                    "GeoChem Pro",
+                    "GeoChem",
                     Qgis.Warning
                 )
                 return None
@@ -351,7 +351,7 @@ class PathfinderSyncManager(QObject):
                 layer.updateExtents()
                 QgsMessageLog.logMessage(
                     f"Added {len(features)} features to {element} layer",
-                    "GeoChem Pro",
+                    "GeoChem",
                     Qgis.Info
                 )
 
@@ -360,7 +360,7 @@ class PathfinderSyncManager(QObject):
         except Exception as e:
             QgsMessageLog.logMessage(
                 f"Error creating layer for {element}: {str(e)}",
-                "GeoChem Pro",
+                "GeoChem",
                 Qgis.Warning
             )
             return None
@@ -461,7 +461,7 @@ class PathfinderSyncManager(QObject):
         except Exception as e:
             QgsMessageLog.logMessage(
                 f"Error creating layer for {element}: {str(e)}",
-                "GeoChem Pro",
+                "GeoChem",
                 Qgis.Warning
             )
             return None
@@ -524,7 +524,7 @@ class PathfinderSyncManager(QObject):
             self._pathfinder_group = None
 
         self.layers_removed.emit()
-        QgsMessageLog.logMessage("Removed all pathfinder layers", "GeoChem Pro", Qgis.Info)
+        QgsMessageLog.logMessage("Removed all pathfinder layers", "GeoChem", Qgis.Info)
 
     def get_pathfinder_layers(self) -> List[QgsVectorLayer]:
         """Get list of current pathfinder layers."""
@@ -589,7 +589,7 @@ class PathfinderSyncManager(QObject):
                 if error_code != QgsVectorFileWriter.NoError:
                     QgsMessageLog.logMessage(
                         f"Error exporting {layer.name()}: {error_message}",
-                        "GeoChem Pro",
+                        "GeoChem",
                         Qgis.Warning
                     )
                     continue
@@ -606,13 +606,13 @@ class PathfinderSyncManager(QObject):
 
             if result['success']:
                 self.export_completed.emit(filepath)
-                QgsMessageLog.logMessage(result['message'], "GeoChem Pro", Qgis.Info)
+                QgsMessageLog.logMessage(result['message'], "GeoChem", Qgis.Info)
 
             return result
 
         except Exception as e:
             result['message'] = f"Export error: {str(e)}"
-            QgsMessageLog.logMessage(result['message'], "GeoChem Pro", Qgis.Critical)
+            QgsMessageLog.logMessage(result['message'], "GeoChem", Qgis.Critical)
             return result
 
     def _embed_all_styles(self, filepath: str, layers: List[QgsVectorLayer]):
@@ -662,6 +662,6 @@ class PathfinderSyncManager(QObject):
         except Exception as e:
             QgsMessageLog.logMessage(
                 f"Error embedding styles: {str(e)}",
-                "GeoChem Pro",
+                "GeoChem",
                 Qgis.Warning
             )

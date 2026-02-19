@@ -17,48 +17,38 @@ import { AttributeToolbar } from './AttributeToolbar';
 import { AttributeConfig } from './AttributeConfig';
 import { AttributeActions } from './AttributeActions';
 import { EmphasisControls } from '../StyleManager/EmphasisControls';
-
-// Shape marker SVG component
-const ShapeIcon: React.FC<{ shape: string; color?: string; size?: number }> = ({
-    shape,
-    color = 'currentColor',
-    size = 14
-}) => {
-    const getPath = () => {
-        switch (shape) {
-            case 'circle':
-                return <circle cx="7" cy="7" r="5" fill={color} />;
-            case 'square':
-                return <rect x="2" y="2" width="10" height="10" fill={color} />;
-            case 'diamond':
-                return <path d="M 7 1 L 13 7 L 7 13 L 1 7 Z" fill={color} />;
-            case 'triangle-up':
-                return <path d="M 7 1 L 13 13 L 1 13 Z" fill={color} />;
-            case 'triangle-down':
-                return <path d="M 7 13 L 13 1 L 1 1 Z" fill={color} />;
-            case 'cross':
-                return <path d="M 7 1 L 7 13 M 1 7 L 13 7" stroke={color} strokeWidth="2" fill="none" />;
-            case 'x':
-                return <path d="M 2 2 L 12 12 M 12 2 L 2 12" stroke={color} strokeWidth="2" fill="none" />;
-            case 'star':
-                return <path d="M 7 1 L 8.5 5 L 13 5.5 L 10 9 L 11 13 L 7 11 L 3 13 L 4 9 L 1 5.5 L 5.5 5 Z" fill={color} />;
-            default:
-                return <circle cx="7" cy="7" r="5" fill={color} />;
-        }
-    };
-
-    return (
-        <svg width={size} height={size} viewBox="0 0 14 14">
-            {getPath()}
-        </svg>
-    );
-};
+import { ShapeMarker } from '../ShapeMarker';
 
 // Selected entry indicator component
 const SelectedEntryIndicator: React.FC = () => {
-    const { selectedEntryName, customEntries, color, shape, size } = useAttributeStore();
+    const { selectedEntryNames, customEntries, color, shape, size } = useAttributeStore();
 
-    if (!selectedEntryName) return null;
+    if (selectedEntryNames.length === 0) return null;
+
+    // Show count if multiple selected
+    if (selectedEntryNames.length > 1) {
+        return (
+            <Box
+                sx={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 1,
+                    px: 1.5,
+                    py: 0.5,
+                    bgcolor: 'action.selected',
+                    borderRadius: 1,
+                    border: '1px solid',
+                    borderColor: 'divider',
+                }}
+            >
+                <Typography variant="body2" fontWeight="bold">
+                    {selectedEntryNames.length} selected
+                </Typography>
+            </Box>
+        );
+    }
+
+    const selectedEntryName = selectedEntryNames[0];
 
     // Find the entry across custom entries and all tabs
     const customEntry = customEntries.find(e => e.name === selectedEntryName);
@@ -101,7 +91,7 @@ const SelectedEntryIndicator: React.FC = () => {
             </Tooltip>
             <Tooltip title={`Shape: ${entryShape}`}>
                 <Box sx={{ display: 'flex', alignItems: 'center' }}>
-                    <ShapeIcon shape={entryShape} size={16} />
+                    <ShapeMarker shape={entryShape} size={16} />
                 </Box>
             </Tooltip>
             <Tooltip title={`Size: ${entrySize}pt`}>
@@ -117,25 +107,27 @@ const SelectedEntryIndicator: React.FC = () => {
 const TabLabel: React.FC<{ type: AttributeType; field: string | null }> = ({ type, field }) => {
     const icon = useMemo(() => {
         switch (type) {
-            case 'color': return <Palette sx={{ fontSize: 18, mr: 0.5 }} />;
-            case 'shape': return <Category sx={{ fontSize: 18, mr: 0.5 }} />;
-            case 'size': return <FormatSize sx={{ fontSize: 18, mr: 0.5 }} />;
-            case 'filter': return <FilterList sx={{ fontSize: 18, mr: 0.5 }} />;
+            case 'color': return <Palette sx={{ fontSize: 16, mr: 0.5, flexShrink: 0 }} />;
+            case 'shape': return <Category sx={{ fontSize: 16, mr: 0.5, flexShrink: 0 }} />;
+            case 'size': return <FormatSize sx={{ fontSize: 16, mr: 0.5, flexShrink: 0 }} />;
+            case 'filter': return <FilterList sx={{ fontSize: 16, mr: 0.5, flexShrink: 0 }} />;
         }
     }, [type]);
 
     const label = useMemo(() => {
         const typeName = type.charAt(0).toUpperCase() + type.slice(1);
-        return field ? `${typeName} - ${field}` : `${typeName} -`;
+        return field ? `${typeName} - ${field}` : typeName;
     }, [type, field]);
 
     return (
-        <Box sx={{ display: 'flex', alignItems: 'center' }}>
-            {icon}
-            <Typography variant="body2" noWrap sx={{ maxWidth: 120 }}>
-                {label}
-            </Typography>
-        </Box>
+        <Tooltip title={label} enterDelay={400}>
+            <Box sx={{ display: 'flex', alignItems: 'center', overflow: 'hidden' }}>
+                {icon}
+                <Typography variant="body2" noWrap sx={{ fontSize: '0.7rem' }}>
+                    {label}
+                </Typography>
+            </Box>
+        </Tooltip>
     );
 };
 
@@ -191,7 +183,8 @@ export const AttributeManager: React.FC = () => {
                     display: 'flex',
                     justifyContent: 'space-between',
                     alignItems: 'center',
-                    px: 1,
+                    pr: 1,
+                    pl: 3,
                     py: 0.5,
                     borderBottom: '1px solid',
                     borderColor: 'divider',
@@ -265,13 +258,13 @@ export const AttributeManager: React.FC = () => {
             {/* Config (Field/Method/Palette/AutoAttribute) */}
             <AttributeConfig tab={activeTab} config={currentConfig} />
 
+            {/* Actions (All Visible/Invisible/Save/Load) */}
+            <AttributeActions tab={activeTab} />
+
             {/* High Grade Emphasis Controls */}
             <Box sx={{ px: 1, pb: 1, borderTop: '1px solid', borderColor: 'divider' }}>
                 <EmphasisControls />
             </Box>
-
-            {/* Actions (All Visible/Invisible/Save/Load) */}
-            <AttributeActions tab={activeTab} />
         </Paper>
     );
 };

@@ -1,3 +1,4 @@
+import logging
 import pandas as pd
 import numpy as np
 from typing import Dict, List, Optional, Tuple, Any
@@ -5,6 +6,8 @@ from pathlib import Path
 import json
 import time
 import re
+
+logger = logging.getLogger(__name__)
 
 class DataManagerOptimized:
     """Ultra-optimized DataManager with vectorized operations and caching"""
@@ -164,15 +167,16 @@ class DataManagerOptimized:
 
                 # Log which values were converted to NaN
                 if len(failed_values) > 0:
-                    print(f"[TYPE CONVERSION] Column '{col}': Converting to numeric "
-                          f"({numeric_ratio*100:.1f}% numeric). "
-                          f"Text values -> NaN: {list(failed_values)[:5]}{'...' if len(failed_values) > 5 else ''}")
+                    logger.info("Column '%s': Converting to numeric (%.1f%% numeric). Text values -> NaN: %s%s",
+                                col, numeric_ratio * 100,
+                                list(failed_values)[:5],
+                                '...' if len(failed_values) > 5 else '')
 
                 self.df[col] = numeric_series
                 converted_count += 1
 
         if converted_count > 0:
-            print(f"[TYPE CONVERSION] Converted {converted_count} columns from text to numeric")
+            logger.info("Converted %d columns from text to numeric", converted_count)
 
     def _detect_all_properties(self):
         """Single-pass detection of all column properties (types, roles, aliases)."""

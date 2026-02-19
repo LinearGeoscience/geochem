@@ -1,12 +1,12 @@
-import React, { useState, useCallback } from 'react';
-import { Box, Paper, Typography, FormControl, InputLabel, Select, MenuItem, OutlinedInput, Chip, ToggleButtonGroup, ToggleButton, CircularProgress, Button, Stack, Alert } from '@mui/material';
-import { SelectChangeEvent } from '@mui/material';
+import React, { useState, useCallback, useMemo } from 'react';
+import { Box, Paper, Typography, ToggleButtonGroup, ToggleButton, CircularProgress, Button, Alert } from '@mui/material';
 import Plot from 'react-plotly.js';
 import { useAppStore, COLUMN_FILTER_LABELS } from '../../store/appStore';
 import { useAttributeStore } from '../../store/attributeStore';
 import { getStyleArrays, sortColumnsByPriority } from '../../utils/attributeUtils';
-import { getPlotConfig, EXPORT_FONT_SIZES } from '../../utils/plotConfig';
+import { getPlotConfig, SCREEN_FONT_SIZES } from '../../utils/plotConfig';
 import { ExpandablePlotWrapper } from '../../components/ExpandablePlotWrapper';
+import { MultiColumnSelector } from '../../components/MultiColumnSelector';
 
 // Helper function to calculate Pearson correlation
 const pearsonCorrelation = (x: number[], y: number[]): number => {
@@ -63,6 +63,45 @@ export const CorrelationMatrix: React.FC = () => {
     const [correlationData, setCorrelationData] = useState<{ columns: string[], matrix: number[][] } | null>(null);
     const [loading, setLoading] = useState(false);
 
+    // Dynamic layout config based on column count
+    const layoutConfig = useMemo(() => {
+        if (!correlationData) return null;
+        const n = correlationData.columns.length;
+        const maxLabelLen = Math.max(...correlationData.columns.map(c => c.length));
+
+        const size = Math.max(500, Math.min(1200, n * 50 + 150));
+        const tickangle = n >= 8 ? -45 : 0;
+        const bottomMargin = tickangle !== 0
+            ? Math.min(180, 40 + maxLabelLen * 5)
+            : 70;
+        const leftMargin = Math.min(160, 40 + maxLabelLen * 6);
+
+        // Annotation sizing: hide at 30+, scale font/decimals with count
+        let showAnnotations = true;
+        let annotationFontSize = 10;
+        let annotationDecimals = 2;
+        if (n >= 30) {
+            showAnnotations = false;
+        } else if (n >= 20) {
+            annotationFontSize = 7;
+            annotationDecimals = 1;
+        } else if (n >= 15) {
+            annotationFontSize = 8;
+        } else if (n >= 10) {
+            annotationFontSize = 9;
+        }
+
+        return {
+            size,
+            tickangle,
+            bottomMargin,
+            leftMargin,
+            showAnnotations,
+            annotationFontSize,
+            annotationDecimals,
+        };
+    }, [correlationData]);
+
     // Calculate correlation matrix client-side
     const calculateCorrelation = useCallback(() => {
         if (correlationSelectedColumns.length < 2) return;
@@ -76,48 +115,44 @@ export const CorrelationMatrix: React.FC = () => {
             try {
                 const cols = correlationSelectedColumns;
 
-                // Extract column data as arrays of numbers
-                const columnData: Record<string, number[]> = {};
-
-                // First pass: collect all valid numeric values for each column
+                // Pre-compute valid numeric values per column (only visible rows)
+                const columnValues: Map<string, Map<number, number>> = new Map();
                 for (const col of cols) {
-                    columnData[col] = [];
-                }
-
-                // Get indices where ALL selected columns have valid values AND data is visible
-                const validIndices: number[] = [];
-                for (let i = 0; i < data.length; i++) {
-                    // Skip invisible points
-                    if (!currentStyleArrays.visible[i]) continue;
-
-                    let allValid = true;
-                    for (const col of cols) {
+                    const valMap = new Map<number, number>();
+                    for (let i = 0; i < data.length; i++) {
+                        if (!currentStyleArrays.visible[i]) continue;
                         const val = data[i][col];
-                        if (val == null || isNaN(Number(val))) {
-                            allValid = false;
-                            break;
+                        if (val != null && !isNaN(Number(val))) {
+                            valMap.set(i, Number(val));
                         }
                     }
-                    if (allValid) validIndices.push(i);
+                    columnValues.set(col, valMap);
                 }
 
-                // Extract values only for valid indices (pairwise complete)
-                for (const col of cols) {
-                    columnData[col] = validIndices.map(i => Number(data[i][col]));
-                }
-
-                // Calculate correlation matrix
+                // Calculate correlation matrix using pairwise complete observations
                 const matrix: number[][] = [];
                 const correlationFn = method === 'pearson' ? pearsonCorrelation : spearmanCorrelation;
 
                 for (let i = 0; i < cols.length; i++) {
                     const row: number[] = [];
+                    const valsI = columnValues.get(cols[i])!;
                     for (let j = 0; j < cols.length; j++) {
                         if (i === j) {
-                            row.push(1); // Diagonal is always 1
+                            row.push(1);
                         } else {
-                            const corr = correlationFn(columnData[cols[i]], columnData[cols[j]]);
-                            row.push(Math.round(corr * 1000) / 1000); // Round to 3 decimal places
+                            const valsJ = columnValues.get(cols[j])!;
+                            // Find rows where both columns have valid values
+                            const xArr: number[] = [];
+                            const yArr: number[] = [];
+                            for (const [idx, xVal] of valsI) {
+                                const yVal = valsJ.get(idx);
+                                if (yVal !== undefined) {
+                                    xArr.push(xVal);
+                                    yArr.push(yVal);
+                                }
+                            }
+                            const corr = correlationFn(xArr, yArr);
+                            row.push(Math.round(corr * 1000) / 1000);
                         }
                     }
                     matrix.push(row);
@@ -132,11 +167,6 @@ export const CorrelationMatrix: React.FC = () => {
         }, 10);
     }, [correlationSelectedColumns, data, method]);
 
-    const handleColumnChange = (event: SelectChangeEvent<typeof correlationSelectedColumns>) => {
-        const value = event.target.value;
-        setCorrelationSelectedColumns(typeof value === 'string' ? value.split(',') : value);
-    };
-
     const handleMethodChange = (_: React.MouseEvent<HTMLElement>, newMethod: 'pearson' | 'spearman' | null) => {
         if (newMethod !== null) {
             setMethod(newMethod);
@@ -146,14 +176,6 @@ export const CorrelationMatrix: React.FC = () => {
     const numericColumns = sortColumnsByPriority(
         filteredColumns.filter(c => c.type === 'numeric' || c.type === 'float' || c.type === 'integer')
     );
-
-    const handleSelectAll = () => {
-        setCorrelationSelectedColumns(numericColumns.map(c => c.name));
-    };
-
-    const handleClearAll = () => {
-        setCorrelationSelectedColumns([]);
-    };
 
     return (
         <Box sx={{ p: 3 }}>
@@ -167,38 +189,12 @@ export const CorrelationMatrix: React.FC = () => {
             )}
 
             <Box sx={{ display: 'flex', gap: 2, mb: 3, flexWrap: 'wrap', alignItems: 'flex-start' }}>
-                <Stack spacing={1} sx={{ minWidth: 300, maxWidth: 600, flexGrow: 1 }}>
-                    <FormControl>
-                        <InputLabel>Select Columns</InputLabel>
-                        <Select
-                            multiple
-                            value={correlationSelectedColumns}
-                            onChange={handleColumnChange}
-                            input={<OutlinedInput label="Select Columns" />}
-                            renderValue={(selected) => (
-                                <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5 }}>
-                                    {selected.map((value) => (
-                                        <Chip key={value} label={value} size="small" />
-                                    ))}
-                                </Box>
-                            )}
-                        >
-                            {numericColumns.map((col) => (
-                                <MenuItem key={col.name} value={col.name}>
-                                    {col.alias || col.name}
-                                </MenuItem>
-                            ))}
-                        </Select>
-                    </FormControl>
-                    <Box sx={{ display: 'flex', gap: 1 }}>
-                        <Button size="small" variant="outlined" onClick={handleSelectAll}>
-                            Select All
-                        </Button>
-                        <Button size="small" variant="outlined" onClick={handleClearAll}>
-                            Clear All
-                        </Button>
-                    </Box>
-                </Stack>
+                <MultiColumnSelector
+                    columns={numericColumns}
+                    selectedColumns={correlationSelectedColumns}
+                    onChange={setCorrelationSelectedColumns}
+                    label="Select Columns"
+                />
 
                 <ToggleButtonGroup
                     value={method}
@@ -224,7 +220,7 @@ export const CorrelationMatrix: React.FC = () => {
                     <CircularProgress />
                 </Box>
             ) : correlationData ? (
-                <Paper sx={{ p: 2, display: 'inline-block' }}>
+                <Paper sx={{ p: 2, maxWidth: '100%', overflowX: 'auto' }}>
                     <ExpandablePlotWrapper>
                         <Plot
                             data={[{
@@ -255,34 +251,43 @@ export const CorrelationMatrix: React.FC = () => {
                             layout={{
                                 title: {
                                     text: 'Geochemical Correlation Matrix',
-                                    font: { size: EXPORT_FONT_SIZES.title }
+                                    font: { size: SCREEN_FONT_SIZES.title }
                                 },
                                 autosize: false,
-                                width: Math.max(500, correlationData.columns.length * 50 + 150),
-                                height: Math.max(500, correlationData.columns.length * 50 + 100),
-                                font: { size: EXPORT_FONT_SIZES.tickLabels },
-                                margin: { l: 70, r: 80, t: 70, b: 70 },
+                                width: layoutConfig?.size,
+                                height: layoutConfig?.size,
+                                font: { size: SCREEN_FONT_SIZES.tickLabels },
+                                margin: {
+                                    l: layoutConfig?.leftMargin ?? 70,
+                                    r: 80,
+                                    t: 70,
+                                    b: layoutConfig?.bottomMargin ?? 70,
+                                },
                                 xaxis: {
-                                    tickangle: 0,
+                                    tickangle: layoutConfig?.tickangle ?? 0,
                                     side: 'bottom',
-                                    tickfont: { size: EXPORT_FONT_SIZES.tickLabels },
+                                    tickfont: { size: SCREEN_FONT_SIZES.tickLabels },
+                                    automargin: true,
                                 },
                                 yaxis: {
                                     autorange: 'reversed',
-                                    tickfont: { size: EXPORT_FONT_SIZES.tickLabels },
+                                    tickfont: { size: SCREEN_FONT_SIZES.tickLabels },
+                                    automargin: true,
                                 },
-                                annotations: correlationData.matrix.flatMap((row, i) =>
-                                    row.map((value, j) => ({
-                                        x: correlationData.columns[j],
-                                        y: correlationData.columns[i],
-                                        text: value.toFixed(2),
-                                        font: {
-                                            size: correlationData.columns.length > 15 ? 8 : 10,
-                                            color: Math.abs(value) > 0.5 ? 'white' : 'black'
-                                        },
-                                        showarrow: false,
-                                    }))
-                                ),
+                                ...(layoutConfig?.showAnnotations ? {
+                                    annotations: correlationData.matrix.flatMap((row, i) =>
+                                        row.map((value, j) => ({
+                                            x: correlationData.columns[j],
+                                            y: correlationData.columns[i],
+                                            text: value.toFixed(layoutConfig.annotationDecimals),
+                                            font: {
+                                                size: layoutConfig.annotationFontSize,
+                                                color: Math.abs(value) > 0.5 ? 'white' : 'black'
+                                            },
+                                            showarrow: false,
+                                        }))
+                                    ),
+                                } : {}),
                             }}
                             config={getPlotConfig({ filename: 'correlation_matrix' })}
                         />

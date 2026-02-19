@@ -16,7 +16,10 @@ import {
   Alert,
   CircularProgress,
   Box,
-  Chip
+  Chip,
+  Checkbox,
+  FormControlLabel,
+  Tooltip
 } from '@mui/material';
 import { CheckCircle, Error as ErrorIcon } from '@mui/icons-material';
 
@@ -57,6 +60,7 @@ interface DrillholeColumnMapperProps {
     collar: ColumnMapping;
     survey: ColumnMapping;
     assay: ColumnMapping;
+    negateDip: boolean;
   }) => void;
   onCancel: () => void;
 }
@@ -69,6 +73,7 @@ export function DrillholeColumnMapper({ files, onMappingComplete, onCancel }: Dr
   const [collarMapping, setCollarMapping] = useState<ColumnMapping>({});
   const [surveyMapping, setSurveyMapping] = useState<ColumnMapping>({});
   const [assayMapping, setAssayMapping] = useState<ColumnMapping>({});
+  const [negateDip, setNegateDip] = useState(false);
 
   useEffect(() => {
     fetchPreview();
@@ -114,6 +119,18 @@ export function DrillholeColumnMapper({ files, onMappingComplete, onCancel }: Dr
       setSurveyMapping(autoSurvey);
       setAssayMapping(autoAssay);
 
+      // Auto-detect dip convention: if all sample dip values are >= 0, suggest negation
+      const dipColumn = data.survey.columns.find(c => c.suggested_role === 'dip');
+      if (dipColumn) {
+        const dipValues = dipColumn.sample_values
+          .map((v: any) => parseFloat(v))
+          .filter((v: number) => !isNaN(v));
+        if (dipValues.length > 0 && dipValues.every((v: number) => v >= 0)) {
+          setNegateDip(true);
+          console.log('[DrillholeColumnMapper] Auto-detected positive dip convention, enabling negate dip');
+        }
+      }
+
       console.log('[DrillholeColumnMapper] Auto-mappings set:', { autoCollar, autoSurvey, autoAssay });
 
     } catch (err) {
@@ -141,7 +158,8 @@ export function DrillholeColumnMapper({ files, onMappingComplete, onCancel }: Dr
       onMappingComplete({
         collar: collarMapping,
         survey: surveyMapping,
-        assay: assayMapping
+        assay: assayMapping,
+        negateDip
       });
     }
   };
@@ -222,6 +240,13 @@ export function DrillholeColumnMapper({ files, onMappingComplete, onCancel }: Dr
               />
             ))}
           </Box>
+          <Tooltip title="Check this if your data uses positive dip values for downward holes. The system expects negative dip = downward (standard mining convention).">
+            <FormControlLabel
+              control={<Checkbox checked={negateDip} onChange={(e) => setNegateDip(e.target.checked)} />}
+              label="Negate Dip (positive dip = downward in source data)"
+              sx={{ mt: 1, mb: 1 }}
+            />
+          </Tooltip>
           <DataPreview data={preview.survey.preview} />
         </CardContent>
       </Card>

@@ -42,6 +42,7 @@ export interface AttributeEntry {
     color?: string;
     shape?: string;
     size?: number;
+    opacity?: number;
 
     // For custom entries - manually assigned data point indices
     assignedIndices: number[];
@@ -69,8 +70,8 @@ export interface AttributeState {
     // Custom entries (shared across tabs by name)
     customEntries: AttributeEntry[];
 
-    // Selected entry name (for cross-tab linking and data assignment)
-    selectedEntryName: string | null;
+    // Multi-selection support
+    selectedEntryNames: string[];
 
     // Active tab
     activeTab: AttributeType;
@@ -80,6 +81,9 @@ export interface AttributeState {
 
     // High Grade Emphasis
     emphasis: EmphasisConfig;
+
+    // Recent colors used
+    recentColors: string[];
 
     // Actions
     setActiveTab: (tab: AttributeType) => void;
@@ -101,10 +105,26 @@ export interface AttributeState {
     updateCustomEntry: (entryId: string, updates: Partial<AttributeEntry>) => void;
     removeCustomEntry: (entryId: string) => void;
 
-    // Selection
+    // Selection (multi-select)
+    setSelectedEntryNames: (names: string[]) => void;
+    toggleSelectedEntryName: (name: string) => void;
+    selectEntryRange: (name: string, allNames: string[]) => void;
+    clearSelection: () => void;
+    /** @deprecated Use setSelectedEntryNames instead */
     setSelectedEntryName: (name: string | null) => void;
     assignIndicesToEntry: (entryName: string, indices: number[]) => void;
     clearEntryAssignments: (entryName: string) => void;
+
+    // Batch operations
+    batchUpdateEntries: (tab: AttributeType, entryNames: string[], updates: Partial<AttributeEntry>) => void;
+    batchDeleteEntries: (tab: AttributeType, entryNames: string[]) => void;
+    batchToggleVisibility: (tab: AttributeType, entryNames: string[], visible: boolean) => void;
+
+    // Size scaling
+    scaleAllSizes: (tab: AttributeType, factor: number) => void;
+
+    // Recent colors
+    addRecentColor: (color: string) => void;
 
     // Visibility
     setEntryVisibility: (tab: AttributeType, entryId: string, visible: boolean) => void;
@@ -156,6 +176,7 @@ const createDefaultEntry = (type: AttributeType): AttributeEntry => ({
     color: type === 'color' ? '#1f77b4' : undefined,
     shape: type === 'shape' ? 'circle' : undefined,
     size: type === 'size' ? 8 : undefined,
+    opacity: 1.0,
     assignedIndices: [],
     rowCount: 0,
     visibleRowCount: 0,
@@ -182,9 +203,10 @@ export const useAttributeStore = create<AttributeState>()(
             size: createDefaultConfig('size'),
             filter: createDefaultConfig('filter'),
             customEntries: [],
-            selectedEntryName: null,
+            selectedEntryNames: [],
             activeTab: 'color',
             globalOpacity: 1.0,
+            recentColors: [],
             emphasis: {
                 enabled: false,
                 column: null,
@@ -239,7 +261,7 @@ export const useAttributeStore = create<AttributeState>()(
             removeEntry: (tab, entryId) => set((state) => ({
                 [tab]: {
                     ...state[tab],
-                    entries: state[tab].entries.filter(e => e.id !== entryId && !e.isDefault)
+                    entries: state[tab].entries.filter(e => e.id !== entryId || e.isDefault)
                 }
             })),
 
@@ -257,7 +279,7 @@ export const useAttributeStore = create<AttributeState>()(
                 size: createDefaultConfig('size'),
                 filter: createDefaultConfig('filter'),
                 customEntries: [],
-                selectedEntryName: null,
+                selectedEntryNames: [],
             }),
 
             // Custom entries
@@ -275,8 +297,39 @@ export const useAttributeStore = create<AttributeState>()(
                 customEntries: state.customEntries.filter(e => e.id !== entryId)
             })),
 
-            // Selection
-            setSelectedEntryName: (name) => set({ selectedEntryName: name }),
+            // Selection (multi-select)
+            setSelectedEntryNames: (names) => set({ selectedEntryNames: names }),
+
+            toggleSelectedEntryName: (name) => set((state) => {
+                const current = state.selectedEntryNames;
+                if (current.includes(name)) {
+                    return { selectedEntryNames: current.filter(n => n !== name) };
+                }
+                return { selectedEntryNames: [...current, name] };
+            }),
+
+            selectEntryRange: (name, allNames) => set((state) => {
+                const current = state.selectedEntryNames;
+                const lastSelected = current.length > 0 ? current[current.length - 1] : null;
+                if (!lastSelected) {
+                    return { selectedEntryNames: [name] };
+                }
+                const startIdx = allNames.indexOf(lastSelected);
+                const endIdx = allNames.indexOf(name);
+                if (startIdx === -1 || endIdx === -1) {
+                    return { selectedEntryNames: [name] };
+                }
+                const min = Math.min(startIdx, endIdx);
+                const max = Math.max(startIdx, endIdx);
+                const rangeNames = allNames.slice(min, max + 1);
+                const merged = [...new Set([...current, ...rangeNames])];
+                return { selectedEntryNames: merged };
+            }),
+
+            clearSelection: () => set({ selectedEntryNames: [] }),
+
+            // Backward compat
+            setSelectedEntryName: (name) => set({ selectedEntryNames: name ? [name] : [] }),
 
             assignIndicesToEntry: (entryName, indices) => set((state) => {
                 // Find and update the custom entry with this name
@@ -298,6 +351,66 @@ export const useAttributeStore = create<AttributeState>()(
                     e.name === entryName ? { ...e, assignedIndices: [] } : e
                 )
             })),
+
+            // Batch operations
+            batchUpdateEntries: (tab, entryNames, updates) => set((state) => {
+                const nameSet = new Set(entryNames);
+                return {
+                    [tab]: {
+                        ...state[tab],
+                        entries: state[tab].entries.map(e =>
+                            nameSet.has(e.name) && !e.isDefault ? { ...e, ...updates } : e
+                        ),
+                    },
+                    customEntries: state.customEntries.map(e =>
+                        nameSet.has(e.name) ? { ...e, ...updates } : e
+                    ),
+                };
+            }),
+
+            batchDeleteEntries: (tab, entryNames) => set((state) => {
+                const nameSet = new Set(entryNames);
+                return {
+                    [tab]: {
+                        ...state[tab],
+                        entries: state[tab].entries.filter(e => !nameSet.has(e.name) || e.isDefault),
+                    },
+                    customEntries: state.customEntries.filter(e => !nameSet.has(e.name)),
+                    selectedEntryNames: [],
+                };
+            }),
+
+            batchToggleVisibility: (tab, entryNames, visible) => set((state) => {
+                const nameSet = new Set(entryNames);
+                return {
+                    [tab]: {
+                        ...state[tab],
+                        entries: state[tab].entries.map(e =>
+                            nameSet.has(e.name) ? { ...e, visible } : e
+                        ),
+                    },
+                    customEntries: state.customEntries.map(e =>
+                        nameSet.has(e.name) ? { ...e, visible } : e
+                    ),
+                };
+            }),
+
+            // Size scaling
+            scaleAllSizes: (tab, factor) => set((state) => ({
+                [tab]: {
+                    ...state[tab],
+                    entries: state[tab].entries.map(e => ({
+                        ...e,
+                        size: e.size ? Math.max(2, Math.min(30, Math.round(e.size * factor))) : e.size,
+                    })),
+                },
+            })),
+
+            // Recent colors
+            addRecentColor: (color) => set((state) => {
+                const filtered = state.recentColors.filter(c => c !== color);
+                return { recentColors: [color, ...filtered].slice(0, 8) };
+            }),
 
             // Visibility
             setEntryVisibility: (tab, entryId, visible) => set((state) => ({
@@ -381,7 +494,7 @@ export const useAttributeStore = create<AttributeState>()(
                     customEntries: state.customEntries,
                     globalOpacity: state.globalOpacity,
                     emphasis: state.emphasis,
-                    version: 1,
+                    version: 2,
                 };
                 return JSON.stringify(exportData, null, 2);
             },
@@ -389,16 +502,26 @@ export const useAttributeStore = create<AttributeState>()(
             importState: (json) => {
                 try {
                     const data = JSON.parse(json);
-                    if (data.version !== 1) {
+                    if (data.version !== 1 && data.version !== 2) {
                         console.error('Unsupported attribute file version');
                         return false;
                     }
+
+                    // Ensure opacity defaults for v1 entries that lack it
+                    const ensureOpacity = (entries: AttributeEntry[]) =>
+                        entries.map(e => ({ ...e, opacity: e.opacity ?? 1.0 }));
+
+                    const ensureConfig = (config: AttributeConfig | undefined, type: AttributeType) => {
+                        if (!config) return createDefaultConfig(type);
+                        return { ...config, entries: ensureOpacity(config.entries) };
+                    };
+
                     set({
-                        color: data.color || createDefaultConfig('color'),
-                        shape: data.shape || createDefaultConfig('shape'),
-                        size: data.size || createDefaultConfig('size'),
-                        filter: data.filter || createDefaultConfig('filter'),
-                        customEntries: data.customEntries || [],
+                        color: ensureConfig(data.color, 'color'),
+                        shape: ensureConfig(data.shape, 'shape'),
+                        size: ensureConfig(data.size, 'size'),
+                        filter: ensureConfig(data.filter, 'filter'),
+                        customEntries: ensureOpacity(data.customEntries || []),
                         globalOpacity: data.globalOpacity ?? 1.0,
                         emphasis: data.emphasis || {
                             enabled: false,
@@ -466,7 +589,38 @@ export const useAttributeStore = create<AttributeState>()(
         }),
         {
             name: 'attribute-storage',
-            version: 1,
+            version: 3,
+            migrate: (persistedState: any, version: number) => {
+                if (version < 2) {
+                    // v1 -> v2: add opacity to all entries
+                    const addOpacity = (entries: any[]) =>
+                        entries?.map((e: any) => ({ ...e, opacity: e.opacity ?? 1.0 })) ?? [];
+
+                    for (const tab of ['color', 'shape', 'size', 'filter']) {
+                        if (persistedState[tab]?.entries) {
+                            persistedState[tab].entries = addOpacity(persistedState[tab].entries);
+                        }
+                    }
+                    if (persistedState.customEntries) {
+                        persistedState.customEntries = addOpacity(persistedState.customEntries);
+                    }
+                }
+                if (version < 3) {
+                    // v2 -> v3: migrate selectedEntryName to selectedEntryNames array
+                    if ('selectedEntryName' in persistedState) {
+                        const old = persistedState.selectedEntryName;
+                        persistedState.selectedEntryNames = old ? [old] : [];
+                        delete persistedState.selectedEntryName;
+                    }
+                    if (!persistedState.selectedEntryNames) {
+                        persistedState.selectedEntryNames = [];
+                    }
+                    if (!persistedState.recentColors) {
+                        persistedState.recentColors = [];
+                    }
+                }
+                return persistedState;
+            },
         }
     )
 );
@@ -482,14 +636,13 @@ export function generateEntryId(): string {
 export function createRangeEntry(
     min: number,
     max: number,
-    index: number,
+    _index: number,
     color?: string,
     shape?: string,
-    size?: number
+    size?: number,
+    opacity: number = 1.0
 ): AttributeEntry {
-    const label = index === 0
-        ? `< ${max.toFixed(2)}`
-        : `${min.toFixed(2)} - ${max.toFixed(2)}`;
+    const label = `${min.toFixed(2)} - ${max.toFixed(2)}`;
 
     return {
         id: generateEntryId(),
@@ -503,6 +656,7 @@ export function createRangeEntry(
         color,
         shape,
         size,
+        opacity,
         assignedIndices: [],
         rowCount: 0,
         visibleRowCount: 0,
@@ -514,7 +668,8 @@ export function createCategoryEntry(
     _index: number,
     color?: string,
     shape?: string,
-    size?: number
+    size?: number,
+    opacity: number = 1.0
 ): AttributeEntry {
     return {
         id: generateEntryId(),
@@ -527,6 +682,7 @@ export function createCategoryEntry(
         color,
         shape,
         size,
+        opacity,
         assignedIndices: [],
         rowCount: 0,
         visibleRowCount: 0,
@@ -537,7 +693,8 @@ export function createCustomEntry(
     name: string,
     color?: string,
     shape?: string,
-    size?: number
+    size?: number,
+    opacity: number = 1.0
 ): AttributeEntry {
     return {
         id: generateEntryId(),
@@ -549,6 +706,7 @@ export function createCustomEntry(
         color,
         shape,
         size,
+        opacity,
         assignedIndices: [],
         rowCount: 0,
         visibleRowCount: 0,

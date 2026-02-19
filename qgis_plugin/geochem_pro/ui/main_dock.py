@@ -1,5 +1,5 @@
 """
-Main Dock Widget for GeoChem Pro QGIS Plugin
+Main Dock Widget for GeoChem QGIS Plugin
 Provides the primary UI for plugin interaction
 """
 
@@ -44,7 +44,7 @@ class StatusIndicator(QFrame):
 
 class GeochemDockWidget(QDockWidget):
     """
-    Main dock widget for GeoChem Pro plugin.
+    Main dock widget for GeoChem plugin.
 
     Provides:
     - Connection status and controls
@@ -64,7 +64,7 @@ class GeochemDockWidget(QDockWidget):
     export_pathfinders_requested = pyqtSignal(str)  # filepath for pathfinder export
 
     def __init__(self, parent=None):
-        super().__init__("GeoChem Pro", parent)
+        super().__init__("GeoChem", parent)
         self.setObjectName("GeochemProDock")
         self.setAllowedAreas(Qt.LeftDockWidgetArea | Qt.RightDockWidgetArea)
 
@@ -232,7 +232,7 @@ class GeochemDockWidget(QDockWidget):
         self.load_webapp_style_btn = QPushButton("Load Style from Web App")
         self.load_webapp_style_btn.setEnabled(False)
         self.load_webapp_style_btn.setToolTip(
-            "Apply the same styling configured in the GeoChem Pro web app.\n"
+            "Apply the same styling configured in the GeoChem web app.\n"
             "First sync styles from the web app's Attribute Manager."
         )
         webapp_layout.addWidget(self.load_webapp_style_btn)

@@ -9,6 +9,7 @@ Parses native ioGAS project files which are ZIP archives containing:
 - changelog.txt: Audit trail (optional)
 """
 
+import logging
 import zipfile
 import io
 import xml.etree.ElementTree as ET
@@ -16,6 +17,8 @@ import pandas as pd
 import numpy as np
 from typing import Dict, List, Any, Optional, Tuple
 import re
+
+logger = logging.getLogger(__name__)
 
 
 # ioGAS character escaping rules (from metadata.xml header)
@@ -76,18 +79,18 @@ class IoGasParser:
             # Open as ZIP archive
             with zipfile.ZipFile(io.BytesIO(file_content), 'r') as zf:
                 file_list = zf.namelist()
-                print(f"[ioGAS] Archive contains: {file_list}")
+                logger.debug("Archive contains: %s", file_list)
 
                 # Parse version
                 if 'version.txt' in file_list:
                     self.version = zf.read('version.txt').decode('utf-8').strip()
-                    print(f"[ioGAS] Version: {self.version}")
+                    logger.info("Version: %s", self.version)
 
                 # Parse metadata.xml
                 if 'metadata.xml' in file_list:
                     metadata_content = zf.read('metadata.xml')
                     self._parse_metadata(metadata_content)
-                    print(f"[ioGAS] Parsed {len(self.columns)} column definitions")
+                    logger.info("Parsed %d column definitions", len(self.columns))
                 else:
                     raise ValueError("metadata.xml not found in .gas file")
 
@@ -95,7 +98,7 @@ class IoGasParser:
                 if 'data.csv' in file_list:
                     data_content = zf.read('data.csv')
                     self._parse_data(data_content)
-                    print(f"[ioGAS] Loaded {len(self.df)} rows, {len(self.df.columns)} columns")
+                    logger.info("Loaded %d rows, %d columns", len(self.df), len(self.df.columns))
                 else:
                     raise ValueError("data.csv not found in .gas file")
 
@@ -239,7 +242,7 @@ class IoGasParser:
                 columns_to_drop.append(col)
 
         if columns_to_drop:
-            print(f"[ioGAS] Removing special columns: {columns_to_drop}")
+            logger.debug("Removing special columns: %s", columns_to_drop)
             self.df = self.df.drop(columns=columns_to_drop)
 
         # Rename columns based on metadata (use original names from metadata, not CSV header)
@@ -258,7 +261,7 @@ class IoGasParser:
                     if old != new
                 }
                 if rename_map:
-                    print(f"[ioGAS] Renaming {len(rename_map)} columns")
+                    logger.debug("Renaming %d columns", len(rename_map))
                     self.df = self.df.rename(columns=rename_map)
 
     def _build_result(self) -> Dict[str, Any]:

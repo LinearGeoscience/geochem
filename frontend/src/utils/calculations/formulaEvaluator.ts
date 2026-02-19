@@ -92,9 +92,10 @@ function executeOperation(operator: string, left: number, right: number): number
 function executeFunction(funcName: string, args: number[]): number | null {
     switch (funcName) {
         case 'log10':
-            if (args.length !== 1) throw new Error('log10 requires 1 argument');
+        case 'log':
+            if (args.length !== 1) throw new Error(`${funcName} requires 1 argument`);
             if (args[0] <= 0) {
-                console.warn('log10 of non-positive number');
+                console.warn(`${funcName} of non-positive number`);
                 return null;
             }
             return Math.log10(args[0]);

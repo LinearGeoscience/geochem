@@ -1,5 +1,5 @@
 """
-GeoChem Pro QGIS Plugin
+GeoChem QGIS Plugin
 Main plugin class that orchestrates all components
 """
 
@@ -32,10 +32,10 @@ from .utils.plugin_logging import PluginLogger
 
 class GeochemProPlugin:
     """
-    Main QGIS plugin class for GeoChem Pro integration.
+    Main QGIS plugin class for GeoChem integration.
 
     Provides:
-    - Connection management to GeoChem Pro backend
+    - Connection management to GeoChem backend
     - Data synchronization
     - Layer styling based on classifications
     - GeoPackage export with embedded styles
@@ -75,10 +75,10 @@ class GeochemProPlugin:
 
     def initGui(self):
         """Initialize the plugin GUI"""
-        self.logger.info("Initializing GeoChem Pro plugin")
+        self.logger.info("Initializing GeoChem plugin")
 
         # Create toolbar
-        self.toolbar = self.iface.addToolBar("GeoChem Pro")
+        self.toolbar = self.iface.addToolBar("GeoChem")
         self.toolbar.setObjectName("GeochemProToolbar")
 
         # Create actions
@@ -124,11 +124,11 @@ class GeochemProPlugin:
         self.iface.mapCanvas().selectionChanged.connect(self._on_qgis_selection_changed)
 
         self._is_initialized = True
-        self.logger.info("GeoChem Pro plugin initialized successfully")
+        self.logger.info("GeoChem plugin initialized successfully")
 
     def unload(self):
         """Cleanup when plugin is unloaded"""
-        self.logger.info("Unloading GeoChem Pro plugin")
+        self.logger.info("Unloading GeoChem plugin")
 
         # Disconnect from server
         if self.connection_manager and self.connection_manager.is_connected:
@@ -147,14 +147,14 @@ class GeochemProPlugin:
             del self.dock_widget
 
         self._is_initialized = False
-        self.logger.info("GeoChem Pro plugin unloaded")
+        self.logger.info("GeoChem plugin unloaded")
 
     def _create_actions(self):
         """Create plugin actions"""
         # Connect action
         icon_connect = self._get_icon('connect.svg')
-        self.action_connect = QAction(icon_connect, "Connect to GeoChem Pro", self.iface.mainWindow())
-        self.action_connect.setToolTip("Connect to GeoChem Pro application")
+        self.action_connect = QAction(icon_connect, "Connect to GeoChem", self.iface.mainWindow())
+        self.action_connect.setToolTip("Connect to GeoChem application")
         self.action_connect.triggered.connect(self._on_connect_action)
         self.toolbar.addAction(self.action_connect)
         self.actions.append(self.action_connect)
@@ -162,7 +162,7 @@ class GeochemProPlugin:
         # Sync action
         icon_sync = self._get_icon('sync.svg')
         self.action_sync = QAction(icon_sync, "Sync Data", self.iface.mainWindow())
-        self.action_sync.setToolTip("Synchronize data from GeoChem Pro")
+        self.action_sync.setToolTip("Synchronize data from GeoChem")
         self.action_sync.triggered.connect(self._on_sync_action)
         self.action_sync.setEnabled(False)
         self.toolbar.addAction(self.action_sync)
@@ -279,8 +279,8 @@ class GeochemProPlugin:
     # =========================================================================
 
     def _connect_to_geochem(self, host: str, port: int):
-        """Establish connection to GeoChem Pro"""
-        self.logger.info(f"Connecting to GeoChem Pro at {host}:{port}")
+        """Establish connection to GeoChem"""
+        self.logger.info(f"Connecting to GeoChem at {host}:{port}")
 
         if self.connection_manager:
             self.connection_manager.set_connection(host, port)
@@ -290,23 +290,23 @@ class GeochemProPlugin:
                 QMessageBox.warning(
                     self.iface.mainWindow(),
                     "Connection Failed",
-                    f"Could not connect to GeoChem Pro at {host}:{port}.\n\n"
-                    "Please ensure the GeoChem Pro application is running."
+                    f"Could not connect to GeoChem at {host}:{port}.\n\n"
+                    "Please ensure the GeoChem application is running."
                 )
 
     def _disconnect_from_geochem(self):
-        """Disconnect from GeoChem Pro"""
+        """Disconnect from GeoChem"""
         if self.connection_manager:
             self.connection_manager.disconnect()
 
     def _on_connected(self):
         """Handle successful connection"""
-        self.logger.info("Connected to GeoChem Pro")
+        self.logger.info("Connected to GeoChem")
 
         self.action_sync.setEnabled(True)
         self.action_export.setEnabled(True)
         self.action_connect.setText("Disconnect")
-        self.action_connect.setToolTip("Disconnect from GeoChem Pro")
+        self.action_connect.setToolTip("Disconnect from GeoChem")
 
         self.dock_widget.set_connected(True)
 
@@ -315,28 +315,28 @@ class GeochemProPlugin:
             columns = self.connection_manager.fetch_columns()
             if columns:
                 self.dock_widget.populate_fields_from_columns(columns)
-                self.logger.info(f"Populated {len(columns)} fields from GeoChem Pro")
+                self.logger.info(f"Populated {len(columns)} fields from GeoChem")
         except Exception as e:
             self.logger.warning(f"Could not fetch columns: {e}")
 
         self.iface.messageBar().pushSuccess(
-            "GeoChem Pro",
+            "GeoChem",
             "Connected successfully"
         )
 
     def _on_disconnected(self):
         """Handle disconnection"""
-        self.logger.info("Disconnected from GeoChem Pro")
+        self.logger.info("Disconnected from GeoChem")
 
         self.action_sync.setEnabled(False)
         self.action_export.setEnabled(False)
-        self.action_connect.setText("Connect to GeoChem Pro")
-        self.action_connect.setToolTip("Connect to GeoChem Pro application")
+        self.action_connect.setText("Connect to GeoChem")
+        self.action_connect.setToolTip("Connect to GeoChem application")
 
         self.dock_widget.set_connected(False)
 
         self.iface.messageBar().pushWarning(
-            "GeoChem Pro",
+            "GeoChem",
             "Disconnected"
         )
 
@@ -345,7 +345,7 @@ class GeochemProPlugin:
         self.logger.error(f"Connection error: {error}")
 
         self.iface.messageBar().pushCritical(
-            "GeoChem Pro",
+            "GeoChem",
             f"Connection error: {error}"
         )
 
@@ -354,12 +354,12 @@ class GeochemProPlugin:
     # =========================================================================
 
     def _sync_data(self):
-        """Synchronize data from GeoChem Pro"""
+        """Synchronize data from GeoChem"""
         if not self.connection_manager or not self.connection_manager.is_connected:
             QMessageBox.warning(
                 self.iface.mainWindow(),
                 "Not Connected",
-                "Please connect to GeoChem Pro first."
+                "Please connect to GeoChem first."
             )
             return
 
@@ -376,7 +376,7 @@ class GeochemProPlugin:
             self.data_sync.set_coordinate_fields(x_field, y_field, z_field)
             self.data_sync.set_crs(crs)
             layer = self.data_sync.create_layer(
-                name="GeoChem Pro Data",
+                name="GeoChem Data",
                 z_field=z_field,
                 add_to_project=True
             )
@@ -405,7 +405,7 @@ class GeochemProPlugin:
             self.iface.mapCanvas().refresh()
 
         self.iface.messageBar().pushSuccess(
-            "GeoChem Pro",
+            "GeoChem",
             f"Synced {count} features"
         )
 
@@ -416,7 +416,7 @@ class GeochemProPlugin:
         self.dock_widget.sync_failed(error)
 
         self.iface.messageBar().pushCritical(
-            "GeoChem Pro",
+            "GeoChem",
             f"Sync failed: {error}"
         )
 
@@ -499,7 +499,7 @@ class GeochemProPlugin:
             self.logger.warning(f"Could not update style info: {e}")
 
         self.iface.messageBar().pushSuccess(
-            "GeoChem Pro",
+            "GeoChem",
             f"Applied {style_type} style from web app"
         )
 
@@ -539,7 +539,7 @@ class GeochemProPlugin:
 
             if result['success']:
                 self.iface.messageBar().pushSuccess(
-                    "GeoChem Pro",
+                    "GeoChem",
                     result['message']
                 )
 
@@ -562,7 +562,7 @@ class GeochemProPlugin:
                         QgsProject.instance().addMapLayer(exported_layer)
             else:
                 self.iface.messageBar().pushCritical(
-                    "GeoChem Pro",
+                    "GeoChem",
                     f"Export failed: {result['message']}"
                 )
 
@@ -583,21 +583,21 @@ class GeochemProPlugin:
         if not self.data_sync or layer != self.data_sync.layer:
             return
 
-        # Send selection to GeoChem Pro
+        # Send selection to GeoChem
         self._sync_selection_to_geochem()
 
     def _sync_selection_to_geochem(self):
-        """Send current QGIS selection to GeoChem Pro"""
+        """Send current QGIS selection to GeoChem"""
         if self.data_sync:
             self.data_sync.send_selection_to_geochem()
 
     def _on_selection_from_geochem(self, indices: List[int]):
-        """Handle selection change from GeoChem Pro"""
+        """Handle selection change from GeoChem"""
         if self.data_sync:
             self.data_sync.sync_selection_to_qgis(indices)
 
     def _on_classification_changed(self, column: str, assignments: Dict[int, str]):
-        """Handle classification update from GeoChem Pro"""
+        """Handle classification update from GeoChem"""
         if self.data_sync:
             self.data_sync.update_classification(column, assignments)
 
@@ -619,7 +619,7 @@ class GeochemProPlugin:
         if not self.pathfinder_sync:
             self.logger.warning("Pathfinder sync manager not initialized")
             self.iface.messageBar().pushWarning(
-                "GeoChem Pro",
+                "GeoChem",
                 "Pathfinder sync not initialized."
             )
             return
@@ -631,7 +631,7 @@ class GeochemProPlugin:
         if not config or not config.get('elements'):
             self.logger.warning("No pathfinder configuration available from server")
             self.iface.messageBar().pushWarning(
-                "GeoChem Pro",
+                "GeoChem",
                 "No pathfinder configuration received from web app."
             )
             return
@@ -642,12 +642,12 @@ class GeochemProPlugin:
 
         if count > 0:
             self.iface.messageBar().pushSuccess(
-                "GeoChem Pro",
+                "GeoChem",
                 f"Created {count} pathfinder layers"
             )
         else:
             self.iface.messageBar().pushWarning(
-                "GeoChem Pro",
+                "GeoChem",
                 "No pathfinder layers created. Check element column mappings in QGIS log."
             )
 
@@ -703,7 +703,7 @@ class GeochemProPlugin:
         """Handle pathfinder sync error"""
         self.logger.error(f"Pathfinder error: {error}")
         self.iface.messageBar().pushCritical(
-            "GeoChem Pro",
+            "GeoChem",
             f"Pathfinder error: {error}"
         )
 
@@ -715,11 +715,11 @@ class GeochemProPlugin:
         result = self.pathfinder_sync.export_to_geopackage(filepath)
         if result['success']:
             self.iface.messageBar().pushSuccess(
-                "GeoChem Pro",
+                "GeoChem",
                 result['message']
             )
         else:
             self.iface.messageBar().pushCritical(
-                "GeoChem Pro",
+                "GeoChem",
                 f"Export failed: {result['message']}"
             )

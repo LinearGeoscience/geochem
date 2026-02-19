@@ -1,5 +1,5 @@
 """
-Color Utilities for GeoChem Pro QGIS Plugin
+Color Utilities for GeoChem QGIS Plugin
 Provides color manipulation and conversion functions
 """
 

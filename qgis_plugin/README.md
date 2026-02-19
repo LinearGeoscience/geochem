@@ -1,12 +1,12 @@
-# GeoChem Pro QGIS Plugin
+# GeoChem QGIS Plugin
 
-Real-time integration between GeoChem Pro geochemical analysis application and QGIS.
+Real-time integration between GeoChem geochemical analysis application and QGIS.
 
 ## Features
 
-- **Live Connection**: WebSocket-based real-time communication with GeoChem Pro
+- **Live Connection**: WebSocket-based real-time communication with GeoChem
 - **Data Synchronization**: Import geochemical data directly into QGIS
-- **Classification Styling**: Automatic styling based on GeoChem Pro classifications
+- **Classification Styling**: Automatic styling based on GeoChem classifications
 - **Graduated Styling**: Color-coded visualization of numeric values
 - **High-Grade Highlighting**: Emphasize samples above threshold values
 - **Cluster Visualization**: Display clustering analysis results
@@ -18,7 +18,7 @@ Real-time integration between GeoChem Pro geochemical analysis application and Q
 ### Prerequisites
 
 1. QGIS 3.16 or later
-2. GeoChem Pro application running with API server enabled
+2. GeoChem application running with API server enabled
 
 ### Install Dependencies
 
@@ -40,16 +40,16 @@ pip install websocket-client requests
 
 ## Usage
 
-### Connecting to GeoChem Pro
+### Connecting to GeoChem
 
-1. Start GeoChem Pro application with the API server enabled
-2. In QGIS, open the GeoChem Pro dock panel (View > Panels > GeoChem Pro)
+1. Start GeoChem application with the API server enabled
+2. In QGIS, open the GeoChem dock panel (View > Panels > GeoChem)
 3. Enter the host and port (default: localhost:8000)
 4. Click "Connect"
 
 ### Syncing Data
 
-1. Ensure you have data loaded in GeoChem Pro
+1. Ensure you have data loaded in GeoChem
 2. Configure coordinate fields (X/Y) in the Data tab
 3. Select the appropriate CRS
 4. Click "Sync Data"
@@ -80,7 +80,7 @@ pip install websocket-client requests
 
 ### Connection Settings
 
-- **Host**: GeoChem Pro server host (default: localhost)
+- **Host**: GeoChem server host (default: localhost)
 - **Port**: API server port (default: 8000)
 - **Auto-reconnect**: Automatically reconnect on connection loss
 
@@ -94,14 +94,14 @@ pip install websocket-client requests
 
 ### Cannot Connect
 
-1. Ensure GeoChem Pro is running
-2. Check that the API server is enabled in GeoChem Pro
+1. Ensure GeoChem is running
+2. Check that the API server is enabled in GeoChem
 3. Verify firewall settings allow the connection
 4. Try using IP address instead of hostname
 
 ### No Data Syncing
 
-1. Verify data is loaded in GeoChem Pro
+1. Verify data is loaded in GeoChem
 2. Check that coordinate fields are correctly specified
 3. Ensure coordinate values are valid numbers
 

@@ -1,5 +1,5 @@
 """
-Style Synchronization Manager for GeoChem Pro QGIS Plugin
+Style Synchronization Manager for GeoChem QGIS Plugin
 Applies web app styling to QGIS layers for consistent visualization
 """
 
@@ -23,7 +23,7 @@ from qgis.core import (
 
 class StyleSyncManager(QObject):
     """
-    Manages style synchronization between GeoChem Pro web app and QGIS.
+    Manages style synchronization between GeoChem web app and QGIS.
 
     Converts web app attribute styling (color, shape, size, opacity)
     to equivalent QGIS symbology.
@@ -72,7 +72,7 @@ class StyleSyncManager(QObject):
 
     def fetch_and_apply_styles(self) -> bool:
         """
-        Fetch styles from GeoChem Pro and apply to layer.
+        Fetch styles from GeoChem and apply to layer.
 
         Returns:
             True if styles were applied successfully
@@ -151,7 +151,7 @@ class StyleSyncManager(QObject):
         except Exception as e:
             error_msg = f"Failed to apply styles: {str(e)}"
             self.style_error.emit(error_msg)
-            QgsMessageLog.logMessage(error_msg, "GeoChem Pro", Qgis.Warning)
+            QgsMessageLog.logMessage(error_msg, "GeoChem", Qgis.Warning)
             return False
 
     def _apply_single_symbol_style(
@@ -192,7 +192,7 @@ class StyleSyncManager(QObject):
 
         QgsMessageLog.logMessage(
             f"Applied single symbol style",
-            "GeoChem Pro",
+            "GeoChem",
             Qgis.Info
         )
 
@@ -254,7 +254,7 @@ class StyleSyncManager(QObject):
 
             QgsMessageLog.logMessage(
                 f"Applied categorical style on '{field}' with {len(categories)} categories",
-                "GeoChem Pro",
+                "GeoChem",
                 Qgis.Info
             )
 
@@ -312,7 +312,7 @@ class StyleSyncManager(QObject):
 
             QgsMessageLog.logMessage(
                 f"Applied graduated style on '{field}' with {len(ranges)} ranges",
-                "GeoChem Pro",
+                "GeoChem",
                 Qgis.Info
             )
 

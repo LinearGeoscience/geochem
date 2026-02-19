@@ -1,6 +1,6 @@
 """
-Data Synchronization Manager for GeoChem Pro QGIS Plugin
-Handles syncing data between GeoChem Pro and QGIS layers
+Data Synchronization Manager for GeoChem QGIS Plugin
+Handles syncing data between GeoChem and QGIS layers
 """
 
 from typing import Dict, Any, List, Optional, Tuple
@@ -25,10 +25,10 @@ from qgis.core import (
 
 class DataSyncManager(QObject):
     """
-    Manages data synchronization between GeoChem Pro and QGIS.
+    Manages data synchronization between GeoChem and QGIS.
 
     Handles:
-    - Creating memory layers from GeoChem Pro data
+    - Creating memory layers from GeoChem data
     - Syncing data updates
     - Managing selection synchronization
     - Updating classifications
@@ -103,11 +103,11 @@ class DataSyncManager(QObject):
             self._crs = crs
 
         try:
-            # Fetch column metadata from GeoChem Pro
+            # Fetch column metadata from GeoChem
             self._columns_info = self.connection.fetch_columns()
 
             if not self._columns_info:
-                self.sync_error.emit("No columns received from GeoChem Pro")
+                self.sync_error.emit("No columns received from GeoChem")
                 return None
 
             # Create memory layer - use PointZ if z_field is set for 3D support
@@ -157,7 +157,7 @@ class DataSyncManager(QObject):
 
             QgsMessageLog.logMessage(
                 f"Created layer '{name}' with {len(self._columns_info)} fields",
-                "GeoChem Pro",
+                "GeoChem",
                 Qgis.Info
             )
 
@@ -167,7 +167,7 @@ class DataSyncManager(QObject):
             self.sync_error.emit(f"Failed to create layer: {str(e)}")
             QgsMessageLog.logMessage(
                 f"Layer creation error: {str(e)}",
-                "GeoChem Pro",
+                "GeoChem",
                 Qgis.Critical
             )
             return None
@@ -178,7 +178,7 @@ class DataSyncManager(QObject):
         clear_existing: bool = True
     ) -> int:
         """
-        Sync data from GeoChem Pro to QGIS layer.
+        Sync data from GeoChem to QGIS layer.
 
         Args:
             filter_indices: Optional list of indices to sync (None = all)
@@ -194,16 +194,16 @@ class DataSyncManager(QObject):
         self.sync_started.emit()
 
         try:
-            # Fetch data from GeoChem Pro
+            # Fetch data from GeoChem
             data = self.connection.fetch_data()
 
             if not data:
-                self.sync_error.emit("No data received from GeoChem Pro")
+                self.sync_error.emit("No data received from GeoChem")
                 return 0
 
             QgsMessageLog.logMessage(
-                f"Received {len(data)} rows from GeoChem Pro",
-                "GeoChem Pro",
+                f"Received {len(data)} rows from GeoChem",
+                "GeoChem",
                 Qgis.Info
             )
 
@@ -295,7 +295,7 @@ class DataSyncManager(QObject):
             QgsMessageLog.logMessage(
                 f"Synced {total_synced} features "
                 f"(skipped: {skipped_no_coords} no coords, {skipped_invalid} invalid)",
-                "GeoChem Pro",
+                "GeoChem",
                 Qgis.Info
             )
 
@@ -305,12 +305,12 @@ class DataSyncManager(QObject):
         except Exception as e:
             error_msg = f"Sync failed: {str(e)}"
             self.sync_error.emit(error_msg)
-            QgsMessageLog.logMessage(error_msg, "GeoChem Pro", Qgis.Critical)
+            QgsMessageLog.logMessage(error_msg, "GeoChem", Qgis.Critical)
             return 0
 
     def update_classification(self, column: str, assignments: Dict[int, str]):
         """
-        Update classification field values from GeoChem Pro.
+        Update classification field values from GeoChem.
 
         Args:
             column: Classification column name
@@ -345,7 +345,7 @@ class DataSyncManager(QObject):
 
             QgsMessageLog.logMessage(
                 f"Updated {len(assignments)} classifications in '{column}'",
-                "GeoChem Pro",
+                "GeoChem",
                 Qgis.Info
             )
 
@@ -353,13 +353,13 @@ class DataSyncManager(QObject):
             self.layer.rollBack()
             QgsMessageLog.logMessage(
                 f"Classification update failed: {str(e)}",
-                "GeoChem Pro",
+                "GeoChem",
                 Qgis.Warning
             )
 
     def sync_selection_to_qgis(self, indices: List[int]):
         """
-        Sync selection from GeoChem Pro to QGIS layer.
+        Sync selection from GeoChem to QGIS layer.
 
         Args:
             indices: List of row indices to select
@@ -387,7 +387,7 @@ class DataSyncManager(QObject):
         except Exception as e:
             QgsMessageLog.logMessage(
                 f"Selection sync failed: {str(e)}",
-                "GeoChem Pro",
+                "GeoChem",
                 Qgis.Warning
             )
 
@@ -396,7 +396,7 @@ class DataSyncManager(QObject):
         Get indices of currently selected features in QGIS.
 
         Returns:
-            List of GeoChem Pro row indices
+            List of GeoChem row indices
         """
         if not self.layer:
             return []
@@ -410,7 +410,7 @@ class DataSyncManager(QObject):
         return indices
 
     def send_selection_to_geochem(self):
-        """Send current QGIS selection to GeoChem Pro"""
+        """Send current QGIS selection to GeoChem"""
         indices = self.get_selected_indices()
         self.connection.send_selection(indices)
 
@@ -527,14 +527,14 @@ class DataSyncManager(QObject):
         return None
 
     def _on_selection_changed(self, indices: List[int]):
-        """Handle selection change from GeoChem Pro"""
+        """Handle selection change from GeoChem"""
         self.sync_selection_to_qgis(indices)
 
     def _on_classification_changed(self, column: str, assignments: Dict[int, str]):
-        """Handle classification change from GeoChem Pro"""
+        """Handle classification change from GeoChem"""
         self.update_classification(column, assignments)
 
     def _on_data_received(self, payload: Dict[str, Any]):
-        """Handle data update from GeoChem Pro"""
+        """Handle data update from GeoChem"""
         # Optionally auto-sync on data updates
         pass

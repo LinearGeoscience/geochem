@@ -94,25 +94,27 @@ export function getEntryNameForPoint(
  */
 export function buildCustomData(
     data: Record<string, any>[],
-    sortedIndices: number[]
+    sortedIndices: number[],
+    originalIndices?: number[]  // maps display position -> original data index
 ): PointCustomData[] {
     const state = useAttributeStore.getState();
     const { color, shape, size } = state;
 
-    return sortedIndices.map(idx => {
-        const dataPoint = data[idx];
+    return sortedIndices.map(sortedIdx => {
+        const dataPoint = data[sortedIdx];
+        const dataIndex = originalIndices ? originalIndices[sortedIdx] : sortedIdx;
 
         return {
-            idx,
+            idx: dataIndex,
             colorField: color.field,
             colorValue: color.field ? dataPoint[color.field] : null,
-            colorCategory: getEntryNameForPoint(dataPoint, idx, 'color'),
+            colorCategory: getEntryNameForPoint(dataPoint, dataIndex, 'color'),
             shapeField: shape.field,
             shapeValue: shape.field ? dataPoint[shape.field] : null,
-            shapeCategory: getEntryNameForPoint(dataPoint, idx, 'shape'),
+            shapeCategory: getEntryNameForPoint(dataPoint, dataIndex, 'shape'),
             sizeField: size.field,
             sizeValue: size.field ? dataPoint[size.field] : null,
-            sizeCategory: getEntryNameForPoint(dataPoint, idx, 'size'),
+            sizeCategory: getEntryNameForPoint(dataPoint, dataIndex, 'size'),
         };
     });
 }

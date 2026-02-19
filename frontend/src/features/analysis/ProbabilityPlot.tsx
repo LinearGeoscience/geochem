@@ -1,12 +1,12 @@
 import React, { useState } from 'react';
-import { Box, Paper, Typography, FormControl, InputLabel, Select, MenuItem, OutlinedInput, Chip, ToggleButtonGroup, ToggleButton, Button, Stack, Grid, Alert } from '@mui/material';
-import { SelectChangeEvent } from '@mui/material';
+import { Box, Paper, Typography, ToggleButtonGroup, ToggleButton, Grid, Alert } from '@mui/material';
 import Plot from 'react-plotly.js';
 import { useAppStore } from '../../store/appStore';
 import { ExpandablePlotWrapper } from '../../components/ExpandablePlotWrapper';
 import { useAttributeStore } from '../../store/attributeStore';
 import { getStyleArrays, sortColumnsByPriority } from '../../utils/attributeUtils';
 import { getPlotConfig, EXPORT_FONT_SIZES } from '../../utils/plotConfig';
+import { MultiColumnSelector } from '../../components/MultiColumnSelector';
 
 // Maximum number of plots to render simultaneously to prevent crashes
 const MAX_SIMULTANEOUS_PLOTS = 12;
@@ -25,19 +25,6 @@ export const ProbabilityPlot: React.FC = () => {
 
     // Get style arrays for visibility and colors
     const styleArrays = getStyleArrays(data);
-
-    const handleColumnChange = (event: SelectChangeEvent<typeof selectedColumns>) => {
-        const value = event.target.value;
-        setSelectedColumns(typeof value === 'string' ? value.split(',') : value);
-    };
-
-    const handleSelectAll = () => {
-        setSelectedColumns(numericColumns.map(c => c.name));
-    };
-
-    const handleClearAll = () => {
-        setSelectedColumns([]);
-    };
 
     const handlePlotTypeChange = (_: React.MouseEvent<HTMLElement>, newType: 'probability' | 'cumulative' | null) => {
         if (newType !== null) {
@@ -127,38 +114,12 @@ export const ProbabilityPlot: React.FC = () => {
             <Typography variant="h5" gutterBottom>Probability Plot</Typography>
 
             <Box sx={{ display: 'flex', gap: 2, mb: 3, flexWrap: 'wrap', alignItems: 'flex-start' }}>
-                <Stack spacing={1} sx={{ minWidth: 300, maxWidth: 600, flexGrow: 1 }}>
-                    <FormControl>
-                        <InputLabel>Select Columns</InputLabel>
-                        <Select
-                            multiple
-                            value={selectedColumns}
-                            onChange={handleColumnChange}
-                            input={<OutlinedInput label="Select Columns" />}
-                            renderValue={(selected) => (
-                                <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5 }}>
-                                    {selected.map((value) => (
-                                        <Chip key={value} label={value} size="small" />
-                                    ))}
-                                </Box>
-                            )}
-                        >
-                            {numericColumns.map((col) => (
-                                <MenuItem key={col.name} value={col.name}>
-                                    {col.alias || col.name}
-                                </MenuItem>
-                            ))}
-                        </Select>
-                    </FormControl>
-                    <Box sx={{ display: 'flex', gap: 1 }}>
-                        <Button size="small" variant="outlined" onClick={handleSelectAll}>
-                            Select All
-                        </Button>
-                        <Button size="small" variant="outlined" onClick={handleClearAll}>
-                            Clear All
-                        </Button>
-                    </Box>
-                </Stack>
+                <MultiColumnSelector
+                    columns={numericColumns}
+                    selectedColumns={selectedColumns}
+                    onChange={setSelectedColumns}
+                    label="Select Columns"
+                />
 
                 <ToggleButtonGroup
                     value={plotType}

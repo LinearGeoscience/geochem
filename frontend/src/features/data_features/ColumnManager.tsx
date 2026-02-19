@@ -1,13 +1,14 @@
 import React, { useState, useCallback } from 'react';
 import {
     Box, Paper, Typography, Select, MenuItem, TextField, FormControl, Button,
-    Dialog, DialogTitle, DialogContent, DialogActions, Alert
+    Dialog, DialogTitle, DialogContent, DialogActions, Alert, Tooltip
 } from '@mui/material';
+import { MergeType } from '@mui/icons-material';
 import { DataGrid, GridColDef, GridRenderCellParams, GridRowId, useGridApiRef } from '@mui/x-data-grid';
 import { useAppStore } from '../../store/appStore';
 
 export const ColumnManager: React.FC = () => {
-    const { columns, updateColumn, updateColumnType, updateColumnTypes } = useAppStore();
+    const { columns, updateColumn, updateColumnType, updateColumnTypes, data, setShowLoggingMergeDialog } = useAppStore();
 
     // Grid API ref for programmatic control
     const apiRef = useGridApiRef();
@@ -110,6 +111,9 @@ export const ColumnManager: React.FC = () => {
                     >
                         <MenuItem value="none"><em>None</em></MenuItem>
                         <MenuItem value="ID">Sample ID</MenuItem>
+                        <MenuItem value="HoleID">Hole ID</MenuItem>
+                        <MenuItem value="From">From (Depth)</MenuItem>
+                        <MenuItem value="To">To (Depth)</MenuItem>
                         <MenuItem value="East">Easting (X)</MenuItem>
                         <MenuItem value="North">Northing (Y)</MenuItem>
                         <MenuItem value="Elevation">Elevation (Z)</MenuItem>
@@ -147,11 +151,31 @@ export const ColumnManager: React.FC = () => {
 
     const isNumericConversion = pendingBulkType === 'numeric' || pendingBulkType === 'integer' || pendingBulkType === 'float';
 
+    const hasHoleIdFromTo = columns.some(c => c.role === 'HoleID') &&
+        columns.some(c => c.role === 'From') &&
+        columns.some(c => c.role === 'To');
+    const canMergeLogging = data.length > 0 && hasHoleIdFromTo;
+
     return (
         <Paper sx={{ height: '100%', width: '100%', p: 2 }}>
-            <Typography variant="h6" gutterBottom>
-                Column Properties
-            </Typography>
+            <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 1 }}>
+                <Typography variant="h6">
+                    Column Properties
+                </Typography>
+                <Tooltip title={!data.length ? 'Load data first' : !hasHoleIdFromTo ? 'Requires HoleID, From, and To columns' : 'Merge logging intervals (lithology, alteration, etc.) onto assay data'}>
+                    <span>
+                        <Button
+                            variant="outlined"
+                            size="small"
+                            startIcon={<MergeType />}
+                            disabled={!canMergeLogging}
+                            onClick={() => setShowLoggingMergeDialog(true)}
+                        >
+                            Merge Logging Intervals
+                        </Button>
+                    </span>
+                </Tooltip>
+            </Box>
             <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
                 Define the role and standard alias for each column to enable advanced plotting and validation.
                 Select multiple columns to change their type at once.

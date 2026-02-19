@@ -3,6 +3,8 @@ import { persist } from 'zustand/middleware';
 import { useAppStore } from './appStore';
 import { useAttributeStore } from './attributeStore';
 import { useClassificationStore } from './classificationStore';
+import { useCustomDiagramStore } from './customDiagramStore';
+import { createGeochemMappings } from '../utils/calculations/elementNameNormalizer';
 
 // File extension for project files
 export const PROJECT_FILE_EXTENSION = '.chem';
@@ -33,10 +35,12 @@ export interface ProjectData {
         data: any[];
         columns: any[];
         plots: any[];
+        activePlotId?: string | null;
         selectedIndices: number[];
         lockAxes: boolean;
         statsSelectedColumns: string[];
         correlationSelectedColumns: string[];
+        geochemMappings?: any[];
     };
     attributeState: {
         color: any;
@@ -50,6 +54,7 @@ export interface ProjectData {
     classificationState?: {
         selectedDiagramId: string | null;
         renderOptions: any;
+        customDiagrams?: any[];
     };
     settings: {
         autosaveEnabled: boolean;
@@ -78,6 +83,11 @@ interface ProjectState {
     // Loading state
     isLoading: boolean;
     loadError: string | null;
+
+    // Internal guards (not persisted)
+    _isImporting: boolean;
+    _isSaving: boolean;
+    lastAutosaveError: string | null;
 
     // Actions
     setCurrentProject: (project: ProjectMetadata | null) => void;
@@ -121,6 +131,9 @@ export const useProjectStore = create<ProjectState>()(
             recentProjects: [],
             isLoading: false,
             loadError: null,
+            _isImporting: false,
+            _isSaving: false,
+            lastAutosaveError: null,
 
             setCurrentProject: (project) => set({ currentProject: project }),
 
@@ -156,10 +169,7 @@ export const useProjectStore = create<ProjectState>()(
             setLoadError: (error) => set({ loadError: error }),
 
             createNewProject: (name) => {
-                // Reset app state
-                const attributeStore = useAttributeStore.getState();
-
-                // Clear data
+                // Reset app state — clear everything including geochem, sampling, filters
                 useAppStore.setState({
                     data: [],
                     columns: [],
@@ -168,11 +178,52 @@ export const useProjectStore = create<ProjectState>()(
                     activePlotId: null,
                     currentView: 'import',
                     statsSelectedColumns: [],
-                    correlationSelectedColumns: []
+                    correlationSelectedColumns: [],
+                    geochemMappings: [],
+                    showGeochemDialog: false,
+                    sampleIndices: null,
+                    samplingResult: null,
+                    samplingConfig: {
+                        enabled: false,
+                        sampleSize: 10000,
+                        method: 'random',
+                        outlierColumns: [],
+                        classificationColumn: null,
+                        drillholeColumn: null,
+                        iqrMultiplier: 1.5,
+                        seed: null,
+                    },
+                    columnFilter: 'all',
+                    availableFilters: ['all', 'raw'],
+                    lockAxes: false,
                 });
 
                 // Reset attributes
-                attributeStore.removeGlobalEntries();
+                useAttributeStore.getState().removeGlobalEntries();
+                useAttributeStore.setState({
+                    globalOpacity: 1.0,
+                    emphasis: {
+                        enabled: false,
+                        column: null,
+                        mode: 'category',
+                        threshold: 75,
+                        minOpacity: 0.15,
+                        boostSize: true,
+                        sizeBoostFactor: 1.5,
+                    },
+                });
+
+                // Reset classification state
+                useClassificationStore.setState({
+                    selectedDiagramId: null,
+                    renderOptions: {
+                        style: 'color',
+                        showLabels: true,
+                        showGrid: true,
+                        showData: true,
+                        fillOpacity: 0.35,
+                    },
+                });
 
                 // Set new project metadata and clear file handle
                 const now = new Date().toISOString();
@@ -220,10 +271,12 @@ export const useProjectStore = create<ProjectState>()(
                         data: appState.data,
                         columns: appState.columns,
                         plots: appState.plots,
+                        activePlotId: appState.activePlotId,
                         selectedIndices: appState.selectedIndices,
                         lockAxes: appState.lockAxes,
                         statsSelectedColumns: appState.statsSelectedColumns,
-                        correlationSelectedColumns: appState.correlationSelectedColumns
+                        correlationSelectedColumns: appState.correlationSelectedColumns,
+                        geochemMappings: appState.geochemMappings
                     },
                     attributeState: {
                         color: attributeState.color,
@@ -236,7 +289,8 @@ export const useProjectStore = create<ProjectState>()(
                     },
                     classificationState: {
                         selectedDiagramId: classificationState.selectedDiagramId,
-                        renderOptions: classificationState.renderOptions
+                        renderOptions: classificationState.renderOptions,
+                        customDiagrams: useCustomDiagramStore.getState().diagrams
                     },
                     settings: {
                         autosaveEnabled: projectState.autosaveEnabled,
@@ -248,6 +302,7 @@ export const useProjectStore = create<ProjectState>()(
             },
 
             importProject: (data: ProjectData) => {
+                set({ _isImporting: true });
                 try {
                     if (data.version !== PROJECT_VERSION) {
                         console.warn('Project version mismatch, attempting import anyway');
@@ -272,28 +327,60 @@ export const useProjectStore = create<ProjectState>()(
                         selectedIndices: data.appState.selectedIndices || [],
                         availableFilters: availableFilters as any,
                         lockAxes: data.appState.lockAxes || false,
-                        activePlotId: data.appState.plots?.[0]?.id || null,
+                        activePlotId: data.appState.activePlotId ?? data.appState.plots?.[0]?.id ?? null,
                         currentView: data.appState.data?.length > 0 ? 'plots' : 'import',
                         statsSelectedColumns: data.appState.statsSelectedColumns || [],
-                        correlationSelectedColumns: data.appState.correlationSelectedColumns || []
+                        correlationSelectedColumns: data.appState.correlationSelectedColumns || [],
+                        geochemMappings: data.appState.geochemMappings || []
                     });
 
-                    // Restore attribute state
-                    const attributeStore = useAttributeStore.getState();
+                    // Fallback: reconstruct geochemMappings for older project files
+                    if (!data.appState.geochemMappings?.length && columns.length > 0) {
+                        const columnNames = columns.map((c: any) => c.name);
+                        const mappings = createGeochemMappings(columnNames, columns);
+                        useAppStore.setState({ geochemMappings: mappings });
+                    }
+
+                    // Restore attribute state — use clean defaults as fallback, never previous session
+                    const defaultEmphasis = {
+                        enabled: false,
+                        column: null,
+                        mode: 'category' as const,
+                        threshold: 75,
+                        minOpacity: 0.15,
+                        boostSize: true,
+                        sizeBoostFactor: 1.5,
+                    };
                     if (data.attributeState) {
                         useAttributeStore.setState({
-                            color: data.attributeState.color || attributeStore.color,
-                            shape: data.attributeState.shape || attributeStore.shape,
-                            size: data.attributeState.size || attributeStore.size,
-                            filter: data.attributeState.filter || attributeStore.filter,
-                            customEntries: data.attributeState.customEntries || [],
+                            color: data.attributeState.color ?? { field: null, method: 'categorical', numClasses: 5, palette: 'Jet', entries: [{ id: 'default-color', name: 'Default Colour', isDefault: true, isCustom: false, visible: true, type: 'default', color: '#1f77b4', opacity: 1.0, assignedIndices: [], rowCount: 0, visibleRowCount: 0 }] },
+                            shape: data.attributeState.shape ?? { field: null, method: 'categorical', numClasses: 5, palette: 'Jet', entries: [{ id: 'default-shape', name: 'Default Shape', isDefault: true, isCustom: false, visible: true, type: 'default', shape: 'circle', opacity: 1.0, assignedIndices: [], rowCount: 0, visibleRowCount: 0 }] },
+                            size: data.attributeState.size ?? { field: null, method: 'categorical', numClasses: 5, palette: 'Jet', entries: [{ id: 'default-size', name: 'Default Size', isDefault: true, isCustom: false, visible: true, type: 'default', size: 8, opacity: 1.0, assignedIndices: [], rowCount: 0, visibleRowCount: 0 }] },
+                            filter: data.attributeState.filter ?? { field: null, method: 'categorical', numClasses: 5, palette: 'Jet', entries: [{ id: 'default-filter', name: 'Default Filter', isDefault: true, isCustom: false, visible: true, type: 'default', opacity: 1.0, assignedIndices: [], rowCount: 0, visibleRowCount: 0 }] },
+                            customEntries: data.attributeState.customEntries ?? [],
                             globalOpacity: data.attributeState.globalOpacity ?? 1.0,
-                            emphasis: data.attributeState.emphasis || attributeStore.emphasis
+                            emphasis: data.attributeState.emphasis ?? defaultEmphasis,
                         });
+                    } else {
+                        // No attribute state in file — reset to clean defaults
+                        useAttributeStore.getState().removeGlobalEntries();
+                        useAttributeStore.setState({ globalOpacity: 1.0, emphasis: defaultEmphasis });
                     }
 
                     // Restore classification state
                     if (data.classificationState) {
+                        // Restore custom diagrams if present
+                        if (data.classificationState.customDiagrams?.length) {
+                            const customStore = useCustomDiagramStore.getState();
+                            for (const d of data.classificationState.customDiagrams) {
+                                if (!customStore.getDiagram(d.id)) {
+                                    customStore.addDiagram(d);
+                                }
+                            }
+                            // Refresh classification store to include custom diagrams
+                            useClassificationStore.getState().refreshCustomDiagrams();
+                        }
+
                         useClassificationStore.setState({
                             selectedDiagramId: data.classificationState.selectedDiagramId || null,
                             renderOptions: data.classificationState.renderOptions || {
@@ -314,12 +401,13 @@ export const useProjectStore = create<ProjectState>()(
                         });
                     }
 
-                    // Set project metadata
+                    // Set project metadata and clear importing flag
                     set({
                         currentProject: data.metadata,
                         isDirty: false,
                         lastSaved: data.metadata.modified,
-                        loadError: null
+                        loadError: null,
+                        _isImporting: false,
                     });
 
                     // Sync to QGIS after loading project
@@ -328,12 +416,19 @@ export const useProjectStore = create<ProjectState>()(
                     return true;
                 } catch (error) {
                     console.error('Failed to import project:', error);
-                    set({ loadError: 'Failed to import project: ' + (error as Error).message });
+                    set({
+                        loadError: 'Failed to import project: ' + (error as Error).message,
+                        _isImporting: false,
+                    });
                     return false;
                 }
             },
 
             saveProjectToFile: async (saveAs: boolean = false) => {
+                // Concurrency guard — prevent overlapping saves
+                if (get()._isSaving) return false;
+                set({ _isSaving: true });
+
                 const state = get();
                 const projectData = state.exportProject();
                 const projectName = projectData.metadata.name || 'project';
@@ -358,10 +453,7 @@ export const useProjectStore = create<ProjectState>()(
                                 isDirty: false,
                                 lastSaved: now,
                                 isLoading: false,
-                                currentProject: s.currentProject ? {
-                                    ...s.currentProject,
-                                    modified: now
-                                } : null
+                                currentProject: { ...(s.currentProject ?? projectData.metadata), modified: now }
                             }));
 
                             console.log('[Save] Project saved successfully to existing location');
@@ -383,8 +475,15 @@ export const useProjectStore = create<ProjectState>()(
                                     accept: { 'application/json': [PROJECT_FILE_EXTENSION] }
                                 }]
                             });
+
+                            // Derive project name from the chosen file name
+                            const derivedName = handle.name.replace(/\.[^.]+$/, '');
+                            projectData.metadata.name = derivedName;
+
+                            // Write with the updated name in metadata
+                            const updatedBlob = new Blob([JSON.stringify(projectData)], { type: 'application/json' });
                             const writable = await handle.createWritable();
-                            await writable.write(blob);
+                            await writable.write(updatedBlob);
                             await writable.close();
 
                             const now = new Date().toISOString();
@@ -393,16 +492,12 @@ export const useProjectStore = create<ProjectState>()(
                                 isDirty: false,
                                 lastSaved: now,
                                 isLoading: false,
-                                currentProject: s.currentProject ? {
-                                    ...s.currentProject,
-                                    modified: now,
-                                    filePath: handle.name
-                                } : null
+                                currentProject: { ...(s.currentProject ?? projectData.metadata), name: derivedName, modified: now, filePath: handle.name }
                             }));
 
                             // Add to recent projects
                             state.addRecentProject({
-                                name: projectData.metadata.name,
+                                name: derivedName,
                                 filePath: handle.name,
                                 lastOpened: now
                             });
@@ -433,21 +528,18 @@ export const useProjectStore = create<ProjectState>()(
                     URL.revokeObjectURL(url);
 
                     // Update project state (no fileHandle for legacy method)
+                    const legacyName = suggestedFileName.replace(/\.[^.]+$/, '');
                     const now = new Date().toISOString();
                     set((s) => ({
                         isDirty: false,
                         lastSaved: now,
                         isLoading: false,
-                        currentProject: s.currentProject ? {
-                            ...s.currentProject,
-                            modified: now,
-                            filePath: suggestedFileName
-                        } : null
+                        currentProject: { ...(s.currentProject ?? projectData.metadata), name: legacyName, modified: now, filePath: suggestedFileName }
                     }));
 
                     // Add to recent projects
                     state.addRecentProject({
-                        name: projectData.metadata.name,
+                        name: legacyName,
                         filePath: suggestedFileName,
                         lastOpened: now
                     });
@@ -460,6 +552,8 @@ export const useProjectStore = create<ProjectState>()(
                         isLoading: false
                     });
                     return false;
+                } finally {
+                    set({ _isSaving: false });
                 }
             },
 
@@ -593,8 +687,12 @@ export const useProjectStore = create<ProjectState>()(
                 const success = await state.saveProjectToFile(false); // false = not "Save As"
 
                 if (success) {
-                    set({ lastAutosave: new Date().toISOString() });
+                    set({ lastAutosave: new Date().toISOString(), lastAutosaveError: null });
                     console.log('[Autosave] Project saved successfully');
+                } else {
+                    const errMsg = 'Autosave failed — please save manually';
+                    set({ lastAutosaveError: errMsg, loadError: errMsg });
+                    console.warn('[Autosave] Failed to save');
                 }
 
                 return success;
@@ -665,28 +763,38 @@ class AutosaveManager {
 export const autosaveManager = new AutosaveManager();
 
 // Subscribe to app changes to mark project as dirty
+// Guard: skip during import to avoid false dirty flags
 useAppStore.subscribe((state, prevState) => {
+    if (useProjectStore.getState()._isImporting) return;
     if (
         state.data !== prevState.data ||
         state.columns !== prevState.columns ||
-        state.plots !== prevState.plots
+        state.plots !== prevState.plots ||
+        state.geochemMappings !== prevState.geochemMappings ||
+        state.selectedIndices !== prevState.selectedIndices ||
+        state.lockAxes !== prevState.lockAxes
     ) {
         useProjectStore.getState().setDirty(true);
     }
 });
 
 useAttributeStore.subscribe((state, prevState) => {
+    if (useProjectStore.getState()._isImporting) return;
     if (
         state.color !== prevState.color ||
         state.shape !== prevState.shape ||
         state.size !== prevState.size ||
-        state.customEntries !== prevState.customEntries
+        state.filter !== prevState.filter ||
+        state.customEntries !== prevState.customEntries ||
+        state.globalOpacity !== prevState.globalOpacity ||
+        state.emphasis !== prevState.emphasis
     ) {
         useProjectStore.getState().setDirty(true);
     }
 });
 
 useClassificationStore.subscribe((state, prevState) => {
+    if (useProjectStore.getState()._isImporting) return;
     if (
         state.selectedDiagramId !== prevState.selectedDiagramId ||
         state.renderOptions !== prevState.renderOptions

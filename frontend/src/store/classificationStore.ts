@@ -2,8 +2,14 @@ import { create } from 'zustand';
 import diagramData from '../data/classificationDiagrams.json';
 import {
     ClassificationDiagram,
-    DiagramRenderOptions
+    DiagramRenderOptions,
+    DiagramVariable,
+    DiagramLine,
+    DiagramPointFeature,
+    DiagramLabel,
+    DiagramBounds
 } from '../types/classificationDiagram';
+// Custom diagrams loaded directly from localStorage via loadCustomDiagrams()
 
 // Transform raw JSON data to typed diagrams
 interface RawDiagram {
@@ -23,10 +29,16 @@ interface RawDiagram {
         name: string;
         color: { r: number; g: number; b: number };
         points: { x: number; y: number }[];
-        labelPos?: { x: number; y: number };
+        labelPos?: { x: number; y: number } | { a: number; b: number };
         labelAngle?: number;
         visible?: boolean;
+        closed?: boolean;
     }[];
+    variables?: DiagramVariable[];
+    lines?: DiagramLine[];
+    pointFeatures?: DiagramPointFeature[];
+    labels?: DiagramLabel[];
+    bounds?: DiagramBounds;
     comments?: string[];
     references?: string[];
 }
@@ -42,14 +54,20 @@ function loadDiagrams(): ClassificationDiagram[] {
         category: raw.category,
         subCategory: raw.subCategory,
         axes: raw.axes,
+        variables: raw.variables,
         polygons: raw.polygons.map(p => ({
             name: p.name,
             color: p.color,
             points: p.points,
             labelPos: p.labelPos,
             labelAngle: p.labelAngle,
-            visible: p.visible !== false
+            visible: p.visible !== false,
+            ...(p.closed === false ? { closed: false } : {})
         })),
+        lines: raw.lines,
+        pointFeatures: raw.pointFeatures,
+        labels: raw.labels,
+        bounds: raw.bounds,
         comments: raw.comments,
         references: raw.references
     }));
@@ -76,14 +94,32 @@ interface ClassificationState {
     setSearchQuery: (query: string) => void;
     setSelectedCategory: (category: string | null) => void;
 
+    // Custom diagram actions
+    addCustomDiagram: (diagram: ClassificationDiagram) => void;
+    removeCustomDiagram: (id: string) => void;
+    refreshCustomDiagrams: () => void;
+
     // Getters
     getSelectedDiagram: () => ClassificationDiagram | null;
     getFilteredDiagrams: () => ClassificationDiagram[];
     getDiagramsByCategory: (category: string) => ClassificationDiagram[];
 }
 
+function loadCustomDiagrams(): ClassificationDiagram[] {
+    try {
+        const stored = localStorage.getItem('geochem-custom-diagrams');
+        if (!stored) return [];
+        const parsed = JSON.parse(stored);
+        return parsed?.state?.diagrams || [];
+    } catch {
+        return [];
+    }
+}
+
 export const useClassificationStore = create<ClassificationState>((set, get) => {
-    const allDiagrams = loadDiagrams();
+    const builtInDiagrams = loadDiagrams();
+    const customDiagrams = loadCustomDiagrams();
+    const allDiagrams = [...builtInDiagrams, ...customDiagrams];
     const categories = [...new Set(allDiagrams.map(d => d.category))].sort();
 
     return {
@@ -112,6 +148,30 @@ export const useClassificationStore = create<ClassificationState>((set, get) => 
         setSearchQuery: (query) => set({ searchQuery: query }),
 
         setSelectedCategory: (category) => set({ selectedCategory: category }),
+
+        addCustomDiagram: (diagram) => set(state => {
+            const newDiagrams = [...state.diagrams, diagram];
+            const newCategories = [...new Set(newDiagrams.map(d => d.category))].sort();
+            return { diagrams: newDiagrams, categories: newCategories };
+        }),
+
+        removeCustomDiagram: (id) => set(state => {
+            const newDiagrams = state.diagrams.filter(d => d.id !== id);
+            const newCategories = [...new Set(newDiagrams.map(d => d.category))].sort();
+            return {
+                diagrams: newDiagrams,
+                categories: newCategories,
+                selectedDiagramId: state.selectedDiagramId === id ? null : state.selectedDiagramId,
+            };
+        }),
+
+        refreshCustomDiagrams: () => {
+            const builtIn = loadDiagrams();
+            const custom = loadCustomDiagrams();
+            const all = [...builtIn, ...custom];
+            const cats = [...new Set(all.map(d => d.category))].sort();
+            set({ diagrams: all, categories: cats });
+        },
 
         getSelectedDiagram: () => {
             const { diagrams, selectedDiagramId } = get();

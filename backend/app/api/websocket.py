@@ -1,13 +1,16 @@
 """
-WebSocket API for GeoChem Pro
+WebSocket API for GeoChem
 Provides real-time communication with QGIS plugin
 """
 
 import json
+import logging
 import asyncio
 from typing import List, Dict, Any, Optional, Set
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect, Body
 from pydantic import BaseModel
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter()
 
@@ -95,12 +98,18 @@ async def qgis_websocket_endpoint(websocket: WebSocket):
 
         while True:
             data = await websocket.receive_text()
-            message = json.loads(data)
+            try:
+                message = json.loads(data)
+            except json.JSONDecodeError:
+                logger.warning("QGIS WebSocket received malformed JSON: %s", data[:200])
+                await websocket.send_json({'type': 'error', 'message': 'Invalid JSON'})
+                continue
             await handle_qgis_message(websocket, message)
 
     except WebSocketDisconnect:
         manager.disconnect_qgis(websocket)
     except Exception as e:
+        logger.exception("QGIS WebSocket error: %s", type(e).__name__)
         manager.disconnect_qgis(websocket)
 
 
@@ -111,12 +120,18 @@ async def frontend_websocket_endpoint(websocket: WebSocket):
     try:
         while True:
             data = await websocket.receive_text()
-            message = json.loads(data)
+            try:
+                message = json.loads(data)
+            except json.JSONDecodeError:
+                logger.warning("Frontend WebSocket received malformed JSON: %s", data[:200])
+                await websocket.send_json({'type': 'error', 'message': 'Invalid JSON'})
+                continue
             await handle_frontend_message(websocket, message)
 
     except WebSocketDisconnect:
         manager.disconnect_frontend(websocket)
     except Exception as e:
+        logger.exception("Frontend WebSocket error: %s", type(e).__name__)
         manager.disconnect_frontend(websocket)
 
 

@@ -1,16 +1,20 @@
+import logging
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from datetime import datetime
 
-# === VERSION MARKER ===
-print("=" * 60)
-print(f"[STARTUP] GeoChem Pro API - Build: 2025-11-27 v3")
-print(f"[STARTUP] Time: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
-print(f"[STARTUP] FIX: Upload endpoints now return FULL dataset (not just 5-row preview)")
-print("=" * 60)
+# Configure root logger
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
+    datefmt="%H:%M:%S",
+)
+logger = logging.getLogger(__name__)
+
+logger.info("GeoChem API — Build: 2025-11-27 v3 — %s", datetime.now().strftime('%Y-%m-%d %H:%M:%S'))
 
 app = FastAPI(
-    title="GeoChem Pro API",
+    title="GeoChem API",
     description="Backend for the Professional Geochemical Analysis Dashboard",
     version="1.0.0"
 )
@@ -27,7 +31,7 @@ app.add_middleware(
 
 @app.get("/")
 async def root():
-    return {"message": "GeoChem Pro API is running"}
+    return {"message": "GeoChem API is running"}
 
 @app.get("/health")
 async def health_check():
@@ -39,10 +43,11 @@ async def api_health_check():
     return {"status": "ok"}
 
 # Include routers
-from app.api import data, analysis, drillhole, websocket
+from app.api import data, analysis, drillhole, websocket, logging_interval
 app.include_router(data.router, prefix="/api/data", tags=["data"])
 app.include_router(analysis.router, prefix="/api/analysis", tags=["analysis"])
 app.include_router(drillhole.router, prefix="/api/drillhole", tags=["drillhole"])
 app.include_router(websocket.router, prefix="/api/qgis", tags=["qgis"])
+app.include_router(logging_interval.router, prefix="/api/logging", tags=["logging"])
 
 

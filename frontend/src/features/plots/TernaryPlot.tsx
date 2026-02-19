@@ -1,12 +1,13 @@
 import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import Plot from 'react-plotly.js';
 import { useAppStore } from '../../store/appStore';
-import { Box, Paper, Typography, FormControl, InputLabel, Select, MenuItem } from '@mui/material';
+import { Box, Paper, Typography, FormControl, InputLabel, Select, MenuItem, Checkbox, FormControlLabel, Slider } from '@mui/material';
 import { useAttributeStore } from '../../store/attributeStore';
-import { getStyleArrays, shapeToPlotlySymbol, applyOpacityToColor, getSortedIndices, sortColumnsByPriority } from '../../utils/attributeUtils';
+import { getStyleArrays, shapeToPlotlySymbol, applyOpacityToColor, getSortedIndices, sortColumnsByPriority, getColumnDisplayName } from '../../utils/attributeUtils';
 import { buildCustomData, buildTernaryHoverTemplate } from '../../utils/tooltipUtils';
 import { getPlotConfig, EXPORT_FONT_SIZES } from '../../utils/plotConfig';
 import { ExpandablePlotWrapper } from '../../components/ExpandablePlotWrapper';
+import { computeTernaryDensities, DENSITY_JET_POINT_COLORSCALE } from '../../utils/densityGrid';
 
 interface TernaryRanges {
     aRange?: [number, number];
@@ -19,9 +20,13 @@ interface TernaryPlotProps {
 }
 
 export const TernaryPlot: React.FC<TernaryPlotProps> = ({ plotId }) => {
-    const { data, columns, lockAxes, getPlotSettings, updatePlotSettings, getFilteredColumns } = useAppStore();
+    const { data, columns, lockAxes, getPlotSettings, updatePlotSettings, getFilteredColumns, getDisplayData, getDisplayIndices, sampleIndices } = useAppStore();
     const filteredColumns = getFilteredColumns();
+    const d = (name: string) => getColumnDisplayName(columns, name);
     useAttributeStore(); // Subscribe to changes
+
+    const displayData = useMemo(() => getDisplayData(), [data, sampleIndices]);
+    const displayIndices = useMemo(() => getDisplayIndices(), [data, sampleIndices]);
 
     // Get stored settings or defaults
     const storedSettings = getPlotSettings(plotId);
@@ -29,6 +34,9 @@ export const TernaryPlot: React.FC<TernaryPlotProps> = ({ plotId }) => {
     const [aAxis, setAAxisLocal] = useState<string>(storedSettings.aAxis || '');
     const [bAxis, setBAxisLocal] = useState<string>(storedSettings.bAxis || '');
     const [cAxis, setCAxisLocal] = useState<string>(storedSettings.cAxis || '');
+    const [showDensity, setShowDensityLocal] = useState<boolean>(storedSettings.showDensity || false);
+    const [densitySmoothing, setDensitySmoothingLocal] = useState<number>(storedSettings.densitySmoothing ?? 2.0);
+    const [densityOpacity, setDensityOpacityLocal] = useState<number>(storedSettings.densityOpacity ?? 0.7);
 
     // Wrapper functions to persist settings
     const setAAxis = (axis: string) => {
@@ -42,6 +50,18 @@ export const TernaryPlot: React.FC<TernaryPlotProps> = ({ plotId }) => {
     const setCAxis = (axis: string) => {
         setCAxisLocal(axis);
         updatePlotSettings(plotId, { cAxis: axis });
+    };
+    const setShowDensity = (show: boolean) => {
+        setShowDensityLocal(show);
+        updatePlotSettings(plotId, { showDensity: show });
+    };
+    const setDensitySmoothing = (smoothing: number) => {
+        setDensitySmoothingLocal(smoothing);
+        updatePlotSettings(plotId, { densitySmoothing: smoothing });
+    };
+    const setDensityOpacity = (opacity: number) => {
+        setDensityOpacityLocal(opacity);
+        updatePlotSettings(plotId, { densityOpacity: opacity });
     };
 
     const rangesRef = useRef<TernaryRanges>({});
@@ -103,6 +123,45 @@ export const TernaryPlot: React.FC<TernaryPlotProps> = ({ plotId }) => {
                     ))}
                 </Select>
             </FormControl>
+
+            <FormControlLabel
+                control={<Checkbox checked={showDensity} onChange={(e) => setShowDensity(e.target.checked)} size="small" />}
+                label="Density Colors"
+            />
+
+            {showDensity && (
+                <>
+                    <Box sx={{ minWidth: 120, px: 1 }}>
+                        <Typography variant="caption" gutterBottom>
+                            Smoothing: {densitySmoothing.toFixed(1)}
+                        </Typography>
+                        <Slider
+                            value={densitySmoothing}
+                            onChange={(_, value) => setDensitySmoothing(value as number)}
+                            min={0.5}
+                            max={8}
+                            step={0.5}
+                            valueLabelDisplay="auto"
+                            size="small"
+                        />
+                    </Box>
+                    <Box sx={{ minWidth: 120, px: 1 }}>
+                        <Typography variant="caption" gutterBottom>
+                            Opacity: {Math.round(densityOpacity * 100)}%
+                        </Typography>
+                        <Slider
+                            value={densityOpacity}
+                            onChange={(_, value) => setDensityOpacity(value as number)}
+                            min={0.1}
+                            max={1}
+                            step={0.05}
+                            valueLabelDisplay="auto"
+                            valueLabelFormat={(v) => `${Math.round(v * 100)}%`}
+                            size="small"
+                        />
+                    </Box>
+                </>
+            )}
         </Box>
     );
 
@@ -116,7 +175,7 @@ export const TernaryPlot: React.FC<TernaryPlotProps> = ({ plotId }) => {
     }
 
     // Get styles from attribute store (includes emphasis calculations)
-    const styleArrays = getStyleArrays(data);
+    const styleArrays = getStyleArrays(displayData, displayIndices ?? undefined);
 
     // Get sorted indices for z-ordering (low-grade first, high-grade last/on top)
     const sortedIndices = getSortedIndices(styleArrays);
@@ -125,7 +184,7 @@ export const TernaryPlot: React.FC<TernaryPlotProps> = ({ plotId }) => {
     const normalizedData: { a: number; b: number; c: number; idx: number }[] = [];
 
     for (const i of sortedIndices) {
-        const d = data[i];
+        const d = displayData[i];
         const a = Number(d[aAxis]) || 0;
         const b = Number(d[bAxis]) || 0;
         const c = Number(d[cAxis]) || 0;
@@ -143,7 +202,15 @@ export const TernaryPlot: React.FC<TernaryPlotProps> = ({ plotId }) => {
 
     // Build customdata for hover tooltips
     const ternaryIndices = normalizedData.map(d => d.idx);
-    const customData = buildCustomData(data, ternaryIndices);
+    const customData = buildCustomData(displayData, ternaryIndices, displayIndices ?? undefined);
+
+    // Compute density coloring if enabled
+    const densityResult = showDensity ? computeTernaryDensities(
+        normalizedData.map(d => d.a),
+        normalizedData.map(d => d.b),
+        normalizedData.map(d => d.c),
+        { smoothingSigma: densitySmoothing }
+    ) : null;
 
     const trace: any = {
         type: 'scatterternary',
@@ -152,8 +219,16 @@ export const TernaryPlot: React.FC<TernaryPlotProps> = ({ plotId }) => {
         b: normalizedData.map(d => d.b),
         c: normalizedData.map(d => d.c),
         customdata: customData,
-        hovertemplate: buildTernaryHoverTemplate(aAxis, bAxis, cAxis),
-        marker: {
+        hovertemplate: buildTernaryHoverTemplate(d(aAxis), d(bAxis), d(cAxis)),
+        marker: densityResult ? {
+            size: normalizedData.map(d => styleArrays.sizes[d.idx]),
+            color: densityResult.densities,
+            colorscale: DENSITY_JET_POINT_COLORSCALE,
+            showscale: false,
+            opacity: densityOpacity,
+            symbol: normalizedData.map(d => shapeToPlotlySymbol(styleArrays.shapes[d.idx])),
+            line: { width: 0 }
+        } : {
             size: normalizedData.map(d => styleArrays.sizes[d.idx]),
             color: normalizedData.map(d => applyOpacityToColor(styleArrays.colors[d.idx], styleArrays.opacity[d.idx])),
             symbol: normalizedData.map(d => shapeToPlotlySymbol(styleArrays.shapes[d.idx])),
@@ -170,24 +245,24 @@ export const TernaryPlot: React.FC<TernaryPlotProps> = ({ plotId }) => {
                     <Plot
                         data={[trace]}
                         layout={{
-                            title: { text: `Ternary: ${aAxis} - ${bAxis} - ${cAxis}`, font: { size: EXPORT_FONT_SIZES.title }, x: 0, xanchor: 'left' },
+                            title: { text: `Ternary: ${d(aAxis)} - ${d(bAxis)} - ${d(cAxis)}`, font: { size: EXPORT_FONT_SIZES.title }, x: 0, xanchor: 'left' },
                             autosize: true,
                             height: 600,
                             font: { size: EXPORT_FONT_SIZES.tickLabels },
                             ternary: {
                                 sum: 1,
                                 aaxis: {
-                                    title: { text: aAxis, font: { size: EXPORT_FONT_SIZES.axisTitle } },
+                                    title: { text: d(aAxis), font: { size: EXPORT_FONT_SIZES.axisTitle } },
                                     tickfont: { size: EXPORT_FONT_SIZES.tickLabels },
                                     min: lockAxes && rangesRef.current.aRange ? rangesRef.current.aRange[0] : 0
                                 },
                                 baxis: {
-                                    title: { text: bAxis, font: { size: EXPORT_FONT_SIZES.axisTitle } },
+                                    title: { text: d(bAxis), font: { size: EXPORT_FONT_SIZES.axisTitle } },
                                     tickfont: { size: EXPORT_FONT_SIZES.tickLabels },
                                     min: lockAxes && rangesRef.current.bRange ? rangesRef.current.bRange[0] : 0
                                 },
                                 caxis: {
-                                    title: { text: cAxis, font: { size: EXPORT_FONT_SIZES.axisTitle } },
+                                    title: { text: d(cAxis), font: { size: EXPORT_FONT_SIZES.axisTitle } },
                                     tickfont: { size: EXPORT_FONT_SIZES.tickLabels },
                                     min: lockAxes && rangesRef.current.cRange ? rangesRef.current.cRange[0] : 0
                                 }

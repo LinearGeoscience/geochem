@@ -1,5 +1,5 @@
 """
-Style Manager for GeoChem Pro QGIS Plugin
+Style Manager for GeoChem QGIS Plugin
 Handles layer styling based on classifications and values
 """
 
@@ -39,7 +39,7 @@ class GeochemStyleManager:
     - Custom color schemes
     """
 
-    # Default color schemes matching GeoChem Pro
+    # Default color schemes matching GeoChem
     CLASSIFICATION_COLORS = {
         'background': '#10b981',      # Green
         'threshold': '#f59e0b',       # Amber
@@ -202,7 +202,7 @@ class GeochemStyleManager:
         if field_idx < 0:
             QgsMessageLog.logMessage(
                 f"Column '{column}' not found in layer",
-                "GeoChem Pro",
+                "GeoChem",
                 Qgis.Warning
             )
             return
@@ -235,7 +235,7 @@ class GeochemStyleManager:
 
         QgsMessageLog.logMessage(
             f"Applied classification style to '{column}' ({len(unique_values)} classes)",
-            "GeoChem Pro",
+            "GeoChem",
             Qgis.Info
         )
 
@@ -264,7 +264,7 @@ class GeochemStyleManager:
         if field_idx < 0:
             QgsMessageLog.logMessage(
                 f"Column '{column}' not found",
-                "GeoChem Pro",
+                "GeoChem",
                 Qgis.Warning
             )
             return
@@ -273,7 +273,7 @@ class GeochemStyleManager:
         if field.type() not in [QVariant.Double, QVariant.Int, QVariant.LongLong]:
             QgsMessageLog.logMessage(
                 f"Column '{column}' is not numeric",
-                "GeoChem Pro",
+                "GeoChem",
                 Qgis.Warning
             )
             return
@@ -315,7 +315,7 @@ class GeochemStyleManager:
 
         QgsMessageLog.logMessage(
             f"Applied graduated style to '{column}' ({num_classes} classes, {method})",
-            "GeoChem Pro",
+            "GeoChem",
             Qgis.Info
         )
 
@@ -342,7 +342,7 @@ class GeochemStyleManager:
         if field_idx < 0:
             QgsMessageLog.logMessage(
                 f"Column '{column}' not found",
-                "GeoChem Pro",
+                "GeoChem",
                 Qgis.Warning
             )
             return
@@ -381,7 +381,7 @@ class GeochemStyleManager:
 
         QgsMessageLog.logMessage(
             f"Applied cluster style to '{column}' ({len(unique_values)} clusters)",
-            "GeoChem Pro",
+            "GeoChem",
             Qgis.Info
         )
 
@@ -414,7 +414,7 @@ class GeochemStyleManager:
         if field_idx < 0:
             QgsMessageLog.logMessage(
                 f"Column '{column}' not found",
-                "GeoChem Pro",
+                "GeoChem",
                 Qgis.Warning
             )
             return
@@ -460,7 +460,7 @@ class GeochemStyleManager:
 
         QgsMessageLog.logMessage(
             f"Applied high-grade highlighting to '{column}' (threshold: {threshold})",
-            "GeoChem Pro",
+            "GeoChem",
             Qgis.Info
         )
 

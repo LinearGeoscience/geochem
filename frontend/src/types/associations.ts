@@ -229,6 +229,34 @@ export interface ElementMapping {
 }
 
 // ============================================================================
+// COLUMN GEOCHEMISTRY MAPPING TYPES
+// ============================================================================
+
+/**
+ * Category for geochemical column classification
+ */
+export type GeochemCategory = 'majorOxide' | 'traceElement' | 'ree' | 'nonGeochemical' | 'unknown';
+
+/**
+ * Extended element mapping with oxide/unit/category metadata.
+ * Used by the app-wide column chemistry recognition system.
+ */
+export interface ColumnGeochemMapping extends ElementMapping {
+  /** Whether column reports oxide form (Fe2O3 vs Fe) */
+  isOxide: boolean;
+  /** Oxide formula if applicable (e.g. "Fe2O3", "SiO2"), null if element form */
+  oxideFormula: string | null;
+  /** User-overridden unit (overrides detectedUnit when set) */
+  userUnit?: string | null;
+  /** Grouping category for UI sections */
+  category: GeochemCategory;
+  /** Whether user has reviewed this mapping */
+  isConfirmed: boolean;
+  /** Column role from backend (e.g. 'East', 'North', 'ID') */
+  role?: string | null;
+}
+
+// ============================================================================
 // CONFIGURATION TYPES
 // ============================================================================
 

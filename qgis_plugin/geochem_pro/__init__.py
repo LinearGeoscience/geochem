@@ -1,6 +1,6 @@
 """
-GeoChem Pro QGIS Plugin
-Real-time integration with GeoChem Pro geochemical analysis application
+GeoChem QGIS Plugin
+Real-time integration with GeoChem geochemical analysis application
 """
 
 def classFactory(iface):

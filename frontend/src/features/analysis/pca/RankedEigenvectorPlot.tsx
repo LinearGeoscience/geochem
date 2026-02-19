@@ -28,12 +28,15 @@ import {
   Button,
   Chip,
   Tooltip,
+  Snackbar,
+  Alert,
 } from '@mui/material';
 import TouchAppIcon from '@mui/icons-material/TouchApp';
 import BookmarkAddIcon from '@mui/icons-material/BookmarkAdd';
 import ClearIcon from '@mui/icons-material/Clear';
 import PaletteIcon from '@mui/icons-material/Palette';
 import DeleteOutlineIcon from '@mui/icons-material/DeleteOutline';
+import TableChartIcon from '@mui/icons-material/TableChart';
 import Plot from 'react-plotly.js';
 import { FullPCAResult } from '../../../types/compositional';
 import { PCAssociationAnalysis, MatchScore } from '../../../types/associations';
@@ -41,8 +44,11 @@ import { getSortedLoadings } from '../../../utils/calculations/pcaAnalysis';
 import { CATEGORY_INFO } from '../../../data/elementAssociationPatterns';
 import { detectElementFromColumnName } from '../../../utils/calculations/elementNameNormalizer';
 import { useTransformationStore } from '../../../store/transformationStore';
+import { useAppStore } from '../../../store/appStore';
+import { getColumnDisplayName } from '../../../utils/attributeUtils';
 import { CreateCustomAssociationDialog } from './CreateCustomAssociationDialog';
 import { CreateCustomColorScaleDialog } from './CreateCustomColorScaleDialog';
+import { SaveAssociationToTableDialog } from './SaveAssociationToTableDialog';
 import { PCAFigureGenerator } from './PCAFigureGenerator';
 
 interface RankedEigenvectorPlotProps {
@@ -112,6 +118,9 @@ const SinglePCPlot: React.FC<SinglePCPlotProps> = ({
   selectionColor = '#f59e0b',
   customAssociationHighlights = [],
 }) => {
+  const { columns } = useAppStore();
+  const d = (name: string) => getColumnDisplayName(columns, name);
+
   const plotData = useMemo(() => {
     // getSortedLoadings returns loadings sorted from highest to lowest
     const sortedLoadings = getSortedLoadings(pcaResult, componentIndex);
@@ -212,6 +221,7 @@ const SinglePCPlot: React.FC<SinglePCPlotProps> = ({
 
     return {
       elements,
+      displayElements: elements.map(el => d(el)),
       loadings,
       markerColors,
       markerSizes,
@@ -222,7 +232,7 @@ const SinglePCPlot: React.FC<SinglePCPlotProps> = ({
       patternHighlightSet,
       patternHighlightColor,
     };
-  }, [pcaResult, componentIndex, selectedAssociation, selectionMode, selectedElements, selectionColor, customAssociationHighlights]);
+  }, [pcaResult, componentIndex, selectedAssociation, selectionMode, selectedElements, selectionColor, customAssociationHighlights, columns]);
 
   // Build connection shapes for highlighted elements (multiple associations)
   const connectionShapes = useMemo(() => {
@@ -343,11 +353,11 @@ const SinglePCPlot: React.FC<SinglePCPlotProps> = ({
   }, [selectedAssociation, customAssociationHighlights, plotData]);
 
   // Identify top associations (first elements are highest positive loadings)
-  const positiveAssoc = plotData.elements
+  const positiveAssoc = plotData.displayElements
     .slice(0, 5) // First 5 elements (highest loadings)
     .filter((_, i) => plotData.loadings[i] >= 0.3);
 
-  const negativeAssoc = plotData.elements
+  const negativeAssoc = plotData.displayElements
     .slice(-5) // Last 5 elements (most negative loadings)
     .filter((_, i) => plotData.loadings[plotData.loadings.length - 5 + i] <= -0.3);
 
@@ -532,6 +542,7 @@ const SinglePCPlot: React.FC<SinglePCPlotProps> = ({
           {
             x: plotData.elements,
             y: plotData.loadings,
+            text: plotData.displayElements,
             type: 'scatter',
             mode: 'lines+markers',
             line: {
@@ -548,8 +559,8 @@ const SinglePCPlot: React.FC<SinglePCPlotProps> = ({
               },
             },
             hovertemplate: selectionMode
-              ? '%{x}<br>Loading: %{y:.3f}<br><i>Click to select, Shift+Click for range</i><extra></extra>'
-              : '%{x}<br>Loading: %{y:.3f}<extra></extra>',
+              ? '%{text}<br>Loading: %{y:.3f}<br><i>Click to select, Shift+Click for range</i><extra></extra>'
+              : '%{text}<br>Loading: %{y:.3f}<extra></extra>',
           },
         ]}
         layout={{
@@ -563,6 +574,9 @@ const SinglePCPlot: React.FC<SinglePCPlotProps> = ({
             tickangle: 45,
             tickfont: { size: 10 },
             showgrid: false,
+            tickmode: 'array' as const,
+            tickvals: plotData.elements,
+            ticktext: plotData.displayElements,
           },
           yaxis: {
             title: { text: 'Loading', font: { size: 11 } },
@@ -601,11 +615,17 @@ const SinglePCPlotWithDropdown: React.FC<{
   const [selectedElements, setSelectedElements] = useState<Set<string>>(new Set());
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
   const [colorScaleDialogOpen, setColorScaleDialogOpen] = useState(false);
+  const [saveToTableDialogOpen, setSaveToTableDialogOpen] = useState(false);
   const [colorScaleInfo, setColorScaleInfo] = useState<{
     name: string;
     side: 'positive' | 'negative';
     color: string;
   } | null>(null);
+  const [snackbar, setSnackbar] = useState<{ open: boolean; message: string; severity: 'success' | 'warning' }>({
+    open: false, message: '', severity: 'success',
+  });
+
+  const { columns } = useAppStore();
 
   // Get custom associations from store
   const customAssociations = useTransformationStore((state) => state.customAssociations);
@@ -779,6 +799,20 @@ const SinglePCPlotWithDropdown: React.FC<{
     return posCount >= negCount ? 'positive' : 'negative';
   }, [selectedElements, pcaResult, componentIndex]);
 
+  // Check if PC score columns exist
+  const pcColumnsExist = useMemo(() => {
+    return columns.some((c) => c.name === `PC${pcNumber}` || c.name === `negPC${pcNumber}`);
+  }, [columns, pcNumber]);
+
+  // Guard function for operations requiring PC columns
+  const guardPcColumns = useCallback((): boolean => {
+    if (!pcColumnsExist) {
+      setSnackbar({ open: true, message: 'Add PC Scores to Data first', severity: 'warning' });
+      return false;
+    }
+    return true;
+  }, [pcColumnsExist]);
+
   const hasOptions = associationOptions.length > 0 || relevantCustomAssociations.length > 0;
 
   return (
@@ -835,6 +869,7 @@ const SinglePCPlotWithDropdown: React.FC<{
               variant="contained"
               startIcon={<PaletteIcon />}
               onClick={() => {
+                if (!guardPcColumns()) return;
                 setColorScaleInfo({
                   name: `Selected Elements (${selectedElements.size})`,
                   side: defaultSide,
@@ -848,6 +883,18 @@ const SinglePCPlotWithDropdown: React.FC<{
               }}
             >
               Color Scale
+            </Button>
+            <Button
+              size="small"
+              variant="contained"
+              startIcon={<TableChartIcon />}
+              onClick={() => setSaveToTableDialogOpen(true)}
+              sx={{
+                bgcolor: '#0891b2',
+                '&:hover': { bgcolor: '#0e7490' },
+              }}
+            >
+              Save to Table
             </Button>
           </>
         )}
@@ -989,6 +1036,7 @@ const SinglePCPlotWithDropdown: React.FC<{
                   variant="outlined"
                   startIcon={<PaletteIcon />}
                   onClick={() => {
+                    if (!guardPcColumns()) return;
                     setColorScaleInfo({
                       name: assoc.name,
                       side: assoc.side,
@@ -1036,12 +1084,44 @@ const SinglePCPlotWithDropdown: React.FC<{
             setColorScaleDialogOpen(false);
             setColorScaleInfo(null);
           }}
+          onSuccess={(msg) => setSnackbar({ open: true, message: msg, severity: 'success' })}
           pcNumber={pcNumber}
           associationName={colorScaleInfo.name}
           side={colorScaleInfo.side}
           color={colorScaleInfo.color}
         />
       )}
+
+      {/* Save Association to Table Dialog */}
+      <SaveAssociationToTableDialog
+        open={saveToTableDialogOpen}
+        onClose={() => setSaveToTableDialogOpen(false)}
+        onSuccess={(msg) => {
+          setSnackbar({ open: true, message: msg, severity: 'success' });
+          setSelectionMode(false);
+          setSelectedElements(new Set());
+        }}
+        pcaResult={pcaResult}
+        componentIndex={componentIndex}
+        selectedElements={Array.from(selectedElements)}
+        defaultSide={defaultSide}
+      />
+
+      {/* Snackbar feedback */}
+      <Snackbar
+        open={snackbar.open}
+        autoHideDuration={5000}
+        onClose={() => setSnackbar((s) => ({ ...s, open: false }))}
+        anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
+      >
+        <Alert
+          onClose={() => setSnackbar((s) => ({ ...s, open: false }))}
+          severity={snackbar.severity}
+          variant="filled"
+        >
+          {snackbar.message}
+        </Alert>
+      </Snackbar>
     </Paper>
   );
 };

@@ -69,7 +69,8 @@ export const ExpandablePlotWrapper: React.FC<ExpandablePlotWrapperProps> = ({ ch
                         layout: {
                             ...children.props.layout,
                             autosize: true,
-                            height: undefined // Let it fill the dialog
+                            width: undefined,  // Let autosize take over
+                            height: undefined, // Let it fill the dialog
                         },
                         useResizeHandler: true
                     })}

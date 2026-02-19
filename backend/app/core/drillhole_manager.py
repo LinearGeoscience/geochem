@@ -1,6 +1,10 @@
+import logging
+
 import pandas as pd
 import numpy as np
 from typing import Dict, Any, List, Optional
+
+logger = logging.getLogger(__name__)
 
 class DrillholeManager:
     _instance = None
@@ -62,11 +66,11 @@ class DrillholeManager:
             missing_assay = [c for c in required_assay if c not in assay_df.columns]
 
             if missing_collar:
-                print(f"Warning: Missing collar columns: {missing_collar}. Available: {list(collar_df.columns)}")
+                logger.warning("Missing collar columns: %s. Available: %s", missing_collar, list(collar_df.columns))
             if missing_survey:
-                print(f"Warning: Missing survey columns: {missing_survey}. Available: {list(survey_df.columns)}")
+                logger.warning("Missing survey columns: %s. Available: %s", missing_survey, list(survey_df.columns))
             if missing_assay:
-                print(f"Warning: Missing assay columns: {missing_assay}. Available: {list(assay_df.columns)}")
+                logger.warning("Missing assay columns: %s. Available: %s", missing_assay, list(assay_df.columns))
         else:
             # Auto-detect columns (legacy behavior)
             hole_col = next((c for c in collar_df.columns if c == 'hole_id' or 'holeid' in c.replace('_','') or 'bhid' in c),
@@ -91,13 +95,13 @@ class DrillholeManager:
         assay_hole_col = next((c for c in assay_df.columns if c == 'hole_id' or 'holeid' in c.replace('_','') or 'bhid' in c),
                               next((c for c in assay_df.columns if 'hole' in c), assay_df.columns[0]))
 
-        print(f"Starting desurvey for {len(collar_df)} holes, {len(assay_df)} assays, {len(survey_df)} surveys")
-        print(f"Using columns - Collar: hole={hole_col}, E={east_col}, N={north_col}, RL={rl_col}")
-        print(f"Using columns - Survey: hole={survey_hole_col}, depth={depth_col}, dip={dip_col}, azi={azi_col}")
-        print(f"Using columns - Assay: hole={assay_hole_col}, from={from_col}, to={to_col}")
+        logger.info("Starting desurvey for %d holes, %d assays, %d surveys", len(collar_df), len(assay_df), len(survey_df))
+        logger.info("Using columns - Collar: hole=%s, E=%s, N=%s, RL=%s", hole_col, east_col, north_col, rl_col)
+        logger.info("Using columns - Survey: hole=%s, depth=%s, dip=%s, azi=%s", survey_hole_col, depth_col, dip_col, azi_col)
+        logger.info("Using columns - Assay: hole=%s, from=%s, to=%s", assay_hole_col, from_col, to_col)
 
         # OPTIMIZATION: Pre-group dataframes for O(N) lookups instead of O(M*N) filtering
-        print("Grouping data by hole ID for fast lookups...")
+        logger.info("Grouping data by hole ID for fast lookups...")
         collar_indexed = collar_df.set_index(hole_col)
         # Use the correct hole column for each file type
         survey_groups = survey_df.groupby(survey_hole_col)
@@ -115,8 +119,8 @@ class DrillholeManager:
                 elapsed = time.time() - start_time
                 rate = processed / elapsed if elapsed > 0 else 0
                 eta = (total_holes - processed) / rate if rate > 0 else 0
-                print(f"Progress: {processed}/{total_holes} holes ({processed*100/total_holes:.1f}%) "
-                      f"- {rate:.1f} holes/sec - ETA: {eta:.1f}s", end='\r')
+                logger.info("Progress: %d/%d holes (%.1f%%) - %.1f holes/sec - ETA: %.1fs",
+                            processed, total_holes, processed * 100 / total_holes, rate, eta)
 
             try:
                 # OPTIMIZED: Direct index lookup instead of filtering
@@ -202,19 +206,20 @@ class DrillholeManager:
                 results.append(assays)
             except Exception as e:
                 # Skip holes with errors and continue
-                print(f"Warning: Skipping hole {hole_id}: {str(e)}")
+                logger.warning("Skipping hole %s: %s", hole_id, e)
                 continue
 
         if not results:
             return pd.DataFrame()
 
         # OPTIMIZED: Use concat with copy=False to save memory
-        print(f"\nCombining results from {len(results)} holes...")
+        logger.info("Combining results from %d holes...", len(results))
         final_df = pd.concat(results, ignore_index=True, copy=False)
 
         # Report final timing
         total_time = time.time() - start_time
-        print(f"\nDesurvey complete! Processed {processed} holes with {len(final_df)} assays in {total_time:.2f} seconds")
-        print(f"Average rate: {processed/total_time:.1f} holes/second")
+        logger.info("Desurvey complete! Processed %d holes with %d assays in %.2f seconds",
+                     processed, len(final_df), total_time)
+        logger.info("Average rate: %.1f holes/second", processed / total_time)
 
         return final_df

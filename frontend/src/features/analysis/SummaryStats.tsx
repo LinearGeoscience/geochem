@@ -1,10 +1,10 @@
 import React, { useState, useCallback } from 'react';
-import { Box, Paper, Typography, FormControl, InputLabel, Select, MenuItem, OutlinedInput, Chip, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, CircularProgress, Button, Stack } from '@mui/material';
-import { SelectChangeEvent } from '@mui/material';
+import { Box, Paper, Typography, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, CircularProgress, Button } from '@mui/material';
 import Plot from 'react-plotly.js';
 import { useAppStore } from '../../store/appStore';
 import { useAttributeStore } from '../../store/attributeStore';
 import { getStyleArrays, sortColumnsByPriority } from '../../utils/attributeUtils';
+import { MultiColumnSelector } from '../../components/MultiColumnSelector';
 
 interface Stats {
     count: number;
@@ -116,22 +116,9 @@ export const SummaryStats: React.FC = () => {
         }, 10);
     }, [statsSelectedColumns, data]);
 
-    const handleColumnChange = (event: SelectChangeEvent<typeof statsSelectedColumns>) => {
-        const value = event.target.value;
-        setStatsSelectedColumns(typeof value === 'string' ? value.split(',') : value);
-    };
-
     const numericColumns = sortColumnsByPriority(
         filteredColumns.filter(c => c.type === 'numeric' || c.type === 'float' || c.type === 'integer')
     );
-
-    const handleSelectAll = () => {
-        setStatsSelectedColumns(numericColumns.map(c => c.name));
-    };
-
-    const handleClearAll = () => {
-        setStatsSelectedColumns([]);
-    };
 
     const formatNumber = (num: number | null) => {
         if (num === null) return 'N/A';
@@ -146,38 +133,12 @@ export const SummaryStats: React.FC = () => {
             <Typography variant="h5" gutterBottom>Summary Statistics</Typography>
 
             <Box sx={{ display: 'flex', gap: 2, mb: 3, alignItems: 'flex-start' }}>
-                <Stack spacing={1} sx={{ minWidth: 300, maxWidth: 600, flexGrow: 1 }}>
-                    <FormControl>
-                        <InputLabel>Select Columns</InputLabel>
-                        <Select
-                            multiple
-                            value={statsSelectedColumns}
-                            onChange={handleColumnChange}
-                            input={<OutlinedInput label="Select Columns" />}
-                            renderValue={(selected) => (
-                                <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5 }}>
-                                    {selected.map((value) => (
-                                        <Chip key={value} label={value} size="small" />
-                                    ))}
-                                </Box>
-                            )}
-                        >
-                            {numericColumns.map((col) => (
-                                <MenuItem key={col.name} value={col.name}>
-                                    {col.alias || col.name}
-                                </MenuItem>
-                            ))}
-                        </Select>
-                    </FormControl>
-                    <Box sx={{ display: 'flex', gap: 1 }}>
-                        <Button size="small" variant="outlined" onClick={handleSelectAll}>
-                            Select All
-                        </Button>
-                        <Button size="small" variant="outlined" onClick={handleClearAll}>
-                            Clear All
-                        </Button>
-                    </Box>
-                </Stack>
+                <MultiColumnSelector
+                    columns={numericColumns}
+                    selectedColumns={statsSelectedColumns}
+                    onChange={setStatsSelectedColumns}
+                    label="Select Columns"
+                />
                 <Button
                     variant="contained"
                     onClick={calculateStats}

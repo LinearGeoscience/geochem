@@ -1,5 +1,5 @@
 """
-Utility modules for GeoChem Pro QGIS Plugin
+Utility modules for GeoChem QGIS Plugin
 """
 
 from .color_utils import ColorUtils

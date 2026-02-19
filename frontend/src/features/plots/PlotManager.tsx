@@ -1,10 +1,26 @@
-import React from 'react';
-import { Box, Paper, Typography, Button, Tabs, Tab } from '@mui/material';
-import { AddCircleOutline as AddCircle, Close } from '@mui/icons-material';
+import React, { useState } from 'react';
+import { Box, Paper, Typography, Button, Tabs, Tab, Select, MenuItem } from '@mui/material';
+import { Add, Close } from '@mui/icons-material';
 import { useAppStore } from '../../store/appStore';
+
+const PLOT_TYPES = [
+    { value: 'scatter', label: 'Scatter' },
+    { value: 'ternary', label: 'Ternary' },
+    { value: 'spider', label: 'Spider' },
+    { value: 'map', label: 'Map' },
+    { value: 'map3d', label: 'Map 3D' },
+    { value: 'downhole', label: 'Downhole' },
+    { value: 'histogram', label: 'Histogram' },
+    { value: 'clr', label: 'CLR Biplot' },
+    { value: 'classification', label: 'Classification' },
+    { value: 'pathfinder', label: 'Pathfinder' },
+] as const;
+
+type PlotTypeValue = typeof PLOT_TYPES[number]['value'];
 
 export const PlotManager: React.FC = () => {
     const { plots, activePlotId, addPlot, removePlot, setActivePlotId } = useAppStore();
+    const [selectedType, setSelectedType] = useState<PlotTypeValue>('scatter');
 
     return (
         <Paper sx={{ p: 2, mt: 2 }}>
@@ -12,40 +28,28 @@ export const PlotManager: React.FC = () => {
                 Plot Manager
             </Typography>
 
-            <Box sx={{ mb: 2 }}>
-                <Typography variant="subtitle2" gutterBottom>Add New Plot:</Typography>
-                <Box sx={{ display: 'flex', gap: 1, flexDirection: 'column' }}>
-                    <Button variant="outlined" startIcon={<AddCircle />} onClick={() => addPlot('scatter')} fullWidth size="small">
-                        SCATTER
-                    </Button>
-                    <Button variant="outlined" startIcon={<AddCircle />} onClick={() => addPlot('ternary')} fullWidth size="small">
-                        TERNARY
-                    </Button>
-                    <Button variant="outlined" startIcon={<AddCircle />} onClick={() => addPlot('spider')} fullWidth size="small">
-                        SPIDER
-                    </Button>
-                    <Button variant="outlined" startIcon={<AddCircle />} onClick={() => addPlot('map')} fullWidth size="small">
-                        MAP
-                    </Button>
-                    <Button variant="outlined" startIcon={<AddCircle />} onClick={() => addPlot('map3d')} fullWidth size="small">
-                        MAP 3D
-                    </Button>
-                    <Button variant="outlined" startIcon={<AddCircle />} onClick={() => addPlot('downhole')} fullWidth size="small">
-                        DOWNHOLE
-                    </Button>
-                    <Button variant="outlined" startIcon={<AddCircle />} onClick={() => addPlot('histogram')} fullWidth size="small">
-                        HISTOGRAM
-                    </Button>
-                    <Button variant="outlined" startIcon={<AddCircle />} onClick={() => addPlot('clr')} fullWidth size="small">
-                        CLR BIPLOT
-                    </Button>
-                    <Button variant="outlined" startIcon={<AddCircle />} onClick={() => addPlot('classification')} fullWidth size="small" color="secondary">
-                        CLASSIFICATION
-                    </Button>
-                    <Button variant="outlined" startIcon={<AddCircle />} onClick={() => addPlot('pathfinder')} fullWidth size="small" color="success">
-                        PATHFINDER
-                    </Button>
-                </Box>
+            <Box sx={{ display: 'flex', gap: 1, alignItems: 'center', mb: 2 }}>
+                <Select
+                    value={selectedType}
+                    onChange={(e) => setSelectedType(e.target.value as PlotTypeValue)}
+                    size="small"
+                    sx={{ flex: 1 }}
+                >
+                    {PLOT_TYPES.map((pt) => (
+                        <MenuItem key={pt.value} value={pt.value}>
+                            {pt.label}
+                        </MenuItem>
+                    ))}
+                </Select>
+                <Button
+                    variant="contained"
+                    size="small"
+                    startIcon={<Add />}
+                    onClick={() => addPlot(selectedType)}
+                    sx={{ whiteSpace: 'nowrap' }}
+                >
+                    Add Plot
+                </Button>
             </Box>
 
             {plots.length > 0 && (

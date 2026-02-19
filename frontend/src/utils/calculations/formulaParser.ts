@@ -101,7 +101,7 @@ class Lexer {
         }
 
         // Check if it's a function
-        const functions: FormulaFunction[] = ['log10', 'ln', 'sqrt', 'abs', 'min', 'max', 'pow', 'exp'];
+        const functions: FormulaFunction[] = ['log10', 'log', 'ln', 'sqrt', 'abs', 'min', 'max', 'pow', 'exp'];
         if (functions.includes(id.toLowerCase() as FormulaFunction)) {
             return { type: 'FUNCTION', value: id.toLowerCase(), position: startPos };
         }
@@ -353,7 +353,7 @@ class Parser {
  * - Numbers: 123, 45.67
  * - Variables: {ColumnName} or simpleVar
  * - Operators: +, -, *, /, ^
- * - Functions: log10(), ln(), sqrt(), abs(), min(), max(), pow(), exp()
+ * - Functions: log10(), log(), ln(), sqrt(), abs(), min(), max(), pow(), exp()
  * - Parentheses for grouping
  *
  * Examples:

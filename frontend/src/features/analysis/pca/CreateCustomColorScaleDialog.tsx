@@ -38,6 +38,7 @@ import { jenksBreaks, equalIntervals, quantileBreaks } from '../../../utils/clas
 interface CreateCustomColorScaleDialogProps {
   open: boolean;
   onClose: () => void;
+  onSuccess?: (message: string) => void;
   pcNumber: number;
   associationName: string;
   side: 'positive' | 'negative';
@@ -47,6 +48,7 @@ interface CreateCustomColorScaleDialogProps {
 export const CreateCustomColorScaleDialog: React.FC<CreateCustomColorScaleDialogProps> = ({
   open,
   onClose,
+  onSuccess,
   pcNumber,
   associationName,
   side,
@@ -54,6 +56,7 @@ export const CreateCustomColorScaleDialog: React.FC<CreateCustomColorScaleDialog
 }) => {
   const { data, columns } = useAppStore();
   const { setField, setMethod, setPalette, setNumClasses, setEntries, color: colorConfig } = useAttributeStore();
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   // State
   const [useNegated, setUseNegated] = useState(side === 'negative');
@@ -82,10 +85,12 @@ export const CreateCustomColorScaleDialog: React.FC<CreateCustomColorScaleDialog
   }, []);
 
   const handleCreate = () => {
+    setErrorMessage(null);
+
     // Validate column exists
     const targetColumn = columns.find((c) => c.name === pcColumn);
     if (!targetColumn) {
-      alert(`Column "${pcColumn}" not found. Please add PC scores to data first.`);
+      setErrorMessage(`Column "${pcColumn}" not found. Please add PC scores to data first.`);
       return;
     }
 
@@ -95,7 +100,7 @@ export const CreateCustomColorScaleDialog: React.FC<CreateCustomColorScaleDialog
       .filter((v) => typeof v === 'number' && !isNaN(v)) as number[];
 
     if (values.length === 0) {
-      alert(`No numeric values found in column "${pcColumn}".`);
+      setErrorMessage(`No numeric values found in column "${pcColumn}".`);
       return;
     }
 
@@ -147,6 +152,8 @@ export const CreateCustomColorScaleDialog: React.FC<CreateCustomColorScaleDialog
     setNumClasses('color', numClassesLocal);
     setEntries('color', newEntries);
 
+    const methodLabels: Record<string, string> = { quantile: 'quantile', jenks: 'Jenks', equal: 'equal interval' };
+    onSuccess?.(`Colour scale applied: ${pcColumn} (${numClassesLocal} classes, ${methodLabels[method] || method})`);
     onClose();
   };
 
@@ -160,6 +167,11 @@ export const CreateCustomColorScaleDialog: React.FC<CreateCustomColorScaleDialog
       </DialogTitle>
 
       <DialogContent>
+        {errorMessage && (
+          <Alert severity="error" sx={{ mb: 2 }} onClose={() => setErrorMessage(null)}>
+            {errorMessage}
+          </Alert>
+        )}
         {/* Association Info */}
         <Box
           sx={{

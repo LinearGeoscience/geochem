@@ -17,7 +17,7 @@ import {
 import { ExpandMore, ExpandLess, AutoFixHigh } from '@mui/icons-material';
 import { MultiColumnSelector } from '../../components/MultiColumnSelector';
 import { useAttributeStore } from '../../store/attributeStore';
-import { getStyleArrays, applyOpacityToColor, getSortedIndices, sortColumnsByPriority } from '../../utils/attributeUtils';
+import { getStyleArrays, applyOpacityToColor, getSortedIndices, sortColumnsByPriority, getColumnDisplayName } from '../../utils/attributeUtils';
 import { getPlotConfig, EXPORT_FONT_SIZES } from '../../utils/plotConfig';
 import { ExpandablePlotWrapper } from '../../components/ExpandablePlotWrapper';
 import { buildSpiderHoverText } from '../../utils/tooltipUtils';
@@ -36,9 +36,13 @@ interface SpiderPlotProps {
 }
 
 export const SpiderPlot: React.FC<SpiderPlotProps> = ({ plotId }) => {
-    const { data, columns, lockAxes, getPlotSettings, updatePlotSettings, getFilteredColumns } = useAppStore();
+    const { data, columns, lockAxes, getPlotSettings, updatePlotSettings, getFilteredColumns, getDisplayData, getDisplayIndices, sampleIndices, geochemMappings } = useAppStore();
     const filteredColumns = getFilteredColumns();
+    const d = (name: string) => getColumnDisplayName(columns, name);
     useAttributeStore(); // Subscribe to changes
+
+    const displayData = useMemo(() => getDisplayData(), [data, sampleIndices]);
+    const displayIndices = useMemo(() => getDisplayIndices(), [data, sampleIndices]);
 
     // Get stored settings or defaults
     const storedSettings = getPlotSettings(plotId);
@@ -92,11 +96,11 @@ export const SpiderPlot: React.FC<SpiderPlotProps> = ({ plotId }) => {
         return ELEMENT_ORDERS.find(o => o.id === elementOrderId) || null;
     }, [elementOrderId]);
 
-    // Get matched columns for current order
+    // Get matched columns for current order (prefer geochem mappings)
     const matchedColumns = useMemo(() => {
         if (!currentOrder) return {};
-        return findMatchingColumns(columnNames, currentOrder);
-    }, [currentOrder, columnNames]);
+        return findMatchingColumns(columnNames, currentOrder, geochemMappings.length > 0 ? geochemMappings : undefined);
+    }, [currentOrder, columnNames, geochemMappings]);
 
     // Get normalization values
     const normalization = useMemo(() => {
@@ -115,17 +119,17 @@ export const SpiderPlot: React.FC<SpiderPlotProps> = ({ plotId }) => {
         }
     }, [elementOrderId, currentOrder, matchedColumns]);
 
-    // Get the display labels (element symbols when using standard order)
-    const getDisplayLabels = (columns: string[]): string[] => {
+    // Get the display labels (element symbols when using standard order, aliases in custom mode)
+    const getDisplayLabels = (colNames: string[]): string[] => {
         if (elementOrderId === 'custom' || !currentOrder) {
-            return columns;
+            return colNames.map(col => d(col));
         }
         // Map column names back to element symbols
         const columnToElement: Record<string, string> = {};
         for (const [element, column] of Object.entries(matchedColumns)) {
             columnToElement[column] = element;
         }
-        return columns.map(col => columnToElement[col] || col);
+        return colNames.map(col => columnToElement[col] || col);
     };
 
     // Apply normalization to values
@@ -165,10 +169,10 @@ export const SpiderPlot: React.FC<SpiderPlotProps> = ({ plotId }) => {
     const displayLabels = useMemo(() => getDisplayLabels(selectedElements), [selectedElements, elementOrderId, matchedColumns]);
 
     const plotData = useMemo(() => {
-        if (!data.length || selectedElements.length === 0) return [];
+        if (!displayData.length || selectedElements.length === 0) return [];
 
         // Get styles from attribute store (includes emphasis calculations)
-        const styleArrays = getStyleArrays(data);
+        const styleArrays = getStyleArrays(displayData, displayIndices ?? undefined);
 
         // Get sorted indices for z-ordering (low-grade first, high-grade last/on top)
         const sortedIndices = getSortedIndices(styleArrays);
@@ -182,11 +186,12 @@ export const SpiderPlot: React.FC<SpiderPlotProps> = ({ plotId }) => {
             const sampleSize = styleArrays.sizes[idx];
             const sampleOpacity = styleArrays.opacity[idx];
             const colorWithOpacity = applyOpacityToColor(sampleColor, sampleOpacity * 0.8);
-            const hoverText = buildSpiderHoverText(data, idx);
+            const originalIdx = displayIndices ? displayIndices[idx] : idx;
+            const hoverText = buildSpiderHoverText(data, originalIdx);
 
             // Apply normalization to values
             const yValues = selectedElements.map(el => {
-                const rawValue = data[idx][el];
+                const rawValue = displayData[idx][el];
                 if (rawValue == null || isNaN(rawValue)) return null;
                 return normalizeValue(el, rawValue);
             });
@@ -212,7 +217,7 @@ export const SpiderPlot: React.FC<SpiderPlotProps> = ({ plotId }) => {
         });
 
         return traces;
-    }, [data, selectedElements, displayLabels, normalizationId, normalization, matchedColumns]);
+    }, [data, displayData, displayIndices, selectedElements, displayLabels, normalizationId, normalization, matchedColumns]);
 
     // Calculate matched element count for display
     const matchedCount = currentOrder ? Object.keys(matchedColumns).length : 0;

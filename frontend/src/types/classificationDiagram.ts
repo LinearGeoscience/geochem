@@ -8,16 +8,65 @@ export interface DiagramPolygon {
     color: { r: number; g: number; b: number };
     // Boundary points in the appropriate coordinate system
     points: { x: number; y: number }[];
-    // Label position (for ternary: a,b fractions; for XY: x,y coords)
-    labelPos?: { x: number; y: number };
+    // Label position (for ternary: {a,b} fractions; for XY: {x,y} coords)
+    labelPos?: { x: number; y: number } | { a: number; b: number };
     labelAngle?: number;
     visible?: boolean;
+    // false = open polyline (not filled); default true = closed polygon
+    closed?: boolean;
+    // true = render with spline interpolation for smooth curves
+    smooth?: boolean;
+}
+
+export interface DiagramLine {
+    name: string;
+    slope: number;      // m in y = mx + c
+    intercept: number;  // c in y = mx + c
+    color: { r: number; g: number; b: number };
+    labelAngle?: number;
+}
+
+export interface DiagramPointFeature {
+    name: string;
+    // XY point features
+    x?: number;
+    y?: number;
+    // Ternary point features
+    a?: number;
+    b?: number;
+    pixelRadius: number;
+    color: { r: number; g: number; b: number };
+}
+
+export interface DiagramLabel {
+    name: string;
+    // XY labels
+    x?: number;
+    y?: number;
+    // Ternary labels
+    a?: number;
+    b?: number;
+    angle: number;
+    color: { r: number; g: number; b: number };
+}
+
+export interface DiagramBounds {
+    x: number;
+    y: number;
+    w: number;
+    h: number;
 }
 
 export interface DiagramAxis {
     name: string;
     formula?: string;  // For calculated axes like "SiO2" or "Na2O+K2O"
     log?: boolean;
+}
+
+export interface DiagramVariable {
+    letter: string;     // Single letter used in formula (e.g., "S")
+    element: string;    // Oxide, element, or molar name (e.g., "SiO2", "Na-mol")
+    unit: string;       // "pct", "ppm", "mol/kg"
 }
 
 export type DiagramType = 'ternary' | 'xy';
@@ -38,8 +87,17 @@ export interface ClassificationDiagram {
         y?: DiagramAxis;  // Y-axis for XY
     };
 
+    // Variable mappings (letter → element/oxide)
+    variables?: DiagramVariable[];
+
     // Classification fields
     polygons: DiagramPolygon[];
+
+    // Additional features
+    lines?: DiagramLine[];
+    pointFeatures?: DiagramPointFeature[];
+    labels?: DiagramLabel[];
+    bounds?: DiagramBounds;
 
     // Metadata
     comments?: string[];

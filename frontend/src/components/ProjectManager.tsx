@@ -41,6 +41,7 @@ import {
     CheckCircle,
 } from '@mui/icons-material';
 import { useProjectStore, autosaveManager, PROJECT_FILE_EXTENSION } from '../store/projectStore';
+import { useAppStore } from '../store/appStore';
 
 interface ProjectManagerProps {
     variant?: 'menu' | 'toolbar' | 'statusbar';
@@ -67,6 +68,10 @@ export const ProjectManager: React.FC<ProjectManagerProps> = ({ variant = 'toolb
         setLoadError,
     } = useProjectStore();
 
+    // Live data counts for status bar (not stale metadata)
+    const liveRowCount = useAppStore(state => state.data.length);
+    const liveColumnCount = useAppStore(state => state.columns.length);
+
     // Check if File System Access API is supported (Chromium browsers)
     const hasFileSystemAccess = 'showSaveFilePicker' in window;
 
@@ -85,6 +90,15 @@ export const ProjectManager: React.FC<ProjectManagerProps> = ({ variant = 'toolb
         autosaveManager.start();
         return () => autosaveManager.stop();
     }, []);
+
+    // Warn user before closing browser tab with unsaved changes
+    useEffect(() => {
+        const handler = (e: BeforeUnloadEvent) => { e.preventDefault(); };
+        if (isDirty) {
+            window.addEventListener('beforeunload', handler);
+        }
+        return () => window.removeEventListener('beforeunload', handler);
+    }, [isDirty]);
 
     // Show save success notification
     useEffect(() => {
@@ -125,8 +139,13 @@ export const ProjectManager: React.FC<ProjectManagerProps> = ({ variant = 'toolb
     };
 
     const handleWarningSave = async () => {
-        await saveProjectToFile();
+        const success = await saveProjectToFile();
         setUnsavedWarningOpen(false);
+        if (!success) {
+            // Save failed or was cancelled — don't discard unsaved changes
+            setPendingAction(null);
+            return;
+        }
         if (pendingAction === 'new') {
             setNewProjectDialogOpen(true);
         } else if (pendingAction === 'load') {
@@ -278,10 +297,10 @@ export const ProjectManager: React.FC<ProjectManagerProps> = ({ variant = 'toolb
                 {/* Spacer */}
                 <Box sx={{ flexGrow: 1 }} />
 
-                {/* Data info */}
+                {/* Data info — live counts from store, not stale metadata */}
                 {currentProject && (
                     <Typography variant="caption" color="text.secondary">
-                        {currentProject.rowCount} rows × {currentProject.columnCount} columns
+                        {liveRowCount} rows × {liveColumnCount} columns
                     </Typography>
                 )}
             </Paper>

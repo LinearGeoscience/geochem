@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import Plot from 'react-plotly.js';
 import { useAppStore } from '../../store/appStore';
 import { Box, Paper, FormControl, InputLabel, Select, MenuItem, Checkbox, FormControlLabel, Grid, Typography, Slider, ToggleButton, ToggleButtonGroup, Tooltip } from '@mui/material';
@@ -6,10 +6,11 @@ import { MultiColumnSelector } from '../../components/MultiColumnSelector';
 import { TAS_DIAGRAM } from './classifications';
 import { ExpandablePlotWrapper } from '../../components/ExpandablePlotWrapper';
 import { useAttributeStore } from '../../store/attributeStore';
-import { getStyleArrays, shapeToPlotlySymbol, applyOpacityToColor, getSortedIndices, sortColumnsByPriority } from '../../utils/attributeUtils';
+import { getStyleArrays, shapeToPlotlySymbol, applyOpacityToColor, getSortedIndices, sortColumnsByPriority, getColumnDisplayName } from '../../utils/attributeUtils';
 import { calculateLinearRegression } from '../../utils/regressionUtils';
 import { buildCustomData, buildScatterHoverTemplate } from '../../utils/tooltipUtils';
 import { getPlotConfig, EXPORT_FONT_SIZES, PRESENTATION_FONT_SIZES } from '../../utils/plotConfig';
+import { computePointDensities, DENSITY_JET_POINT_COLORSCALE } from '../../utils/densityGrid';
 
 // Store axis ranges per plot when locked
 interface AxisRangeCache {
@@ -18,14 +19,19 @@ interface AxisRangeCache {
 
 // WebGL threshold - use scattergl for large datasets for better performance
 const WEBGL_THRESHOLD = 5000;
+// Max WebGL contexts before falling back to CPU-rendered scatter (browsers limit to ~8-16)
+const MAX_WEBGL_CONTEXTS = 16;
 
 interface ScatterPlotProps {
     plotId: string;
 }
 
 export const ScatterPlot: React.FC<ScatterPlotProps> = ({ plotId }) => {
-    const { data, columns, setSelection, lockAxes, getPlotSettings, updatePlotSettings, getFilteredColumns } = useAppStore();
+    const { data, columns, setSelection, lockAxes, getPlotSettings, updatePlotSettings, getFilteredColumns, getDisplayData, getDisplayIndices, sampleIndices, geochemMappings } = useAppStore();
     const filteredColumns = getFilteredColumns();
+    const d = (name: string) => getColumnDisplayName(columns, name);
+    const displayData = useMemo(() => getDisplayData(), [data, sampleIndices]);
+    const displayIndices = useMemo(() => getDisplayIndices(), [data, sampleIndices]);
     // Subscribe to all attribute state that affects styling to trigger re-renders
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
     const { color, shape: _shape, size: _size, filter: _filter, customEntries: _customEntries, emphasis: _emphasis, globalOpacity: _globalOpacity } = useAttributeStore();
@@ -38,8 +44,9 @@ export const ScatterPlot: React.FC<ScatterPlotProps> = ({ plotId }) => {
     const [showClassification, setShowClassificationLocal] = useState<boolean>(storedSettings.showClassification || false);
     const [showRegression, setShowRegressionLocal] = useState<boolean>(storedSettings.showRegression || false);
     const [regressionMode, setRegressionModeLocal] = useState<'global' | 'per-category'>(storedSettings.regressionMode || 'global');
-    const [showContours, setShowContoursLocal] = useState<boolean>(storedSettings.showContours || false);
-    const [contourResolution, setContourResolutionLocal] = useState<number>(storedSettings.contourResolution || 50);
+    const [showDensity, setShowDensityLocal] = useState<boolean>(storedSettings.showContours || false);
+    const [densitySmoothing, setDensitySmoothingLocal] = useState<number>(storedSettings.contourResolution != null ? Math.min(8, Math.max(0.5, storedSettings.contourResolution / 25)) : 2.0);
+    const [densityOpacity, setDensityOpacityLocal] = useState<number>(storedSettings.densityOpacity ?? 0.7);
     const [logScaleX, setLogScaleXLocal] = useState<boolean>(storedSettings.logScaleX || false);
     const [logScaleY, setLogScaleYLocal] = useState<boolean>(storedSettings.logScaleY || false);
     const [presentationMode, setPresentationModeLocal] = useState<boolean>(storedSettings.presentationMode || false);
@@ -66,13 +73,17 @@ export const ScatterPlot: React.FC<ScatterPlotProps> = ({ plotId }) => {
         setRegressionModeLocal(mode);
         updatePlotSettings(plotId, { regressionMode: mode });
     };
-    const setShowContours = (show: boolean) => {
-        setShowContoursLocal(show);
+    const setShowDensity = (show: boolean) => {
+        setShowDensityLocal(show);
         updatePlotSettings(plotId, { showContours: show });
     };
-    const setContourResolution = (resolution: number) => {
-        setContourResolutionLocal(resolution);
-        updatePlotSettings(plotId, { contourResolution: resolution });
+    const setDensitySmoothing = (smoothing: number) => {
+        setDensitySmoothingLocal(smoothing);
+        updatePlotSettings(plotId, { contourResolution: smoothing * 25 });
+    };
+    const setDensityOpacity = (opacity: number) => {
+        setDensityOpacityLocal(opacity);
+        updatePlotSettings(plotId, { densityOpacity: opacity });
     };
     const setLogScaleX = (log: boolean) => {
         setLogScaleXLocal(log);
@@ -125,19 +136,36 @@ export const ScatterPlot: React.FC<ScatterPlotProps> = ({ plotId }) => {
         filteredColumns.filter(c => c && c.name && (c.type === 'numeric' || c.type === 'float' || c.type === 'integer'))
     );
 
-    // Check if axes match TAS for any Y-axis
+    // Check if axes match TAS for any Y-axis (use geochem mappings if available, fallback to string match)
     const isTASForAxis = (yAxisName: string) => {
         if (!xAxis || !yAxisName) return false;
+
+        // Try geochem mappings first
+        if (geochemMappings.length > 0) {
+            const xMapping = geochemMappings.find(m => m.originalName === xAxis);
+            const yMapping = geochemMappings.find(m => m.originalName === yAxisName);
+            if (xMapping && yMapping) {
+                const xElement = xMapping.userOverride ?? xMapping.detectedElement;
+                const yElement = yMapping.userOverride ?? yMapping.detectedElement;
+                const xIsOxide = xMapping.isOxide;
+                const yIsOxide = yMapping.isOxide;
+                if (xElement === 'Si' && xIsOxide && yIsOxide && (yElement === 'Na' || yElement === 'K')) {
+                    return true;
+                }
+            }
+        }
+
+        // Fallback to string-based detection
         const xName = xAxis.toLowerCase();
         const yName = yAxisName.toLowerCase();
         return xName.includes('sio2') && (yName.includes('na2o') || yName.includes('k2o'));
     };
 
     const getPlotDataForAxis = (yAxisName: string) => {
-        if (!data.length || !xAxis) return [];
+        if (!displayData.length || !xAxis) return [];
 
         // Get styles from attribute store (includes emphasis calculations)
-        const styleArrays = getStyleArrays(data);
+        const styleArrays = getStyleArrays(displayData, displayIndices ?? undefined);
 
         // Get sorted indices (z-ordering: low-grade first, high-grade last/on top)
         const sortedIndices = getSortedIndices(styleArrays);
@@ -153,7 +181,7 @@ export const ScatterPlot: React.FC<ScatterPlotProps> = ({ plotId }) => {
         const sortedOriginalIndices: number[] = [];
 
         for (const i of sortedIndices) {
-            sortedData.push(data[i]);
+            sortedData.push(displayData[i]);
             // Apply emphasis opacity to colors
             const colorWithOpacity = applyOpacityToColor(styleArrays.colors[i], styleArrays.opacity[i]);
             sortedColors.push(colorWithOpacity);
@@ -162,11 +190,52 @@ export const ScatterPlot: React.FC<ScatterPlotProps> = ({ plotId }) => {
             sortedOriginalIndices.push(i);
         }
 
-        // Use WebGL for large datasets
-        const plotType = sortedData.length > WEBGL_THRESHOLD ? 'scattergl' : 'scatter';
+        // Use WebGL for large datasets, but fall back to CPU scatter when too many subplots
+        const useWebGL = yAxes.length <= MAX_WEBGL_CONTEXTS;
+        const plotType = (useWebGL && sortedData.length > WEBGL_THRESHOLD) ? 'scattergl' : 'scatter';
 
         // Build rich customdata for hover tooltips
-        const customData = buildCustomData(data, sortedIndices);
+        const customData = buildCustomData(displayData, sortedIndices, displayIndices ?? undefined);
+
+        // Compute per-point density coloring if enabled
+        let densityColors: number[] | null = null;
+        if (showDensity && sortedData.length >= 10) {
+            // Build valid x/y arrays for density; skip non-positive on log axes
+            const xRaw = sortedData.map(d => Number(d[xAxis]));
+            const yRaw = sortedData.map(d => Number(d[yAxisName]));
+            const validMask = xRaw.map((xv, i) => {
+                const yv = yRaw[i];
+                if (isNaN(xv) || !isFinite(xv) || isNaN(yv) || !isFinite(yv)) return false;
+                if (logScaleX && xv <= 0) return false;
+                if (logScaleY && yv <= 0) return false;
+                return true;
+            });
+            const xVals = xRaw.map((v, i) => validMask[i] ? (logScaleX ? Math.log10(v) : v) : 0);
+            const yVals = yRaw.map((v, i) => validMask[i] ? (logScaleY ? Math.log10(v) : v) : 0);
+
+            // Only use valid points for density computation
+            const xValid: number[] = [];
+            const yValid: number[] = [];
+            const validIndices: number[] = [];
+            for (let i = 0; i < validMask.length; i++) {
+                if (validMask[i]) {
+                    xValid.push(xVals[i]);
+                    yValid.push(yVals[i]);
+                    validIndices.push(i);
+                }
+            }
+
+            if (xValid.length >= 10) {
+                const result = computePointDensities(xValid, yValid, { smoothingSigma: densitySmoothing });
+                if (result) {
+                    // Map densities back to full array (0 for invalid points)
+                    densityColors = new Array(sortedData.length).fill(0);
+                    for (let j = 0; j < validIndices.length; j++) {
+                        densityColors[validIndices[j]] = result.densities[j];
+                    }
+                }
+            }
+        }
 
         const trace: any = {
             x: sortedData.map(d => d[xAxis]),
@@ -174,8 +243,16 @@ export const ScatterPlot: React.FC<ScatterPlotProps> = ({ plotId }) => {
             mode: 'markers',
             type: plotType,
             customdata: customData,
-            hovertemplate: buildScatterHoverTemplate(xAxis, yAxisName),
-            marker: {
+            hovertemplate: buildScatterHoverTemplate(d(xAxis), d(yAxisName)),
+            marker: densityColors ? {
+                color: densityColors,
+                colorscale: DENSITY_JET_POINT_COLORSCALE,
+                showscale: false,
+                symbol: sortedShapes.map(s => shapeToPlotlySymbol(s)),
+                size: sortedSizes,
+                opacity: densityOpacity,
+                line: { width: 0 }
+            } : {
                 color: sortedColors,
                 symbol: sortedShapes.map(s => shapeToPlotlySymbol(s)),
                 size: sortedSizes,
@@ -185,46 +262,8 @@ export const ScatterPlot: React.FC<ScatterPlotProps> = ({ plotId }) => {
 
         const traces: any[] = [];
 
-        // Add density heatmap if enabled
-        if (showContours) {
-            const xValues = sortedData.map(d => Number(d[xAxis])).filter(v => !isNaN(v) && isFinite(v));
-            const yValues = sortedData.map(d => Number(d[yAxisName])).filter(v => !isNaN(v) && isFinite(v));
-
-            if (xValues.length > 3 && yValues.length > 3) {
-                // Custom Jet colorscale with transparent background for low density
-                const jetTransparent = [
-                    [0, 'rgba(255,255,255,0)'],
-                    [0.05, 'rgb(0,0,131)'],
-                    [0.125, 'rgb(0,60,170)'],
-                    [0.375, 'rgb(5,255,255)'],
-                    [0.625, 'rgb(255,255,0)'],
-                    [0.875, 'rgb(250,0,0)'],
-                    [1, 'rgb(128,0,0)']
-                ];
-
-                traces.push({
-                    x: xValues,
-                    y: yValues,
-                    type: 'histogram2dcontour',
-                    nbinsx: contourResolution,
-                    nbinsy: contourResolution,
-                    colorscale: jetTransparent,
-                    showscale: false,
-                    contours: {
-                        coloring: 'fill',
-                        showlabels: false,
-                        smoothing: 1.3
-                    },
-                    hoverinfo: 'skip',
-                    line: {
-                        width: 0
-                    }
-                });
-            }
-        } else {
-            // Only show scatter points when contours are disabled
-            traces.push(trace);
-        }
+        // Always add scatter points
+        traces.push(trace);
 
         // Add regression lines if enabled
         if (showRegression) {
@@ -364,25 +403,42 @@ export const ScatterPlot: React.FC<ScatterPlotProps> = ({ plotId }) => {
                 )}
 
                 <FormControlLabel
-                    control={<Checkbox checked={showContours} onChange={(e) => setShowContours(e.target.checked)} />}
-                    label="Show Density Contours"
+                    control={<Checkbox checked={showDensity} onChange={(e) => setShowDensity(e.target.checked)} />}
+                    label="Show Density"
                 />
 
-                {showContours && (
-                    <Box sx={{ minWidth: 200, px: 2 }}>
-                        <Typography variant="caption" gutterBottom>
-                            Contour Resolution: {contourResolution}
-                        </Typography>
-                        <Slider
-                            value={contourResolution}
-                            onChange={(_, value) => setContourResolution(value as number)}
-                            min={20}
-                            max={200}
-                            step={10}
-                            valueLabelDisplay="auto"
-                            size="small"
-                        />
-                    </Box>
+                {showDensity && (
+                    <>
+                        <Box sx={{ minWidth: 140, px: 1 }}>
+                            <Typography variant="caption" gutterBottom>
+                                Smoothing: {densitySmoothing.toFixed(1)}
+                            </Typography>
+                            <Slider
+                                value={densitySmoothing}
+                                onChange={(_, value) => setDensitySmoothing(value as number)}
+                                min={0.5}
+                                max={8}
+                                step={0.5}
+                                valueLabelDisplay="auto"
+                                size="small"
+                            />
+                        </Box>
+                        <Box sx={{ minWidth: 140, px: 1 }}>
+                            <Typography variant="caption" gutterBottom>
+                                Opacity: {Math.round(densityOpacity * 100)}%
+                            </Typography>
+                            <Slider
+                                value={densityOpacity}
+                                onChange={(_, value) => setDensityOpacity(value as number)}
+                                min={0.1}
+                                max={1}
+                                step={0.05}
+                                valueLabelDisplay="auto"
+                                valueLabelFormat={(v) => `${Math.round(v * 100)}%`}
+                                size="small"
+                            />
+                        </Box>
+                    </>
                 )}
 
                 {/* Log Scale Controls */}
@@ -466,7 +522,7 @@ export const ScatterPlot: React.FC<ScatterPlotProps> = ({ plotId }) => {
                                             data={traces}
                                             layout={{
                                                 title: {
-                                                    text: `${xAxis} vs ${yAxisName}`,
+                                                    text: `${d(xAxis)} vs ${d(yAxisName)}`,
                                                     font: { size: presentationMode ? PRESENTATION_FONT_SIZES.title : EXPORT_FONT_SIZES.title }
                                                 },
                                                 autosize: true,
@@ -477,7 +533,7 @@ export const ScatterPlot: React.FC<ScatterPlotProps> = ({ plotId }) => {
                                                 font: { size: presentationMode ? PRESENTATION_FONT_SIZES.tickLabels : EXPORT_FONT_SIZES.tickLabels },
                                                 xaxis: {
                                                     title: {
-                                                        text: xAxis,
+                                                        text: d(xAxis),
                                                         font: { size: presentationMode ? PRESENTATION_FONT_SIZES.axisTitle : EXPORT_FONT_SIZES.axisTitle }
                                                     },
                                                     tickfont: { size: presentationMode ? PRESENTATION_FONT_SIZES.tickLabels : EXPORT_FONT_SIZES.tickLabels },
@@ -488,7 +544,7 @@ export const ScatterPlot: React.FC<ScatterPlotProps> = ({ plotId }) => {
                                                 },
                                                 yaxis: {
                                                     title: {
-                                                        text: yAxisName,
+                                                        text: d(yAxisName),
                                                         font: { size: presentationMode ? PRESENTATION_FONT_SIZES.axisTitle : EXPORT_FONT_SIZES.axisTitle }
                                                     },
                                                     tickfont: { size: presentationMode ? PRESENTATION_FONT_SIZES.tickLabels : EXPORT_FONT_SIZES.tickLabels },

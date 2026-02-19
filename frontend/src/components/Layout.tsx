@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Box, Drawer, List, ListItem, ListItemIcon, ListItemText, AppBar, Toolbar, Typography, IconButton, Divider, Button, Tooltip, Select, MenuItem, FormControl, Chip } from '@mui/material';
-import { CloudUpload, TableChart, ViewColumn, BarChart, Analytics, Settings, Menu as MenuIcon, ChevronLeft, Calculate, FilterList, Science, Functions } from '@mui/icons-material';
+import { CloudUpload, TableChart, ViewColumn, BarChart, Analytics, Settings, Menu as MenuIcon, ChevronLeft, Calculate, FilterList, Science, Functions, Biotech, Edit } from '@mui/icons-material';
+import Badge from '@mui/material/Badge';
 import { useAppStore, COLUMN_FILTER_LABELS, ColumnFilterType } from '../store/appStore';
 import { useCalculationStore } from '../store/calculationStore';
 import { ProjectManager } from './ProjectManager';
@@ -8,9 +9,14 @@ import { ProjectManager } from './ProjectManager';
 const DRAWER_WIDTH = 200;
 
 export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-    const { currentView, setCurrentView, columns, columnFilter, setColumnFilter, availableFilters } = useAppStore();
+    const { currentView, setCurrentView, columns, columnFilter, setColumnFilter, availableFilters, geochemMappings, setShowGeochemDialog } = useAppStore();
     const { openCalculationManager } = useCalculationStore();
     const [sidebarOpen, setSidebarOpen] = useState(true);
+
+    // Count unconfirmed issues for badge
+    const geochemIssueCount = geochemMappings.filter(
+        m => !m.isConfirmed && !m.isExcluded && (m.confidence === 'low' || m.confidence === 'unknown')
+    ).length;
 
     // Only show filter if we have transformed data
     const hasTransformedData = availableFilters.length > 2 || availableFilters.some(f => f !== 'all' && f !== 'raw');
@@ -23,24 +29,27 @@ export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) =>
         { id: 'analysis', label: 'Analysis', icon: <Analytics /> },
         { id: 'qaqc', label: 'QA/QC', icon: <Science /> },
         { id: 'statistics', label: 'Statistics', icon: <Functions /> },
+        { id: 'diagram-editor', label: 'Diagram Editor', icon: <Edit /> },
         { id: 'settings', label: 'Settings', icon: <Settings /> },
     ];
 
     return (
         <Box sx={{ display: 'flex', height: '100vh' }}>
-            <AppBar position="fixed" sx={{ zIndex: (theme) => theme.zIndex.drawer + 1 }}>
-                <Toolbar>
-                    <IconButton
-                        color="inherit"
-                        edge="start"
-                        onClick={() => setSidebarOpen(!sidebarOpen)}
-                        sx={{ mr: 2 }}
-                    >
-                        {sidebarOpen ? <ChevronLeft /> : <MenuIcon />}
-                    </IconButton>
-                    <Typography variant="h6" noWrap component="div" sx={{ mr: 3 }}>
-                        GeoChem Pro
-                    </Typography>
+            <AppBar position="fixed" sx={{ zIndex: (theme) => theme.zIndex.drawer + 1, backgroundColor: '#1E1E1E' }}>
+                <Toolbar disableGutters sx={{ minHeight: 80, pr: 2 }}>
+                    <Box sx={{ width: DRAWER_WIDTH, display: 'flex', alignItems: 'center', flexShrink: 0, pl: 1, boxSizing: 'border-box' }}>
+                        <IconButton
+                            color="inherit"
+                            edge="start"
+                            onClick={() => setSidebarOpen(!sidebarOpen)}
+                            sx={{ mr: 1 }}
+                        >
+                            {sidebarOpen ? <ChevronLeft /> : <MenuIcon />}
+                        </IconButton>
+                        <Typography variant="h6" noWrap component="div" sx={{ fontSize: '1.6rem' }}>
+                            GeoChem
+                        </Typography>
+                    </Box>
                     <Divider orientation="vertical" flexItem sx={{ mr: 2, borderColor: 'rgba(255,255,255,0.3)' }} />
                     <ProjectManager variant="toolbar" />
                     <Divider orientation="vertical" flexItem sx={{ mx: 2, borderColor: 'rgba(255,255,255,0.3)' }} />
@@ -55,6 +64,29 @@ export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) =>
                             >
                                 Calculations
                             </Button>
+                        </span>
+                    </Tooltip>
+
+                    <Divider orientation="vertical" flexItem sx={{ mx: 2, borderColor: 'rgba(255,255,255,0.3)' }} />
+
+                    <Tooltip title="Column Chemistry - Configure element/oxide/unit mappings">
+                        <span>
+                            <Badge
+                                badgeContent={geochemIssueCount}
+                                color="warning"
+                                invisible={geochemIssueCount === 0}
+                                max={99}
+                            >
+                                <Button
+                                    color="inherit"
+                                    startIcon={<Biotech />}
+                                    onClick={() => setShowGeochemDialog(true)}
+                                    disabled={columns.length === 0}
+                                    size="small"
+                                >
+                                    Chemistry
+                                </Button>
+                            </Badge>
                         </span>
                     </Tooltip>
 
@@ -96,6 +128,12 @@ export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) =>
                             </Box>
                         </>
                     )}
+                    <Box sx={{ flexGrow: 1 }} />
+                    <img
+                        src="/logo-linear-geoscience.png"
+                        alt="Linear Geoscience"
+                        style={{ height: 48, opacity: 0.85 }}
+                    />
                 </Toolbar>
             </AppBar>
 
@@ -111,7 +149,7 @@ export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) =>
                     },
                 }}
             >
-                <Toolbar />
+                <Toolbar sx={{ minHeight: 80 }} />
                 <Box sx={{ overflow: 'auto' }}>
                     <List>
                         {menuItems.map((item) => (
@@ -146,7 +184,7 @@ export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) =>
                     height: '100vh',
                 }}
             >
-                <Toolbar />
+                <Toolbar sx={{ minHeight: 80 }} />
                 <Box sx={{ flexGrow: 1, p: 3, overflow: 'auto' }}>
                     {children}
                 </Box>

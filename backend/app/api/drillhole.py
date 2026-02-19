@@ -4,12 +4,15 @@ import pandas as pd
 import numpy as np
 import io
 import json
+import logging
 from datetime import datetime
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter()
 
 # === VERSION MARKER - UPDATE: 2025-11-26 14:30 - RETURNS ALL DATA ===
-print("[DRILLHOLE API] Loaded version: 2025-11-26 14:30 - Returns ALL data (not 100-row preview)")
+logger.info("Loaded version: 2025-11-26 14:30 - Returns ALL data (not 100-row preview)")
 
 # NOTE: data_manager is imported lazily inside functions to avoid circular imports
 # The import `from app.api.data import data_manager` happens at function call time
@@ -32,13 +35,13 @@ def decode_with_fallback(content: bytes) -> str:
     for encoding in encodings:
         try:
             decoded = content.decode(encoding)
-            print(f"[ENCODING] Successfully decoded using: {encoding}")
+            logger.debug("Successfully decoded using: %s", encoding)
             return decoded
         except (UnicodeDecodeError, AttributeError):
             continue
 
     # If all fail, use Latin-1 (never fails but may produce garbage)
-    print("[ENCODING] All encodings failed, using Latin-1 with error replacement")
+    logger.warning("All encodings failed, using Latin-1 with error replacement")
     return content.decode('latin-1', errors='replace')
 
 def parse_csv_with_detection(content: bytes, nrows: int = None) -> pd.DataFrame:
@@ -51,7 +54,7 @@ def parse_csv_with_detection(content: bytes, nrows: int = None) -> pd.DataFrame:
     try:
         df = pd.read_csv(io.BytesIO(content), nrows=nrows, on_bad_lines='skip')
         if len(df.columns) >= 2 and len(df) > 0:
-            print(f"[PARSE] Success with direct binary read, columns={len(df.columns)}")
+            logger.info("Success with direct binary read, columns=%d", len(df.columns))
             return df
     except:
         pass
@@ -113,7 +116,7 @@ def parse_csv_with_detection(content: bytes, nrows: int = None) -> pd.DataFrame:
                         continue
 
                 if valid_cols < len(df.columns) // 2:
-                    print(f"[PARSE] Data appears corrupted - {valid_cols}/{len(df.columns)} valid columns")
+                    logger.debug("Data appears corrupted - %d/%d valid columns", valid_cols, len(df.columns))
                     continue
                 delimiter_name = strategy.get('sep', 'auto-detected')
                 if delimiter_name == '\t':
@@ -123,14 +126,14 @@ def parse_csv_with_detection(content: bytes, nrows: int = None) -> pd.DataFrame:
                 elif delimiter_name == '\s{2,}':
                     delimiter_name = 'fixed-width'
                 skiprows = strategy.get('skiprows', 0)
-                print(f"[PARSE] Success with delimiter='{delimiter_name}', skiprows={skiprows}, columns={len(df.columns)}")
+                logger.info("Success with delimiter='%s', skiprows=%d, columns=%d", delimiter_name, skiprows, len(df.columns))
                 return df
         except Exception as e:
             continue
 
     # Last resort: try reading line by line and inferring format
     try:
-        print("[PARSE] All strategies failed, trying line-by-line analysis")
+        logger.debug("All strategies failed, trying line-by-line analysis")
         lines = decoded.split('\n')
 
         # Skip empty lines at the start
@@ -163,20 +166,20 @@ def parse_csv_with_detection(content: bytes, nrows: int = None) -> pd.DataFrame:
         df = pd.read_csv(io.StringIO(clean_csv), sep=delimiter, on_bad_lines='skip')
 
         if len(df.columns) >= 1 and len(df) > 0:
-            print(f"[PARSE] Line-by-line analysis succeeded with delimiter='{delimiter}', columns={len(df.columns)}")
+            logger.info("Line-by-line analysis succeeded with delimiter='%s', columns=%d", delimiter, len(df.columns))
             return df
 
         raise ValueError("Parsed dataframe has no valid data")
 
     except Exception as e:
         # Final fallback: return a structured error response
-        print(f"[PARSE] All parsing failed: {e}")
+        logger.error("All parsing failed: %s", e)
 
         # Check if it's a binary file (Excel, etc.)
         try:
             # Try to detect if it's binary
             if b'\x00' in content[:1000] or b'\xff\xfe' in content[:2] or b'\xfe\xff' in content[:2]:
-                print("[PARSE] File appears to be binary (Excel, etc.)")
+                logger.debug("File appears to be binary (Excel, etc.)")
                 error_df = pd.DataFrame({
                     'Error': ['Binary file detected'],
                     'FileType': ['Excel or other binary format'],
@@ -193,7 +196,7 @@ def parse_csv_with_detection(content: bytes, nrows: int = None) -> pd.DataFrame:
             'Details': [str(e)[:100]],  # Limit error message length
             'Suggestion': ['Check file format and encoding']
         })
-        print(f"[PARSE] Returning error dataframe")
+        logger.debug("Returning error dataframe")
         return error_df
 
 def parse_file_content(content: bytes, filename: str, nrows: int = None) -> pd.DataFrame:
@@ -207,13 +210,13 @@ def parse_file_content(content: bytes, filename: str, nrows: int = None) -> pd.D
 
     if ext in ['xlsx', 'xls']:
         # Excel file
-        print(f"[PARSE] Parsing Excel file: {filename}")
+        logger.debug("Parsing Excel file: %s", filename)
         try:
             df = pd.read_excel(io.BytesIO(content), nrows=nrows)
-            print(f"[PARSE] Excel parsed successfully: {len(df.columns)} columns, {len(df)} rows")
+            logger.info("Excel parsed successfully: %d columns, %d rows", len(df.columns), len(df))
             return df
         except Exception as e:
-            print(f"[PARSE] Excel parsing failed: {e}")
+            logger.error("Excel parsing failed: %s", e)
             raise ValueError(f"Failed to parse Excel file: {e}")
     else:
         # CSV or text file - use the robust parser
@@ -231,13 +234,13 @@ async def preview_drillhole_columns(
     Returns column information and sample data for user to verify mappings.
     """
     try:
-        print("[PREVIEW] Reading file headers for column detection...")
+        logger.debug("Reading file headers for column detection...")
 
         # Log file info
         for file, name in [(collar, 'collar'), (survey, 'survey'), (assay, 'assay')]:
             if file.filename:
                 ext = file.filename.lower().split('.')[-1] if '.' in file.filename else ''
-                print(f"[PREVIEW] {name} file: {file.filename} (type: {file.content_type}, ext: {ext})")
+                logger.debug("%s file: %s (type: %s, ext: %s)", name, file.filename, file.content_type, ext)
 
         # Read file contents
         collar_content = await collar.read()
@@ -249,9 +252,9 @@ async def preview_drillhole_columns(
         survey_df = parse_file_content(survey_content, survey.filename, nrows=10)
         assay_df = parse_file_content(assay_content, assay.filename, nrows=10)
 
-        print(f"[PREVIEW] Collar columns: {list(collar_df.columns)}")
-        print(f"[PREVIEW] Survey columns: {list(survey_df.columns)}")
-        print(f"[PREVIEW] Assay columns: {list(assay_df.columns)}")
+        logger.debug("Collar columns: %s", list(collar_df.columns))
+        logger.debug("Survey columns: %s", list(survey_df.columns))
+        logger.debug("Assay columns: %s", list(assay_df.columns))
 
         # Analyze columns and suggest mappings
         collar_info = analyze_columns(collar_df, "collar")
@@ -283,10 +286,8 @@ async def preview_drillhole_columns(
         # Re-raise HTTP exceptions as-is (don't wrap them)
         raise
     except Exception as e:
-        import traceback
         error_msg = str(e)
-        print(f"[ERROR] Preview failed: {error_msg}")
-        print(f"[TRACEBACK] {traceback.format_exc()}")
+        logger.exception("Preview failed: %s", error_msg)
 
         # Provide more specific error messages
         if "NoneType" in error_msg:
@@ -304,7 +305,7 @@ def analyze_columns(df: pd.DataFrame, file_type: str) -> List[Dict[str, Any]]:
 
     # Check if this is an error dataframe
     if 'Error' in df.columns or 'Status' in df.columns:
-        print(f"[ANALYZE] Skipping analysis for error dataframe")
+        logger.debug("Skipping analysis for error dataframe")
         return [{
             "name": col,
             "type": "error",
@@ -355,7 +356,7 @@ def analyze_columns(df: pd.DataFrame, file_type: str) -> List[Dict[str, Any]]:
                         clean_val = clean_val[:50] + '...'
                     sample_values.append(clean_val)
         except Exception as e:
-            print(f"[ANALYZE] Error extracting sample values for {col}: {e}")
+            logger.debug("Error extracting sample values for %s: %s", col, e)
             sample_values = ['<error>']
 
         # Additional validation based on data
@@ -525,7 +526,8 @@ async def process_with_mapping(
     assay: UploadFile = File(...),
     collar_mapping: str = Form(...),  # JSON string
     survey_mapping: str = Form(...),  # JSON string
-    assay_mapping: str = Form(...)    # JSON string
+    assay_mapping: str = Form(...),   # JSON string
+    negate_dip: str = Form("false")
 ):
     """
     Process drillhole data with user-specified column mappings.
@@ -540,12 +542,10 @@ async def process_with_mapping(
         survey_map = json.loads(survey_mapping)
         assay_map = json.loads(assay_mapping)
 
-        print("\n" + "="*60)
-        print("[MAPPED UPLOAD] Processing with user-defined column mappings")
-        print(f"Collar mapping: {collar_map}")
-        print(f"Survey mapping: {survey_map}")
-        print(f"Assay mapping: {assay_map}")
-        print("="*60)
+        logger.info("Processing with user-defined column mappings")
+        logger.info("Collar mapping: %s", collar_map)
+        logger.info("Survey mapping: %s", survey_map)
+        logger.info("Assay mapping: %s", assay_map)
 
         # Validate required fields
         required_collar = ["hole_id", "easting", "northing", "rl"]
@@ -565,7 +565,7 @@ async def process_with_mapping(
                 raise HTTPException(status_code=400, detail=f"Missing required assay field: {field}")
 
         # Read files
-        print("[CHECKPOINT 1] Reading files...")
+        logger.info("Reading files...")
         collar_content = await collar.read()
         survey_content = await survey.read()
         assay_content = await assay.read()
@@ -575,20 +575,26 @@ async def process_with_mapping(
         survey_df = parse_file_content(survey_content, survey.filename)
         assay_df = parse_file_content(assay_content, assay.filename)
 
-        print(f"[CHECKPOINT 2] Files loaded - Collars: {len(collar_df)}, Surveys: {len(survey_df)}, Assays: {len(assay_df)}")
+        logger.info("Files loaded - Collars: %d, Surveys: %d, Assays: %d", len(collar_df), len(survey_df), len(assay_df))
 
         # Rename columns to standard names for processing
         collar_df = rename_to_standard(collar_df, collar_map)
         survey_df = rename_to_standard(survey_df, survey_map)
         assay_df = rename_to_standard(assay_df, assay_map)
 
-        print("[CHECKPOINT 3] Columns renamed to standard format")
-        print(f"Collar columns: {list(collar_df.columns)[:10]}...")
-        print(f"Survey columns: {list(survey_df.columns)[:10]}...")
-        print(f"Assay columns: {list(assay_df.columns)[:10]}...")
+        logger.info("Columns renamed to standard format")
+        logger.debug("Collar columns: %s...", list(collar_df.columns)[:10])
+        logger.debug("Survey columns: %s...", list(survey_df.columns)[:10])
+        logger.debug("Assay columns: %s...", list(assay_df.columns)[:10])
+
+        # Negate dip values if requested (positive dip = downward -> negative dip = downward)
+        should_negate_dip = negate_dip.lower() in ('true', '1', 'yes')
+        if should_negate_dip and 'dip' in survey_df.columns:
+            survey_df['dip'] = pd.to_numeric(survey_df['dip'], errors='coerce') * -1
+            logger.info("Dip values negated (converting positive-down to negative-down convention)")
 
         # Process with desurvey
-        print("[CHECKPOINT 4] Starting desurvey processing...")
+        logger.info("Starting desurvey processing...")
 
         # Create column mapping dict to pass to desurvey
         column_mapping = {
@@ -600,14 +606,14 @@ async def process_with_mapping(
         # Try to use optimized version
         try:
             from app.core.drillhole_manager_optimized import DrillholeManagerOptimized
-            print("[INFO] Using optimized desurvey")
+            logger.info("Using optimized desurvey")
             manager = DrillholeManagerOptimized()
             use_parallel = len(collar_df) > 100
             # Pass column_mapping to tell desurvey to use standard column names
             result_df = manager.desurvey(collar_df, survey_df, assay_df, use_parallel=use_parallel, column_mapping=column_mapping)
         except ImportError:
             from app.core.drillhole_manager import DrillholeManager
-            print("[INFO] Using standard desurvey")
+            logger.info("Using standard desurvey")
             manager = DrillholeManager()
             # Pass column_mapping to tell desurvey to use standard column names
             result_df = manager.desurvey(collar_df, survey_df, assay_df, column_mapping=column_mapping)
@@ -615,14 +621,14 @@ async def process_with_mapping(
         if result_df.empty:
             raise HTTPException(status_code=400, detail="No matching holes found between files")
 
-        print(f"[CHECKPOINT 5] Desurvey complete - {len(result_df)} records processed")
+        logger.info("Desurvey complete - %d records processed", len(result_df))
 
         # Load into the SHARED data manager (same one used by /api/data endpoints)
         # Import lazily to avoid circular imports
         from app.api.data import data_manager
-        print(f"[DEBUG] Data manager id BEFORE: {id(data_manager)}, df is None: {data_manager.df is None}")
+        logger.debug("Data manager id BEFORE: %s, df is None: %s", id(data_manager), data_manager.df is None)
         data_manager.df = result_df
-        print(f"[DEBUG] Data manager id AFTER: {id(data_manager)}, df shape: {data_manager.df.shape}")
+        logger.debug("Data manager id AFTER: %s, df shape: %s", id(data_manager), data_manager.df.shape)
 
         # Use _detect_all_properties which includes _convert_mostly_numeric_columns
         # This converts columns like Au_ppm_Plot that have mixed text/numeric values
@@ -633,16 +639,16 @@ async def process_with_mapping(
             data_manager._detect_column_types()
             data_manager._auto_detect_roles()
             data_manager._guess_aliases()
-        print(f"[DEBUG] Column info count: {len(data_manager.get_column_info())}")
+        logger.debug("Column info count: %d", len(data_manager.get_column_info()))
 
-        print("[SUCCESS] Processing complete!")
+        logger.info("Processing complete!")
 
         # Return ALL data - this fixes the 100-row limit issue
         # Use data_manager.df which has been through type conversion
         all_data = data_manager.df.replace({pd.NA: None, np.nan: None, float('inf'): None, float('-inf'): None}).to_dict(orient='records')
-        print(f"[DEBUG /process] Returning {len(all_data)} rows to frontend (FULL dataset)")
-        print(f"[DEBUG /process] Data manager df shape: {data_manager.df.shape}")
-        print(f"[DEBUG /process] Data manager id: {id(data_manager)}")
+        logger.debug("Returning %d rows to frontend (FULL dataset)", len(all_data))
+        logger.debug("Data manager df shape: %s", data_manager.df.shape)
+        logger.debug("Data manager id: %s", id(data_manager))
 
         return {
             "success": True,
@@ -654,9 +660,7 @@ async def process_with_mapping(
         }
 
     except Exception as e:
-        print(f"[ERROR] Processing failed: {e}")
-        import traceback
-        traceback.print_exc()
+        logger.exception("Processing failed: %s", e)
         raise HTTPException(status_code=500, detail=str(e))
 
 def rename_to_standard(df: pd.DataFrame, mapping: Dict[str, str]) -> pd.DataFrame:
@@ -675,6 +679,6 @@ def rename_to_standard(df: pd.DataFrame, mapping: Dict[str, str]) -> pd.DataFram
     # Keep other columns as-is (don't rename them)
     df_renamed = df.rename(columns=rename_dict)
 
-    print(f"Renamed {len(rename_dict)} columns: {rename_dict}")
+    logger.debug("Renamed %d columns: %s", len(rename_dict), rename_dict)
 
     return df_renamed

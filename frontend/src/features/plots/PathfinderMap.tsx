@@ -30,7 +30,7 @@ import { useAttributeStore, EmphasisConfig } from '../../store/attributeStore';
 import { applyOpacityToColor } from '../../utils/emphasisUtils';
 import Plot from 'react-plotly.js';
 import { ExpandablePlotWrapper } from '../../components/ExpandablePlotWrapper';
-import { sortColumnsByPriority } from '../../utils/attributeUtils';
+import { sortColumnsByPriority, getColumnDisplayName } from '../../utils/attributeUtils';
 import { getPlotConfig } from '../../utils/plotConfig';
 import {
     PATHFINDER_ELEMENTS,
@@ -51,6 +51,7 @@ import {
     getPathfinderClassNormalized,
     findAllPathfinderColumns
 } from '../../utils/calculations/pathfinderClassification';
+import { findColumnForElement } from '../../utils/calculations/elementNameNormalizer';
 import { qgisApi } from '../../services/api';
 import { PathfinderPublicationDialog } from './pathfinder';
 
@@ -105,8 +106,11 @@ function getPathfinderEmphasis(
 type DragMode = 'zoom' | 'pan' | 'lasso' | 'select';
 
 export const PathfinderMap: React.FC<PathfinderMapProps> = ({ plotId }) => {
-    const { data, columns, getPlotSettings, updatePlotSettings, getFilteredColumns, setSelection, selectedIndices, addColumn } = useAppStore();
+    const { data, columns, getPlotSettings, updatePlotSettings, getFilteredColumns, setSelection, selectedIndices, addColumn, getDisplayData, getDisplayIndices, sampleIndices, geochemMappings } = useAppStore();
     const filteredColumns = getFilteredColumns();
+    const d = (name: string) => getColumnDisplayName(columns, name);
+    const displayData = useMemo(() => getDisplayData(), [data, sampleIndices]);
+    const displayIndices = useMemo(() => getDisplayIndices(), [data, sampleIndices]);
     const { emphasis } = useAttributeStore();
 
     // Get stored settings or defaults
@@ -280,11 +284,39 @@ export const PathfinderMap: React.FC<PathfinderMapProps> = ({ plotId }) => {
         }
     };
 
-    // Auto-detect pathfinder element columns
+    // Auto-detect pathfinder element columns (prefer geochem mappings, fallback to regex)
     const autoDetectedColumns = useMemo(() => {
-        const colNames = filteredColumns.map(c => c.name);
-        return findAllPathfinderColumns(colNames);
-    }, [filteredColumns]);
+        const found = new Map<PathfinderElement, string>();
+
+        // First try geochem mappings for each pathfinder element
+        if (geochemMappings.length > 0) {
+            for (const element of PATHFINDER_ELEMENTS) {
+                const col = findColumnForElement(geochemMappings, element, 'ppm');
+                if (col) {
+                    found.set(element, col);
+                    continue;
+                }
+                // Also try without unit filter
+                const colAny = findColumnForElement(geochemMappings, element);
+                if (colAny) {
+                    found.set(element, colAny);
+                }
+            }
+        }
+
+        // Fallback: use regex-based detection for any elements not found via mappings
+        if (found.size < PATHFINDER_ELEMENTS.length) {
+            const colNames = filteredColumns.map(c => c.name);
+            const regexFound = findAllPathfinderColumns(colNames);
+            for (const [element, col] of regexFound) {
+                if (!found.has(element)) {
+                    found.set(element, col);
+                }
+            }
+        }
+
+        return found;
+    }, [filteredColumns, geochemMappings]);
 
     // Auto-detect normalization columns
     const autoDetectedNormColumns = useMemo(() => {
@@ -415,8 +447,8 @@ export const PathfinderMap: React.FC<PathfinderMapProps> = ({ plotId }) => {
     // Get plot data for a single element
     const getPlotDataForElement = (element: PathfinderElement) => {
         const elementColumn = getElementColumn(element);
-        if (!elementColumn || !data.length || !xAxis || !yAxis) {
-            return { traces: [], validCount: 0, totalCount: data.length };
+        if (!elementColumn || !displayData.length || !xAxis || !yAxis) {
+            return { traces: [], validCount: 0, totalCount: displayData.length };
         }
 
         // Group points by anomaly class
@@ -433,8 +465,8 @@ export const PathfinderMap: React.FC<PathfinderMapProps> = ({ plotId }) => {
 
         let validCount = 0;
 
-        for (let i = 0; i < data.length; i++) {
-            const row = data[i];
+        for (let i = 0; i < displayData.length; i++) {
+            const row = displayData[i];
             const x = row[xAxis];
             const y = row[yAxis];
             const z = is3D && zAxis ? row[zAxis] : 0;
@@ -476,11 +508,11 @@ export const PathfinderMap: React.FC<PathfinderMapProps> = ({ plotId }) => {
             const points = pointsByClass[cls];
             if (points.x.length === 0) continue;
 
-            // For mapbox mode, convert indices to lat/lon
+            // For mapbox mode, convert indices to lat/lon (use original data indices for transformedCoords)
             let traceCoords: any = {};
             if (useMapbox && transformedCoords) {
-                const lats = points.indices.map(i => transformedCoords.lats[i]);
-                const lons = points.indices.map(i => transformedCoords.lons[i]);
+                const lats = points.indices.map(i => transformedCoords.lats[displayIndices ? displayIndices[i] : i]);
+                const lons = points.indices.map(i => transformedCoords.lons[displayIndices ? displayIndices[i] : i]);
                 traceCoords = { lat: lats, lon: lons };
             } else if (is3D) {
                 traceCoords = { x: points.x, y: points.y, z: points.z };
@@ -499,8 +531,9 @@ export const PathfinderMap: React.FC<PathfinderMapProps> = ({ plotId }) => {
                         ? `${element}: %{customdata.value}<br>Lat: %{lat:.6f}<br>Lon: %{lon:.6f}<extra>${ANOMALY_LABELS[cls]}</extra>`
                         : `${element}: %{customdata.value}<br>X: %{x}<br>Y: %{y}<extra>${ANOMALY_LABELS[cls]}</extra>`,
                 customdata: points.indices.map(i => {
-                    const val = data[i][elementColumn];
-                    return { index: i, value: (typeof val === 'number' && !isNaN(val)) ? val.toFixed(3) : 'N/A' };
+                    const val = displayData[i][elementColumn];
+                    const originalIndex = displayIndices ? displayIndices[i] : i;
+                    return { index: originalIndex, value: (typeof val === 'number' && !isNaN(val)) ? val.toFixed(3) : 'N/A' };
                 }),
                 marker: (() => {
                     // Apply emphasis styling based on anomaly class
@@ -517,19 +550,19 @@ export const PathfinderMap: React.FC<PathfinderMapProps> = ({ plotId }) => {
             traces.push(trace);
         }
 
-        return { traces, validCount, totalCount: data.length };
+        return { traces, validCount, totalCount: displayData.length };
     };
 
     // Get probability plot data for an element
     const getProbabilityPlotData = (element: PathfinderElement) => {
         const elementColumn = getElementColumn(element);
-        if (!elementColumn || !data.length) {
+        if (!elementColumn || !displayData.length) {
             return { trace: null, thresholdLines: [] };
         }
 
         // Get all valid values and sort
         const values: number[] = [];
-        for (const row of data) {
+        for (const row of displayData) {
             const val = row[elementColumn];
             if (val != null && !isNaN(val) && val > 0) {
                 values.push(val);
@@ -1142,7 +1175,7 @@ export const PathfinderMap: React.FC<PathfinderMapProps> = ({ plotId }) => {
                                         <Plot
                                             data={traces}
                                             layout={{
-                                                title: { text: `${element} (${elementColumn})`, font: { size: 14 }, x: 0, xanchor: 'left' },
+                                                title: { text: `${element} (${elementColumn ? d(elementColumn) : element})`, font: { size: 14 }, x: 0, xanchor: 'left' },
                                                 autosize: true,
                                                 height: is3D ? 350 : 300,
                                                 hovermode: 'closest',
@@ -1151,9 +1184,9 @@ export const PathfinderMap: React.FC<PathfinderMapProps> = ({ plotId }) => {
                                                 uirevision: plotRevision,
                                                 ...(is3D ? {
                                                     scene: {
-                                                        xaxis: { title: { text: xAxis, font: { size: 10 } } },
-                                                        yaxis: { title: { text: yAxis, font: { size: 10 } } },
-                                                        zaxis: { title: { text: zAxis, font: { size: 10 } } },
+                                                        xaxis: { title: { text: d(xAxis), font: { size: 10 } } },
+                                                        yaxis: { title: { text: d(yAxis), font: { size: 10 } } },
+                                                        zaxis: { title: { text: d(zAxis), font: { size: 10 } } },
                                                         camera: { eye: { x: 1.5, y: 1.5, z: 1.3 } }
                                                     },
                                                     margin: { l: 50, r: 20, t: 40, b: 40 }
@@ -1161,8 +1194,8 @@ export const PathfinderMap: React.FC<PathfinderMapProps> = ({ plotId }) => {
                                                     ...createMapboxLayout(mapViewStyle, transformedCoords.center, transformedCoords.zoom, basemapOpacity),
                                                     margin: { l: 0, r: 0, t: 40, b: 0 }
                                                 } : {
-                                                    xaxis: { title: { text: xAxis, font: { size: 10 } }, scaleanchor: 'y', scaleratio: 1, autorange: true },
-                                                    yaxis: { title: { text: yAxis, font: { size: 10 } }, autorange: true },
+                                                    xaxis: { title: { text: d(xAxis), font: { size: 10 } }, scaleanchor: 'y', scaleratio: 1, autorange: true },
+                                                    yaxis: { title: { text: d(yAxis), font: { size: 10 } }, autorange: true },
                                                     margin: { l: 50, r: 20, t: 40, b: 40 }
                                                 })
                                             }}

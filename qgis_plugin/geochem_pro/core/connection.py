@@ -1,6 +1,6 @@
 """
-Connection Manager for GeoChem Pro QGIS Plugin
-Handles WebSocket and REST connections to GeoChem Pro backend
+Connection Manager for GeoChem QGIS Plugin
+Handles WebSocket and REST connections to GeoChem backend
 """
 
 import json
@@ -63,7 +63,7 @@ class WebSocketThread(QThread):
                 if self._running:
                     QgsMessageLog.logMessage(
                         f"WebSocket disconnected, reconnecting in {self._reconnect_delay}s...",
-                        "GeoChem Pro",
+                        "GeoChem",
                         Qgis.Warning
                     )
                     time.sleep(self._reconnect_delay)
@@ -95,7 +95,7 @@ class WebSocketThread(QThread):
         except json.JSONDecodeError as e:
             QgsMessageLog.logMessage(
                 f"Invalid JSON received: {str(e)}",
-                "GeoChem Pro",
+                "GeoChem",
                 Qgis.Warning
             )
 
@@ -114,7 +114,7 @@ class WebSocketThread(QThread):
 
 class GeochemConnectionManager(QObject):
     """
-    Manages connection to GeoChem Pro application.
+    Manages connection to GeoChem application.
     Supports both REST API for data fetching and WebSocket for real-time updates.
     """
 
@@ -162,7 +162,7 @@ class GeochemConnectionManager(QObject):
 
     def connect(self) -> bool:
         """
-        Establish connection to GeoChem Pro.
+        Establish connection to GeoChem.
         First tests REST API, then establishes WebSocket if available.
 
         Returns:
@@ -180,7 +180,7 @@ class GeochemConnectionManager(QObject):
         else:
             QgsMessageLog.logMessage(
                 "websocket-client not installed. Real-time sync disabled.",
-                "GeoChem Pro",
+                "GeoChem",
                 Qgis.Warning
             )
             # Still consider connected if REST works
@@ -196,7 +196,7 @@ class GeochemConnectionManager(QObject):
             if response:
                 QgsMessageLog.logMessage(
                     f"REST API connected to {self.base_url}",
-                    "GeoChem Pro",
+                    "GeoChem",
                     Qgis.Info
                 )
                 return True
@@ -227,7 +227,7 @@ class GeochemConnectionManager(QObject):
         self.connected.emit()
         QgsMessageLog.logMessage(
             f"WebSocket connected to {self.ws_url}",
-            "GeoChem Pro",
+            "GeoChem",
             Qgis.Info
         )
 
@@ -248,7 +248,7 @@ class GeochemConnectionManager(QObject):
         self.connection_error.emit(error)
         QgsMessageLog.logMessage(
             f"WebSocket error: {error}",
-            "GeoChem Pro",
+            "GeoChem",
             Qgis.Warning
         )
 
@@ -264,7 +264,7 @@ class GeochemConnectionManager(QObject):
         self.connect()
 
     def disconnect(self):
-        """Disconnect from GeoChem Pro"""
+        """Disconnect from GeoChem"""
         self._reconnect_timer.stop()
 
         if self._ws_thread:
@@ -275,8 +275,8 @@ class GeochemConnectionManager(QObject):
         self.is_connected = False
         self.disconnected.emit()
         QgsMessageLog.logMessage(
-            "Disconnected from GeoChem Pro",
-            "GeoChem Pro",
+            "Disconnected from GeoChem",
+            "GeoChem",
             Qgis.Info
         )
 
@@ -312,7 +312,7 @@ class GeochemConnectionManager(QObject):
             self._ws_thread.send(message)
 
     def send_selection(self, indices: List[int]):
-        """Send selection indices to GeoChem Pro"""
+        """Send selection indices to GeoChem"""
         self.send_message({
             'type': 'selection',
             'indices': indices,
@@ -373,7 +373,7 @@ class GeochemConnectionManager(QObject):
 
     def fetch_data(self) -> List[Dict[str, Any]]:
         """
-        Fetch current dataset from GeoChem Pro.
+        Fetch current dataset from GeoChem.
 
         Returns:
             List of data rows as dictionaries
@@ -385,14 +385,14 @@ class GeochemConnectionManager(QObject):
         except Exception as e:
             QgsMessageLog.logMessage(
                 f"Failed to fetch data: {str(e)}",
-                "GeoChem Pro",
+                "GeoChem",
                 Qgis.Warning
             )
             return []
 
     def fetch_columns(self) -> List[Dict[str, str]]:
         """
-        Fetch column metadata from GeoChem Pro.
+        Fetch column metadata from GeoChem.
 
         Returns:
             List of column info dicts with 'name', 'type', 'role', 'alias'
@@ -404,7 +404,7 @@ class GeochemConnectionManager(QObject):
         except Exception as e:
             QgsMessageLog.logMessage(
                 f"Failed to fetch columns: {str(e)}",
-                "GeoChem Pro",
+                "GeoChem",
                 Qgis.Warning
             )
             return []
@@ -422,14 +422,14 @@ class GeochemConnectionManager(QObject):
         except Exception as e:
             QgsMessageLog.logMessage(
                 f"Failed to fetch classifications: {str(e)}",
-                "GeoChem Pro",
+                "GeoChem",
                 Qgis.Warning
             )
             return {}
 
     def fetch_styles(self) -> Dict[str, Any]:
         """
-        Fetch attribute styling configuration from GeoChem Pro.
+        Fetch attribute styling configuration from GeoChem.
 
         Returns:
             Dict with color, shape, size configs and global settings
@@ -440,14 +440,14 @@ class GeochemConnectionManager(QObject):
         except Exception as e:
             QgsMessageLog.logMessage(
                 f"Failed to fetch styles: {str(e)}",
-                "GeoChem Pro",
+                "GeoChem",
                 Qgis.Warning
             )
             return {}
 
     def fetch_pathfinders(self) -> Dict[str, Any]:
         """
-        Fetch pathfinder configuration from GeoChem Pro.
+        Fetch pathfinder configuration from GeoChem.
 
         Returns:
             Dict with elements, column mappings, and coordinate fields
@@ -458,14 +458,14 @@ class GeochemConnectionManager(QObject):
         except Exception as e:
             QgsMessageLog.logMessage(
                 f"Failed to fetch pathfinder config: {str(e)}",
-                "GeoChem Pro",
+                "GeoChem",
                 Qgis.Warning
             )
             return {}
 
     def fetch_selected_indices(self) -> List[int]:
         """
-        Fetch currently selected indices from GeoChem Pro.
+        Fetch currently selected indices from GeoChem.
 
         Returns:
             List of selected row indices
@@ -476,14 +476,14 @@ class GeochemConnectionManager(QObject):
         except Exception as e:
             QgsMessageLog.logMessage(
                 f"Failed to fetch selection: {str(e)}",
-                "GeoChem Pro",
+                "GeoChem",
                 Qgis.Warning
             )
             return []
 
     def push_selection(self, indices: List[int]) -> bool:
         """
-        Push selection to GeoChem Pro via REST.
+        Push selection to GeoChem via REST.
 
         Args:
             indices: List of selected row indices
@@ -497,7 +497,7 @@ class GeochemConnectionManager(QObject):
         except Exception as e:
             QgsMessageLog.logMessage(
                 f"Failed to push selection: {str(e)}",
-                "GeoChem Pro",
+                "GeoChem",
                 Qgis.Warning
             )
             return False

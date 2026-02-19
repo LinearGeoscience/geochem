@@ -7,6 +7,7 @@ import {
     createCustomEntry,
     AttributeEntry,
 } from '../../store/attributeStore';
+import { useAppStore } from '../../store/appStore';
 
 interface AttributeToolbarProps {
     tab: AttributeType;
@@ -14,13 +15,14 @@ interface AttributeToolbarProps {
 
 export const AttributeToolbar: React.FC<AttributeToolbarProps> = ({ tab }) => {
     const {
-        selectedEntryName,
+        selectedEntryNames,
         addCustomEntry,
         addEntry,
         removeCustomEntry,
         removeEntry,
         removeAllEntries,
         removeGlobalEntries,
+        batchDeleteEntries,
         customEntries,
         color,
         shape,
@@ -28,9 +30,18 @@ export const AttributeToolbar: React.FC<AttributeToolbarProps> = ({ tab }) => {
         filter,
     } = useAttributeStore();
 
+    const { columns } = useAppStore();
+
     const currentConfig = tab === 'color' ? color :
                           tab === 'shape' ? shape :
                           tab === 'size' ? size : filter;
+
+    // Check if selected field is numeric (for Add Range button)
+    const isNumericField = React.useMemo(() => {
+        if (!currentConfig.field) return false;
+        const col = columns.find(c => c.name === currentConfig.field);
+        return col?.type === 'numeric' || col?.type === 'float' || col?.type === 'integer';
+    }, [currentConfig.field, columns]);
 
     const handleAdd = () => {
         const baseName = tab === 'color' ? 'New Colour' :
@@ -57,21 +68,17 @@ export const AttributeToolbar: React.FC<AttributeToolbarProps> = ({ tab }) => {
     };
 
     const handleAddRange = () => {
-        // Only works when there's a numeric field selected
         if (!currentConfig.field) return;
 
         // Find the last range entry to get the max value as a starting point
         const rangeEntries = currentConfig.entries.filter(e => e.type === 'range' && !e.isDefault);
         const lastRange = rangeEntries[rangeEntries.length - 1];
 
-        // Create a new range starting from the last max (or 0 if no ranges)
         const newMin = lastRange?.max ?? 0;
-        const newMax = newMin + 1;  // Default 1 unit range
+        const newMax = newMin + 1;
 
-        // Generate unique ID
         const id = `range-${Date.now()}`;
 
-        // Pick a color - cycle through palette colors
         const colors = ['#e41a1c', '#377eb8', '#4daf4a', '#984ea3', '#ff7f00', '#ffff33', '#a65628', '#f781bf'];
         const colorIndex = rangeEntries.length % colors.length;
 
@@ -96,18 +103,25 @@ export const AttributeToolbar: React.FC<AttributeToolbarProps> = ({ tab }) => {
     };
 
     const handleRemove = () => {
-        if (!selectedEntryName) return;
+        if (selectedEntryNames.length === 0) return;
 
-        // Check if it's a custom entry
-        const customEntry = customEntries.find(e => e.name === selectedEntryName);
+        if (selectedEntryNames.length > 1) {
+            // Batch delete
+            batchDeleteEntries(tab, selectedEntryNames);
+            return;
+        }
+
+        // Single delete
+        const selectedName = selectedEntryNames[0];
+
+        const customEntry = customEntries.find(e => e.name === selectedName);
         if (customEntry) {
             removeCustomEntry(customEntry.id);
             return;
         }
 
-        // Check if it's a field-based entry (not default)
         const fieldEntry = currentConfig.entries.find(
-            e => e.name === selectedEntryName && !e.isDefault
+            e => e.name === selectedName && !e.isDefault
         );
         if (fieldEntry) {
             removeEntry(tab, fieldEntry.id);
@@ -122,10 +136,15 @@ export const AttributeToolbar: React.FC<AttributeToolbarProps> = ({ tab }) => {
         removeGlobalEntries();
     };
 
-    // Check if selected entry can be removed
-    const canRemove = selectedEntryName && (
-        customEntries.some(e => e.name === selectedEntryName) ||
-        currentConfig.entries.some(e => e.name === selectedEntryName && !e.isDefault)
+    // Check if selected entries can be removed
+    const canRemove = selectedEntryNames.length > 0 && selectedEntryNames.some(name =>
+        customEntries.some(e => e.name === name) ||
+        currentConfig.entries.some(e => e.name === name && !e.isDefault)
+    );
+
+    // Show Add Range when a numeric field is selected (not just when range entries exist)
+    const showAddRange = currentConfig.field && (
+        isNumericField || currentConfig.entries.some(e => e.type === 'range')
     );
 
     return (
@@ -146,7 +165,7 @@ export const AttributeToolbar: React.FC<AttributeToolbarProps> = ({ tab }) => {
                 </IconButton>
             </Tooltip>
 
-            {currentConfig.field && currentConfig.entries.some(e => e.type === 'range') && (
+            {showAddRange && (
                 <Tooltip title="Add new range">
                     <IconButton size="small" onClick={handleAddRange} color="secondary">
                         <AddCircleOutline />
@@ -154,7 +173,7 @@ export const AttributeToolbar: React.FC<AttributeToolbarProps> = ({ tab }) => {
                 </Tooltip>
             )}
 
-            <Tooltip title="Remove selected entry">
+            <Tooltip title={selectedEntryNames.length > 1 ? `Remove ${selectedEntryNames.length} selected` : "Remove selected entry"}>
                 <span>
                     <IconButton
                         size="small"

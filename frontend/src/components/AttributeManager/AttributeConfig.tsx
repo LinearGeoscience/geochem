@@ -7,8 +7,9 @@ import {
     Button,
     Tooltip,
     Typography,
+    IconButton,
 } from '@mui/material';
-import { AutoAwesome, Palette as PaletteIcon } from '@mui/icons-material';
+import { AutoAwesome, Palette as PaletteIcon, SwapVert, Refresh } from '@mui/icons-material';
 import {
     useAttributeStore,
     AttributeType,
@@ -279,6 +280,55 @@ export const AttributeConfig: React.FC<AttributeConfigProps> = ({ tab, config })
                         ))}
                     </Select>
                 </FormControl>
+            )}
+
+            {/* Reverse palette button */}
+            {tab === 'color' && config.field && config.entries.filter(e => !e.isDefault).length > 1 && (
+                <Tooltip title="Reverse colour order">
+                    <IconButton
+                        size="small"
+                        onClick={() => {
+                            const nonDefault = config.entries.filter(e => !e.isDefault);
+                            const defaultEntry = config.entries.find(e => e.isDefault);
+                            const colors = nonDefault.map(e => e.color);
+                            const reversed = [...colors].reverse();
+                            const newEntries = nonDefault.map((e, i) => ({
+                                ...e,
+                                color: reversed[i],
+                            }));
+                            setEntries(tab, [
+                                ...(defaultEntry ? [defaultEntry] : []),
+                                ...newEntries,
+                            ]);
+                        }}
+                    >
+                        <SwapVert fontSize="small" />
+                    </IconButton>
+                </Tooltip>
+            )}
+
+            {/* Reapply palette (changes colors of existing entries without regenerating) */}
+            {tab === 'color' && config.field && config.entries.filter(e => !e.isDefault).length > 0 && (
+                <Tooltip title="Reapply palette colours to existing entries">
+                    <IconButton
+                        size="small"
+                        onClick={() => {
+                            const nonDefault = config.entries.filter(e => !e.isDefault);
+                            const defaultEntry = config.entries.find(e => e.isDefault);
+                            const newColors = generateColorsFromPalette(config.palette, nonDefault.length);
+                            const newEntries = nonDefault.map((e, i) => ({
+                                ...e,
+                                color: newColors[i],
+                            }));
+                            setEntries(tab, [
+                                ...(defaultEntry ? [defaultEntry] : []),
+                                ...newEntries,
+                            ]);
+                        }}
+                    >
+                        <Refresh fontSize="small" />
+                    </IconButton>
+                </Tooltip>
             )}
 
             {/* Auto-Attribute button */}

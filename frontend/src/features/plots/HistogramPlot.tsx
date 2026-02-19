@@ -20,7 +20,7 @@ import { MultiColumnSelector } from '../../components/MultiColumnSelector';
 import { ExpandablePlotWrapper } from '../../components/ExpandablePlotWrapper';
 import { useAttributeStore } from '../../store/attributeStore';
 import { getPlotConfig, EXPORT_FONT_SIZES } from '../../utils/plotConfig';
-import { getStyleArrays, sortColumnsByPriority } from '../../utils/attributeUtils';
+import { getStyleArrays, sortColumnsByPriority, getColumnDisplayName } from '../../utils/attributeUtils';
 
 const HISTOGRAM_COLORS = [
     '#1f77b4', '#ff7f0e', '#2ca02c', '#d62728', '#9467bd',
@@ -36,9 +36,13 @@ interface HistogramPlotProps {
 }
 
 export const HistogramPlot: React.FC<HistogramPlotProps> = ({ plotId }) => {
-    const { data, lockAxes, getPlotSettings, updatePlotSettings, getFilteredColumns } = useAppStore();
+    const { data, columns, lockAxes, getPlotSettings, updatePlotSettings, getFilteredColumns, getDisplayData, getDisplayIndices, sampleIndices } = useAppStore();
     const filteredColumns = getFilteredColumns();
+    const d = (name: string) => getColumnDisplayName(columns, name);
     useAttributeStore(); // Subscribe to style changes
+
+    const displayData = useMemo(() => getDisplayData(), [data, sampleIndices]);
+    const displayIndices = useMemo(() => getDisplayIndices(), [data, sampleIndices]);
 
     // Get stored settings or defaults
     const storedSettings = getPlotSettings(plotId);
@@ -98,10 +102,10 @@ export const HistogramPlot: React.FC<HistogramPlotProps> = ({ plotId }) => {
 
     // Get visible data based on attribute filters
     const visibleData = useMemo(() => {
-        if (!data.length) return [];
-        const styleArrays = getStyleArrays(data);
-        return data.filter((_, i) => styleArrays.visible[i]);
-    }, [data]);
+        if (!displayData.length) return [];
+        const styleArrays = getStyleArrays(displayData, displayIndices ?? undefined);
+        return displayData.filter((_, i) => styleArrays.visible[i]);
+    }, [displayData, displayIndices]);
 
     // Get unique categories
     const categories = useMemo(() => {
@@ -157,7 +161,7 @@ export const HistogramPlot: React.FC<HistogramPlotProps> = ({ plotId }) => {
                         traces.push({
                             x: values,
                             type: 'histogram',
-                            name: selectedColumns.length > 1 ? `${col} - ${category}` : category,
+                            name: selectedColumns.length > 1 ? `${d(col)} - ${category}` : category,
                             legendgroup: selectedColumns.length > 1 ? col : category,
                             nbinsx: binCount,
                             opacity: barMode === 'overlay' ? 0.6 : 0.85,
@@ -176,7 +180,7 @@ export const HistogramPlot: React.FC<HistogramPlotProps> = ({ plotId }) => {
                     traces.push({
                         x: values,
                         type: 'histogram',
-                        name: col,
+                        name: d(col),
                         nbinsx: binCount,
                         opacity: 0.6,
                         marker: { color: HISTOGRAM_COLORS[i % HISTOGRAM_COLORS.length] },
@@ -187,7 +191,7 @@ export const HistogramPlot: React.FC<HistogramPlotProps> = ({ plotId }) => {
                         traces.push({
                             x: values,
                             type: 'histogram',
-                            name: `${col} (density)`,
+                            name: `${d(col)} (density)`,
                             nbinsx: binCount,
                             histnorm: 'probability density',
                             opacity: 0,
@@ -199,7 +203,7 @@ export const HistogramPlot: React.FC<HistogramPlotProps> = ({ plotId }) => {
             }
 
             const title = hasCategories
-                ? `${selectedColumns.join(', ')} by ${categoryColumn}`
+                ? `${selectedColumns.map(c => d(c)).join(', ')} by ${categoryColumn}`
                 : 'Histogram (Overlay)';
 
             const layout: any = {
@@ -210,7 +214,7 @@ export const HistogramPlot: React.FC<HistogramPlotProps> = ({ plotId }) => {
                 showlegend: true,
                 legend: { x: 1, y: 1, xanchor: 'right', font: { size: EXPORT_FONT_SIZES.legend } },
                 font: { size: EXPORT_FONT_SIZES.tickLabels },
-                xaxis: { title: { text: selectedColumns.length === 1 ? selectedColumns[0] : 'Value', font: { size: EXPORT_FONT_SIZES.axisTitle } }, tickfont: { size: EXPORT_FONT_SIZES.tickLabels } },
+                xaxis: { title: { text: selectedColumns.length === 1 ? d(selectedColumns[0]) : 'Value', font: { size: EXPORT_FONT_SIZES.axisTitle } }, tickfont: { size: EXPORT_FONT_SIZES.tickLabels } },
                 yaxis: { title: { text: yAxisTitle, font: { size: EXPORT_FONT_SIZES.axisTitle } }, tickfont: { size: EXPORT_FONT_SIZES.tickLabels } },
                 margin: { l: 70, r: 40, t: 60, b: 70 },
                 uirevision: lockAxes ? 'locked' : Date.now(),
@@ -235,7 +239,7 @@ export const HistogramPlot: React.FC<HistogramPlotProps> = ({ plotId }) => {
                 traces.push({
                     x: values,
                     type: 'histogram',
-                    name: col,
+                    name: d(col),
                     nbinsx: binCount,
                     marker: { color: HISTOGRAM_COLORS[i % HISTOGRAM_COLORS.length] },
                     xaxis: i === 0 ? 'x' : `x${i + 1}`,
@@ -267,7 +271,7 @@ export const HistogramPlot: React.FC<HistogramPlotProps> = ({ plotId }) => {
             selectedColumns.forEach((col, i) => {
                 const xKey = i === 0 ? 'xaxis' : `xaxis${i + 1}`;
                 const yKey = i === 0 ? 'yaxis' : `yaxis${i + 1}`;
-                layout[xKey] = { title: { text: col, font: { size: EXPORT_FONT_SIZES.axisTitle } }, tickfont: { size: EXPORT_FONT_SIZES.tickLabels } };
+                layout[xKey] = { title: { text: d(col), font: { size: EXPORT_FONT_SIZES.axisTitle } }, tickfont: { size: EXPORT_FONT_SIZES.tickLabels } };
                 layout[yKey] = { title: { text: yAxisTitle, font: { size: EXPORT_FONT_SIZES.axisTitle } }, tickfont: { size: EXPORT_FONT_SIZES.tickLabels } };
             });
 
@@ -422,7 +426,7 @@ export const HistogramPlot: React.FC<HistogramPlotProps> = ({ plotId }) => {
                                         variant="subtitle2"
                                         sx={{ color: HISTOGRAM_COLORS[i % HISTOGRAM_COLORS.length] }}
                                     >
-                                        {col}
+                                        {d(col)}
                                     </Typography>
                                     <Typography variant="caption" display="block">
                                         n = {values.length.toLocaleString()}

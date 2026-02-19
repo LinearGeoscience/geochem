@@ -1,5 +1,5 @@
 """
-Geometry Utilities for GeoChem Pro QGIS Plugin
+Geometry Utilities for GeoChem QGIS Plugin
 Provides geometry manipulation and coordinate helpers
 """
 

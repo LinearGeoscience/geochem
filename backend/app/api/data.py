@@ -1,11 +1,13 @@
+import logging
+
 from fastapi import APIRouter, UploadFile, File, HTTPException
 # Try to use optimized version
 try:
     from app.core.data_manager_optimized import DataManagerOptimized as DataManager
-    print("[OK] Using OPTIMIZED DataManager")
+    logging.getLogger(__name__).info("Using OPTIMIZED DataManager")
 except ImportError:
     from app.core.data_manager import DataManager
-    print("[INFO] Using standard DataManager")
+    logging.getLogger(__name__).info("Using standard DataManager")
 
 import shutil
 import os
@@ -13,6 +15,11 @@ import numpy as np
 import pandas as pd
 from typing import Dict, Any, List
 from pydantic import BaseModel
+
+logger = logging.getLogger(__name__)
+
+# Maximum upload file size (500 MB)
+MAX_UPLOAD_SIZE = 500 * 1024 * 1024
 
 router = APIRouter()
 data_manager = DataManager()
@@ -22,13 +29,22 @@ class ColumnUpdate(BaseModel):
     role: str = None
     alias: str = None
 
+class SampleRequest(BaseModel):
+    sample_size: int = 10000
+    method: str = "random"            # "random" | "stratified" | "drillhole"
+    outlier_columns: list[str] = []   # Columns for IQR outlier detection
+    classification_column: str | None = None
+    drillhole_column: str | None = None
+    iqr_multiplier: float = 1.5
+    seed: int | None = None
+
 def decode_with_fallback(content: bytes) -> str:
     """Try multiple encodings to decode file content."""
     encodings = ['utf-8', 'utf-8-sig', 'latin-1', 'cp1252', 'iso-8859-1']
     for encoding in encodings:
         try:
             decoded = content.decode(encoding)
-            print(f"[ENCODING] Successfully decoded using: {encoding}")
+            logger.info("Successfully decoded using: %s", encoding)
             return decoded
         except (UnicodeDecodeError, AttributeError):
             continue
@@ -36,13 +52,24 @@ def decode_with_fallback(content: bytes) -> str:
     return content.decode('latin-1', errors='replace')
 
 
+def clean_for_json(df: pd.DataFrame) -> list[dict]:
+    """Replace NaN/inf/NA with None for JSON serialization and return list of dicts."""
+    return df.replace({pd.NA: None, np.nan: None, float('inf'): None, float('-inf'): None}).to_dict(orient='records')
+
+
 @router.post("/upload")
 async def upload_file(file: UploadFile = File(...)):
     try:
         import io
 
-        # OPTIMIZED: Read file directly in memory without disk I/O
-        print(f"Reading {file.filename} ({file.size/1024/1024:.1f} MB) to memory...")
+        # Validate file size
+        if file.size and file.size > MAX_UPLOAD_SIZE:
+            raise HTTPException(
+                status_code=413,
+                detail=f"File too large ({file.size / 1024 / 1024:.1f} MB). Maximum allowed is {MAX_UPLOAD_SIZE / 1024 / 1024:.0f} MB."
+            )
+
+        logger.info("Reading %s (%.1f MB) to memory...", file.filename, (file.size or 0) / 1024 / 1024)
         content = await file.read()
 
         # Check if it's an ioGAS .gas file
@@ -62,26 +89,22 @@ async def upload_file(file: UploadFile = File(...)):
         data_manager._auto_detect_roles()
         data_manager._guess_aliases()
 
-        # Return ALL data for flat file upload - this fixes the 100-row limit issue
-        all_data = df.replace({pd.NA: None, np.nan: None, float('inf'): None, float('-inf'): None}).to_dict(orient='records')
-        print(f"[UPLOAD FLAT] Returning {len(all_data)} rows (full dataset)")
+        # Return ALL data for flat file upload
+        all_data = clean_for_json(df)
+        logger.info("Returning %d rows (full dataset)", len(all_data))
 
-        result = {
+        return {
             "success": True,
             "rows": len(df),
             "columns": len(df.columns),
-            "data": all_data,  # Full dataset
-            "preview": all_data[:5] if len(all_data) > 5 else all_data,  # Keep preview for backwards compat
-            "column_info": data_manager.get_column_info()  # Include full column info
+            "data": all_data,
+            "preview": all_data[:5] if len(all_data) > 5 else all_data,
+            "column_info": data_manager.get_column_info()
         }
-
-        if not result["success"]:
-            raise HTTPException(status_code=400, detail=result["error"])
-
-        return result
+    except HTTPException:
+        raise
     except Exception as e:
-        import traceback
-        traceback.print_exc()
+        logger.exception("Upload failed")
         raise HTTPException(status_code=500, detail=str(e))
 
 
@@ -89,25 +112,23 @@ async def upload_iogas_file_internal(content: bytes, filename: str):
     """Internal handler for ioGAS .gas file uploads."""
     from app.core.iogas_parser import parse_iogas_file
 
-    print(f"[ioGAS] Processing {filename} ({len(content)/1024/1024:.1f} MB)...")
+    logger.info("Processing ioGAS file %s (%.1f MB)...", filename, len(content) / 1024 / 1024)
 
-    # Parse the ioGAS file
     result = parse_iogas_file(content)
 
     if not result.get('success'):
         raise HTTPException(status_code=400, detail=result.get('error', 'Failed to parse ioGAS file'))
 
     # Load into data manager for subsequent operations
-    import io
-    # Recreate dataframe from the parsed data
     df = pd.DataFrame(result['data'])
     data_manager.df = df
     data_manager._detect_column_types()
     data_manager._auto_detect_roles()
     data_manager._guess_aliases()
 
-    print(f"[ioGAS] Successfully loaded {result['rows']} rows, {result['columns']} columns")
-    print(f"[ioGAS] ioGAS version: {result.get('iogas_metadata', {}).get('version', 'unknown')}")
+    logger.info("ioGAS loaded %d rows, %d columns (version: %s)",
+                result['rows'], result['columns'],
+                result.get('iogas_metadata', {}).get('version', 'unknown'))
 
     return result
 
@@ -136,8 +157,7 @@ async def upload_iogas_file(file: UploadFile = File(...)):
     except HTTPException:
         raise
     except Exception as e:
-        import traceback
-        traceback.print_exc()
+        logger.exception("ioGAS upload failed")
         raise HTTPException(status_code=500, detail=str(e))
 
 @router.post("/upload/drillhole")
@@ -150,116 +170,104 @@ async def upload_drillhole(
         # Try to use optimized version, fall back to original if not available
         try:
             from app.core.drillhole_manager_optimized import DrillholeManagerOptimized
-            print("[OK] Using ULTRA-OPTIMIZED DrillholeManager (75-90x faster)")
+            logger.info("Using ULTRA-OPTIMIZED DrillholeManager")
             use_optimized = True
         except ImportError:
             from app.core.drillhole_manager import DrillholeManager
-            print("[INFO] Using original DrillholeManager (optimized version not found)")
+            logger.info("Using original DrillholeManager (optimized version not found)")
             use_optimized = False
 
         import io
         import time
 
-        # Add comprehensive logging
-        from datetime import datetime
-        print("\n" + "="*60)
-        print(f"[{datetime.now().strftime('%H:%M:%S')}] DRILLHOLE UPLOAD STARTED")
-        print(f"Files received - Collar: {collar.size/1024/1024:.1f}MB, "
-              f"Survey: {survey.size/1024/1024:.1f}MB, "
-              f"Assay: {assay.size/1024/1024:.1f}MB")
-        print("="*60)
+        logger.info("DRILLHOLE UPLOAD STARTED — Collar: %.1fMB, Survey: %.1fMB, Assay: %.1fMB",
+                     (collar.size or 0) / 1024 / 1024,
+                     (survey.size or 0) / 1024 / 1024,
+                     (assay.size or 0) / 1024 / 1024)
 
         upload_start = time.time()
 
-        # OPTIMIZED: Read files directly in memory without disk I/O
         async def read_file_optimized(file):
             file_start = time.time()
-            print(f"[CHECKPOINT 1] Reading {file.filename} ({file.size/1024/1024:.1f} MB) to memory...")
+            logger.info("Reading %s (%.1f MB) to memory...", file.filename, (file.size or 0) / 1024 / 1024)
 
             try:
                 content = await file.read()
-                print(f"[CHECKPOINT 2] File read into memory in {time.time()-file_start:.2f}s")
+                logger.debug("File read into memory in %.2fs", time.time() - file_start)
 
                 if file.filename.endswith('.csv'):
-                    # Use StringIO for CSV files - much faster than disk I/O
-                    print(f"[CHECKPOINT 3] Parsing CSV...")
-                    df = pd.read_csv(io.StringIO(content.decode('utf-8')),
-                                    low_memory=False)  # Faster for known types
+                    logger.debug("Parsing CSV...")
+                    decoded = decode_with_fallback(content)
+                    df = pd.read_csv(io.StringIO(decoded), low_memory=False)
                 else:
-                    # Use BytesIO for Excel files
-                    print(f"[CHECKPOINT 3] Parsing Excel...")
+                    logger.debug("Parsing Excel...")
                     df = pd.read_excel(io.BytesIO(content))
 
-                print(f"[CHECKPOINT 4] Loaded {len(df)} rows, {len(df.columns)} columns in {time.time()-file_start:.2f}s")
+                logger.info("Loaded %d rows, %d columns in %.2fs", len(df), len(df.columns), time.time() - file_start)
                 return df
             except Exception as e:
-                print(f"[ERROR] Failed to read {file.filename}: {e}")
-                import traceback
-                traceback.print_exc()
+                logger.exception("Failed to read %s", file.filename)
                 raise
 
         # Read all files
-        print("\n[PHASE 1] READING FILES")
+        logger.info("PHASE 1: READING FILES")
         collar_df = await read_file_optimized(collar)
         survey_df = await read_file_optimized(survey)
         assay_df = await read_file_optimized(assay)
 
         upload_time = time.time() - upload_start
-        print(f"[PHASE 1 COMPLETE] Files loaded in {upload_time:.2f} seconds\n")
+        logger.info("PHASE 1 COMPLETE: Files loaded in %.2fs", upload_time)
 
         # Check memory usage
-        import psutil
-        process = psutil.Process()
-        mem_mb = process.memory_info().rss / 1024 / 1024
-        print(f"[MEMORY] Current usage: {mem_mb:.1f} MB")
+        try:
+            import psutil
+            process = psutil.Process()
+            mem_mb = process.memory_info().rss / 1024 / 1024
+            logger.info("Memory usage: %.1f MB", mem_mb)
+        except ImportError:
+            pass
 
         # Process with desurvey
-        print("\n[PHASE 2] DESURVEY PROCESSING")
-        print(f"Data sizes - Collars: {len(collar_df)}, Surveys: {len(survey_df)}, Assays: {len(assay_df)}")
+        logger.info("PHASE 2: DESURVEY — Collars: %d, Surveys: %d, Assays: %d",
+                     len(collar_df), len(survey_df), len(assay_df))
         desurvey_start = time.time()
 
         try:
             if use_optimized:
                 dh_manager = DrillholeManagerOptimized()
-                # Use parallel processing for large datasets
                 use_parallel = len(collar_df) > 100
-                print(f"[INFO] Using optimized desurvey with parallel={use_parallel}")
+                logger.info("Using optimized desurvey with parallel=%s", use_parallel)
                 result_df = dh_manager.desurvey(collar_df, survey_df, assay_df, use_parallel=use_parallel)
             else:
                 dh_manager = DrillholeManager()
-                print(f"[INFO] Using standard desurvey")
+                logger.info("Using standard desurvey")
                 result_df = dh_manager.desurvey(collar_df, survey_df, assay_df)
         except Exception as e:
-            print(f"[ERROR] Desurvey failed: {e}")
-            import traceback
-            traceback.print_exc()
+            logger.exception("Desurvey failed")
             raise HTTPException(status_code=500, detail=f"Desurvey processing failed: {str(e)}")
 
         if result_df.empty:
-             print("[WARNING] Desurvey returned empty dataframe")
+             logger.warning("Desurvey returned empty dataframe")
              raise HTTPException(status_code=400, detail="Desurvey failed: No matching holes found")
 
         desurvey_time = time.time() - desurvey_start
-        print(f"[PHASE 2 COMPLETE] Desurvey completed in {desurvey_time:.2f}s, {len(result_df)} records")
+        logger.info("PHASE 2 COMPLETE: Desurvey in %.2fs, %d records", desurvey_time, len(result_df))
 
         # Check memory again
-        mem_mb = process.memory_info().rss / 1024 / 1024
-        print(f"[MEMORY] After desurvey: {mem_mb:.1f} MB")
+        try:
+            mem_mb = process.memory_info().rss / 1024 / 1024
+            logger.info("Memory after desurvey: %.1f MB", mem_mb)
+        except Exception:
+            pass
 
-        # OPTIMIZED: Load into DataManager more efficiently
-        print("\n[PHASE 3] CONFIGURING DATA")
+        # Load into DataManager
+        logger.info("PHASE 3: CONFIGURING DATA")
         config_start = time.time()
-
-        print("[CHECKPOINT 5] Loading into DataManager...")
         data_manager.df = result_df
 
-        print("[CHECKPOINT 6] Detecting properties (types, roles, aliases)...")
-        # Use _detect_all_properties which includes _convert_mostly_numeric_columns
-        # This handles columns like Au_ppm_Plot that have mixed text/numeric values
         if hasattr(data_manager, '_detect_all_properties'):
             data_manager._detect_all_properties()
         else:
-            # Fallback for non-optimized manager
             data_manager._detect_column_types()
             data_manager._auto_detect_roles()
             data_manager._guess_aliases()
@@ -267,28 +275,19 @@ async def upload_drillhole(
         config_time = time.time() - config_start
         total_time = time.time() - upload_start
 
-        print(f"\n{'='*60}")
-        print("PERFORMANCE SUMMARY")
-        print(f"{'='*60}")
-        print(f"File Upload:    {upload_time:.2f}s")
-        print(f"Desurvey:       {desurvey_time:.2f}s")
-        print(f"Configuration:  {config_time:.2f}s")
-        print(f"TOTAL TIME:     {total_time:.2f}s")
-        print(f"Records:        {len(result_df)}")
-        print(f"Speed:          {len(result_df)/total_time:.0f} records/second")
-        print(f"{'='*60}\n")
+        logger.info("PERFORMANCE — Upload: %.2fs | Desurvey: %.2fs | Config: %.2fs | TOTAL: %.2fs | %d records (%.0f rec/s)",
+                     upload_time, desurvey_time, config_time, total_time, len(result_df), len(result_df) / total_time)
 
-        # Return ALL data, not just preview - this fixes the 100-row limit issue
-        all_data = data_manager.df.replace({pd.NA: None, np.nan: None, float('inf'): None, float('-inf'): None}).to_dict(orient='records')
-        print(f"[UPLOAD DRILLHOLE] Returning {len(all_data)} rows (full dataset)")
+        all_data = clean_for_json(data_manager.df)
+        logger.info("Returning %d rows (full dataset)", len(all_data))
 
         return {
             "success": True,
             "rows": len(data_manager.df),
             "columns": len(data_manager.df.columns),
-            "data": all_data,  # Full dataset
-            "preview": all_data[:5] if len(all_data) > 5 else all_data,  # Keep preview for backwards compat
-            "column_info": data_manager.get_column_info(),  # Include full column info for frontend
+            "data": all_data,
+            "preview": all_data[:5] if len(all_data) > 5 else all_data,
+            "column_info": data_manager.get_column_info(),
             "performance": {
                 "upload_time": round(upload_time, 2),
                 "desurvey_time": round(desurvey_time, 2),
@@ -296,18 +295,19 @@ async def upload_drillhole(
             }
         }
 
+    except HTTPException:
+        raise
     except Exception as e:
-        import traceback
-        traceback.print_exc()
+        logger.exception("Drillhole upload failed")
         raise HTTPException(status_code=500, detail=str(e))
 
 @router.get("/columns")
 async def get_columns() -> List[Dict[str, Any]]:
-    print(f"[DEBUG /columns] Data manager id: {id(data_manager)}, df is None: {data_manager.df is None}")
-    if data_manager.df is not None:
-        print(f"[DEBUG /columns] df shape: {data_manager.df.shape}")
+    logger.debug("/columns — df is None: %s, shape: %s",
+                 data_manager.df is None,
+                 data_manager.df.shape if data_manager.df is not None else "N/A")
     result = data_manager.get_column_info()
-    print(f"[DEBUG /columns] Returning {len(result)} columns")
+    logger.debug("/columns — returning %d columns", len(result))
     return result
 
 @router.post("/columns/update")
@@ -320,10 +320,137 @@ async def update_column(update: ColumnUpdate):
 
 @router.get("/data")
 async def get_data(limit: int = 100000):
-    print(f"[DEBUG /data] Data manager id: {id(data_manager)}, df is None: {data_manager.df is None}")
     df = data_manager.get_data()
     if df is None:
-        print("[DEBUG /data] Returning empty list (df is None)")
+        logger.debug("/data — no data loaded, returning empty list")
         return []
-    print(f"[DEBUG /data] Returning {min(limit, len(df))} rows from df with shape {df.shape}")
-    return df.head(limit).replace({pd.NA: None, np.nan: None, float('inf'): None, float('-inf'): None}).to_dict(orient='records')
+    logger.debug("/data — returning %d rows from df with shape %s", min(limit, len(df)), df.shape)
+    return clean_for_json(df.head(limit))
+
+
+@router.post("/sample")
+async def compute_sample(request: SampleRequest):
+    """Compute representative sample indices using outlier-preserving stratified random sampling."""
+    df = data_manager.get_data()
+    if df is None:
+        raise HTTPException(status_code=400, detail="No data loaded")
+
+    total_rows = len(df)
+    sample_size = min(request.sample_size, total_rows)
+
+    # If dataset is small enough, return all indices
+    if total_rows <= sample_size:
+        return {
+            "indices": list(range(total_rows)),
+            "total_rows": total_rows,
+            "sample_size": total_rows,
+            "outlier_count": 0,
+            "method": request.method
+        }
+
+    rng = np.random.default_rng(request.seed)
+    all_indices = np.arange(total_rows)
+
+    # Step 1: IQR outlier detection — always include outliers
+    outlier_mask = np.zeros(total_rows, dtype=bool)
+    if request.outlier_columns:
+        for col in request.outlier_columns:
+            if col not in df.columns:
+                continue
+            series = pd.to_numeric(df[col], errors='coerce')
+            valid = series.dropna()
+            if len(valid) == 0:
+                continue
+            q1 = valid.quantile(0.25)
+            q3 = valid.quantile(0.75)
+            iqr = q3 - q1
+            lower = q1 - request.iqr_multiplier * iqr
+            upper = q3 + request.iqr_multiplier * iqr
+            col_outlier = (series < lower) | (series > upper)
+            # Only flag rows with valid values as outliers
+            col_outlier = col_outlier.fillna(False)
+            outlier_mask |= col_outlier.values
+
+    outlier_indices = all_indices[outlier_mask]
+    non_outlier_indices = all_indices[~outlier_mask]
+    outlier_count = len(outlier_indices)
+
+    # If outliers exceed budget, return all outliers
+    if outlier_count >= sample_size:
+        selected = rng.choice(outlier_indices, size=sample_size, replace=False)
+        selected.sort()
+        return {
+            "indices": selected.tolist(),
+            "total_rows": total_rows,
+            "sample_size": sample_size,
+            "outlier_count": sample_size,
+            "method": request.method
+        }
+
+    remaining = sample_size - outlier_count
+
+    # Step 2: Sample non-outlier rows by method
+    if request.method == "stratified" and request.classification_column:
+        col = request.classification_column
+        if col in df.columns:
+            groups = df.iloc[non_outlier_indices].groupby(col, dropna=False)
+            group_counts = groups.size()
+            total_non_outlier = len(non_outlier_indices)
+            sampled_non_outlier = []
+            for group_name, group_df in groups:
+                proportion = len(group_df) / total_non_outlier
+                n_from_group = max(1, int(round(proportion * remaining)))
+                n_from_group = min(n_from_group, len(group_df))
+                chosen = rng.choice(group_df.index.values, size=n_from_group, replace=False)
+                # Convert DataFrame index to positional indices
+                sampled_non_outlier.extend(chosen.tolist())
+            # Trim if we overshot due to rounding
+            if len(sampled_non_outlier) > remaining:
+                sampled_non_outlier = rng.choice(
+                    sampled_non_outlier, size=remaining, replace=False
+                ).tolist()
+            sampled_non_outlier = np.array(sampled_non_outlier)
+        else:
+            # Fall back to random
+            sampled_non_outlier = rng.choice(non_outlier_indices, size=min(remaining, len(non_outlier_indices)), replace=False)
+
+    elif request.method == "drillhole" and request.drillhole_column:
+        col = request.drillhole_column
+        if col in df.columns:
+            # Get hole IDs for non-outlier rows
+            non_outlier_df = df.iloc[non_outlier_indices]
+            hole_ids = non_outlier_df[col].unique()
+            rng.shuffle(hole_ids)
+            sampled_non_outlier = []
+            for hole_id in hole_ids:
+                hole_mask = non_outlier_df[col] == hole_id
+                hole_indices = non_outlier_indices[hole_mask.values]
+                if len(sampled_non_outlier) + len(hole_indices) > remaining:
+                    # Only add if we haven't reached budget yet
+                    if len(sampled_non_outlier) == 0:
+                        sampled_non_outlier.extend(hole_indices.tolist())
+                    break
+                sampled_non_outlier.extend(hole_indices.tolist())
+            sampled_non_outlier = np.array(sampled_non_outlier) if sampled_non_outlier else np.array([], dtype=int)
+        else:
+            sampled_non_outlier = rng.choice(non_outlier_indices, size=min(remaining, len(non_outlier_indices)), replace=False)
+
+    else:
+        # Default: random sampling
+        sampled_non_outlier = rng.choice(non_outlier_indices, size=min(remaining, len(non_outlier_indices)), replace=False)
+
+    # Combine outliers + sampled non-outliers
+    selected = np.concatenate([outlier_indices, sampled_non_outlier]).astype(int)
+    selected = np.unique(selected)
+    selected.sort()
+
+    logger.info("Sample computed: %d/%d rows (method=%s, outliers=%d)",
+                len(selected), total_rows, request.method, outlier_count)
+
+    return {
+        "indices": selected.tolist(),
+        "total_rows": total_rows,
+        "sample_size": len(selected),
+        "outlier_count": outlier_count,
+        "method": request.method
+    }

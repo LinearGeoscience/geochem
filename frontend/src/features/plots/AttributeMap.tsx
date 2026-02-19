@@ -1,4 +1,4 @@
-import React, { useState, useRef, useCallback, useEffect } from 'react';
+import React, { useState, useRef, useCallback, useEffect, useMemo } from 'react';
 import { Box, Paper, FormControl, InputLabel, Select, MenuItem, Grid, Typography, IconButton, Collapse, Alert, CircularProgress, TextField, Autocomplete, Slider } from '@mui/material';
 import { ExpandMore, ExpandLess } from '@mui/icons-material';
 import { MultiColumnSelector } from '../../components/MultiColumnSelector';
@@ -6,12 +6,15 @@ import { useAppStore } from '../../store/appStore';
 import Plot from 'react-plotly.js';
 import { ExpandablePlotWrapper } from '../../components/ExpandablePlotWrapper';
 import { useAttributeStore } from '../../store/attributeStore';
-import { getStyleArrays, shapeToPlotlySymbol, applyOpacityToColor, getSortedIndices, sortColumnsByPriority } from '../../utils/attributeUtils';
+import { getStyleArrays, shapeToPlotlySymbol, applyOpacityToColor, getSortedIndices, sortColumnsByPriority, getColumnDisplayName } from '../../utils/attributeUtils';
 import { buildCustomData, buildMapHoverTemplate } from '../../utils/tooltipUtils';
 import { getPlotConfig } from '../../utils/plotConfig';
 import { transformArrayToWGS84, ensureProjectionRegistered, calculateMapBounds } from '../../utils/coordinateUtils';
 
 type MapViewStyle = 'normal' | 'osm' | 'satellite' | 'hybrid';
+
+// Max WebGL contexts before falling back to CPU-rendered scatter (browsers limit to ~8-16)
+const MAX_WEBGL_CONTEXTS = 16;
 
 // Generate all UTM zones programmatically
 const generateUtmZones = (): { code: string; label: string; numericCode: number }[] => {
@@ -197,9 +200,13 @@ interface AttributeMapProps {
 }
 
 export const AttributeMap: React.FC<AttributeMapProps> = ({ plotId }) => {
-    const { data, columns, lockAxes, getPlotSettings, updatePlotSettings, getFilteredColumns } = useAppStore();
+    const { data, columns, lockAxes, getPlotSettings, updatePlotSettings, getFilteredColumns, getDisplayData, getDisplayIndices, sampleIndices } = useAppStore();
     const filteredColumns = getFilteredColumns();
+    const d = (name: string) => getColumnDisplayName(columns, name);
     useAttributeStore(); // Subscribe to changes
+
+    const displayData = useMemo(() => getDisplayData(), [data, sampleIndices]);
+    const displayIndices = useMemo(() => getDisplayIndices(), [data, sampleIndices]);
 
     // Get stored settings or defaults
     const storedSettings = getPlotSettings(plotId);
@@ -296,7 +303,7 @@ export const AttributeMap: React.FC<AttributeMapProps> = ({ plotId }) => {
 
     // Transform coordinates when basemap is enabled
     useEffect(() => {
-        if (!basemapEnabled || !epsgCode || !data.length || !xAxis || !yAxis) {
+        if (!basemapEnabled || !epsgCode || !displayData.length || !xAxis || !yAxis) {
             setTransformedCoords(null);
             return;
         }
@@ -309,9 +316,9 @@ export const AttributeMap: React.FC<AttributeMapProps> = ({ plotId }) => {
                 // Ensure projection is registered (fetches from epsg.io if needed)
                 await ensureProjectionRegistered(epsgCode);
 
-                // Extract coordinates from data
-                const xCoords = data.map(row => row[xAxis]);
-                const yCoords = data.map(row => row[yAxis]);
+                // Extract coordinates from display data
+                const xCoords = displayData.map(row => row[xAxis]);
+                const yCoords = displayData.map(row => row[yAxis]);
 
                 // Transform to WGS84
                 const result = transformArrayToWGS84(xCoords, yCoords, epsgCode);
@@ -328,17 +335,17 @@ export const AttributeMap: React.FC<AttributeMapProps> = ({ plotId }) => {
         };
 
         transform();
-    }, [basemapEnabled, epsgCode, data, xAxis, yAxis]);
+    }, [basemapEnabled, epsgCode, displayData, xAxis, yAxis]);
 
     const numericColumns = sortColumnsByPriority(
         filteredColumns.filter(c => c && c.name && (c.type === 'numeric' || c.type === 'float' || c.type === 'integer'))
     );
 
     const getPlotDataForAttribute = (_attributeName: string) => {
-        if (!data.length || !xAxis || !yAxis) return [];
+        if (!displayData.length || !xAxis || !yAxis) return [];
 
         // Get styles from attribute store (includes emphasis calculations)
-        const styleArrays = getStyleArrays(data);
+        const styleArrays = getStyleArrays(displayData, displayIndices ?? undefined);
 
         // Get sorted indices for z-ordering (low-grade first, high-grade last/on top)
         const sortedIndices = getSortedIndices(styleArrays);
@@ -349,7 +356,7 @@ export const AttributeMap: React.FC<AttributeMapProps> = ({ plotId }) => {
         );
         const sortedSizes = sortedIndices.map(i => styleArrays.sizes[i]);
         const sortedShapes = sortedIndices.map(i => styleArrays.shapes[i]);
-        const customData = buildCustomData(data, sortedIndices);
+        const customData = buildCustomData(displayData, sortedIndices, displayIndices ?? undefined);
 
         // Use mapbox mode when basemap is enabled and coordinates are transformed
         if (basemapEnabled && transformedCoords && !projectionError && !isTransforming) {
@@ -363,7 +370,7 @@ export const AttributeMap: React.FC<AttributeMapProps> = ({ plotId }) => {
                 lat: sortedLats,
                 lon: sortedLons,
                 customdata: customData,
-                hovertemplate: buildMapHoverTemplate(xAxis, yAxis),
+                hovertemplate: buildMapHoverTemplate(d(xAxis), d(yAxis)),
                 marker: {
                     size: sortedSizes,
                     color: sortedColors,
@@ -372,12 +379,13 @@ export const AttributeMap: React.FC<AttributeMapProps> = ({ plotId }) => {
             }] as any;
         }
 
-        // Original scattergl mode
-        const sortedX = sortedIndices.map(i => data[i][xAxis]);
-        const sortedY = sortedIndices.map(i => data[i][yAxis]);
+        // Original scatter mode (fall back to CPU scatter when too many subplots)
+        const useWebGL = attributes.length <= MAX_WEBGL_CONTEXTS;
+        const sortedX = sortedIndices.map(i => displayData[i][xAxis]);
+        const sortedY = sortedIndices.map(i => displayData[i][yAxis]);
 
         return [{
-            type: 'scattergl',
+            type: useWebGL ? 'scattergl' : 'scatter',
             mode: 'markers',
             x: sortedX,
             y: sortedY,
@@ -456,7 +464,7 @@ export const AttributeMap: React.FC<AttributeMapProps> = ({ plotId }) => {
         return {
             ...baseLayout,
             xaxis: {
-                title: { text: xAxis, font: { size: 11 } },
+                title: { text: d(xAxis), font: { size: 11 } },
                 scaleanchor: 'y',
                 scaleratio: 1,
                 ...(lockAxes && axisRangesRef.current[attributeName]?.xRange
@@ -464,7 +472,7 @@ export const AttributeMap: React.FC<AttributeMapProps> = ({ plotId }) => {
                     : {})
             },
             yaxis: {
-                title: { text: yAxis, font: { size: 11 } },
+                title: { text: d(yAxis), font: { size: 11 } },
                 ...(lockAxes && axisRangesRef.current[attributeName]?.yRange
                     ? { range: axisRangesRef.current[attributeName].yRange, autorange: false }
                     : {})

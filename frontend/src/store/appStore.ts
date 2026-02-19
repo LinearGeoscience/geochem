@@ -1,6 +1,13 @@
 import { create } from 'zustand';
 import { dataApi, qgisApi } from '../services/api';
 import { AttributeState, createAttributeSlice } from './attributeSlice';
+import { ColumnGeochemMapping } from '../types/associations';
+import {
+    createGeochemMappings,
+    findColumnForOxide,
+    findColumnForElement,
+    getColumnsByCategory,
+} from '../utils/calculations/elementNameNormalizer';
 
 interface ColumnInfo {
     name: string;
@@ -8,11 +15,11 @@ interface ColumnInfo {
     role: string | null;
     alias: string | null;
     priority?: number; // Lower = higher priority in dropdowns (1-10)
-    transformationType?: 'raw' | 'clr' | 'alr' | 'ilr' | 'plr' | 'slr' | 'chipower' | 'log-additive' | null; // Which transformation created this column
+    transformationType?: 'raw' | 'clr' | 'alr' | 'ilr' | 'plr' | 'slr' | 'chipower' | 'log-additive' | 'anhydrous' | 'recalculated' | null; // Which transformation created this column
 }
 
 // Column filter options
-export type ColumnFilterType = 'all' | 'raw' | 'clr' | 'alr' | 'ilr' | 'plr' | 'slr' | 'chipower' | 'log-additive';
+export type ColumnFilterType = 'all' | 'raw' | 'clr' | 'alr' | 'ilr' | 'plr' | 'slr' | 'chipower' | 'log-additive' | 'anhydrous' | 'recalculated';
 
 export const COLUMN_FILTER_LABELS: Record<ColumnFilterType, string> = {
     all: 'All Columns',
@@ -23,10 +30,31 @@ export const COLUMN_FILTER_LABELS: Record<ColumnFilterType, string> = {
     plr: 'PLR Transformed',
     slr: 'SLR Transformed',
     chipower: 'Chi-Power Transformed',
-    'log-additive': 'Log Additive Index'
+    'log-additive': 'Log Additive Index',
+    anhydrous: 'Anhydrous (Volatile-Free)',
+    recalculated: 'Recalculated (Sulfide-Free)',
 };
 
 type PlotType = 'scatter' | 'ternary' | 'spider' | 'map' | 'map3d' | 'downhole' | 'histogram' | 'clr' | 'classification' | 'pathfinder';
+
+// Sampling types
+export interface SamplingConfig {
+    enabled: boolean;
+    sampleSize: number;
+    method: 'random' | 'stratified' | 'drillhole';
+    outlierColumns: string[];
+    classificationColumn: string | null;
+    drillholeColumn: string | null;
+    iqrMultiplier: number;
+    seed: number | null;
+}
+
+export interface SamplingResult {
+    totalRows: number;
+    sampleSize: number;
+    outlierCount: number;
+    method: string;
+}
 
 // Per-plot settings storage
 interface PlotSettings {
@@ -46,7 +74,7 @@ interface AppState {
     isLoading: boolean;
     uploadProgress: number; // 0-100
     error: string | null;
-    currentView: 'import' | 'data' | 'columns' | 'plots' | 'analysis' | 'qaqc' | 'statistics' | 'settings';
+    currentView: 'import' | 'data' | 'columns' | 'plots' | 'analysis' | 'qaqc' | 'statistics' | 'settings' | 'diagram-editor';
 
     // Column filtering by transformation type
     columnFilter: ColumnFilterType;
@@ -92,8 +120,71 @@ interface AppState {
     // Data actions
     addColumn: (name: string, values: any[], colType?: string, role?: string, transformationType?: ColumnInfo['transformationType']) => void;
 
+    // Sampling
+    samplingConfig: SamplingConfig;
+    samplingResult: SamplingResult | null;
+    sampleIndices: Set<number> | null;
+    isSampling: boolean;
+    setSamplingEnabled: (enabled: boolean) => void;
+    updateSamplingConfig: (partial: Partial<SamplingConfig>) => void;
+    computeSample: () => Promise<void>;
+    clearSample: () => void;
+    getDisplayData: () => any[];
+    getDisplayIndices: () => number[] | null;
+
+    // Geochem column mappings
+    geochemMappings: ColumnGeochemMapping[];
+    showGeochemDialog: boolean;
+    setGeochemMappings: (mappings: ColumnGeochemMapping[]) => void;
+    updateGeochemMapping: (columnName: string, updates: Partial<ColumnGeochemMapping>) => void;
+    batchUpdateGeochemMappings: (updates: Array<{ columnName: string; updates: Partial<ColumnGeochemMapping> }>) => void;
+    setShowGeochemDialog: (show: boolean) => void;
+    confirmAllMappings: () => void;
+    getColumnForOxide: (oxideFormula: string) => string | null;
+    getColumnForElement: (element: string, unit?: string) => string | null;
+    getMajorOxides: () => ColumnGeochemMapping[];
+    getTraceElements: () => ColumnGeochemMapping[];
+    getREE: () => ColumnGeochemMapping[];
+
+    // Logging merge dialog
+    showLoggingMergeDialog: boolean;
+    setShowLoggingMergeDialog: (show: boolean) => void;
+
     // QGIS sync
     syncToQgis: () => Promise<void>;
+}
+
+/**
+ * Convert a single value to the target column type.
+ * Missing/unparseable values become null (not zero) to preserve the distinction
+ * between "not measured" and "measured as zero" in geochemical data.
+ */
+function convertValueForType(value: any, newType: string, treatNegativeAsZero: boolean): any {
+    if (newType === 'numeric' || newType === 'float' || newType === 'integer') {
+        if (value === null || value === undefined || value === '' || value === 'NA' || value === 'N/A' || value === '-') {
+            return null; // Preserve null — missing data is not zero
+        } else if (typeof value === 'string') {
+            const cleaned = value.replace(/[<>,%$]/g, '').trim();
+            const parsed = parseFloat(cleaned);
+            if (isNaN(parsed)) {
+                return null; // Unparseable strings become null, not zero
+            } else if (parsed < 0 && treatNegativeAsZero) {
+                return 0;
+            } else {
+                return newType === 'integer' ? Math.round(parsed) : parsed;
+            }
+        } else if (typeof value === 'number') {
+            if (value < 0 && treatNegativeAsZero) {
+                return 0;
+            } else {
+                return newType === 'integer' ? Math.round(value) : value;
+            }
+        }
+        return value;
+    } else if (newType === 'text' || newType === 'categorical') {
+        return value === null || value === undefined ? '' : String(value);
+    }
+    return value;
 }
 
 type CombinedState = AppState & AttributeState;
@@ -126,6 +217,29 @@ export const useAppStore = create<CombinedState>()((set, get, api) => ({
     activePlotId: null,
     selectedIndices: [],
     lockAxes: false,
+
+    // Sampling defaults
+    samplingConfig: {
+        enabled: false,
+        sampleSize: 10000,
+        method: 'random',
+        outlierColumns: [],
+        classificationColumn: null,
+        drillholeColumn: null,
+        iqrMultiplier: 1.5,
+        seed: null,
+    },
+    samplingResult: null,
+    sampleIndices: null,
+    isSampling: false,
+
+    // Geochem mappings
+    geochemMappings: [],
+    showGeochemDialog: false,
+
+    // Logging merge dialog
+    showLoggingMergeDialog: false,
+    setShowLoggingMergeDialog: (show) => set({ showLoggingMergeDialog: show }),
 
     statsSelectedColumns: [],
     correlationSelectedColumns: [],
@@ -278,20 +392,38 @@ export const useAppStore = create<CombinedState>()((set, get, api) => ({
             // Use full data from upload response if available
             if (result.data && result.data.length > 0) {
                 console.log(`[uploadFile] Using ${result.data.length} rows from upload response`);
+                const columnInfo = result.column_info || [];
                 set({
                     data: result.data,
-                    columns: result.column_info || [],
+                    columns: columnInfo,
                     isLoading: false,
                     uploadProgress: 0
                 });
+                // Generate geochem mappings
+                const columnNames = columnInfo.map((c: ColumnInfo) => c.name);
+                const mappings = createGeochemMappings(columnNames, columnInfo);
+                set({ geochemMappings: mappings, showGeochemDialog: true });
                 // Auto-sync to QGIS
                 get().syncToQgis();
+                // Auto-enable sampling for large datasets
+                if (result.data.length > 20000) {
+                    const autoSize = Math.min(10000, Math.round(result.data.length * 0.25));
+                    set((state) => ({
+                        samplingConfig: { ...state.samplingConfig, enabled: true, sampleSize: autoSize }
+                    }));
+                    get().computeSample();
+                }
             } else {
                 // Fallback to fetching data separately
                 console.log('[uploadFile] No data in response, fetching separately...');
                 await get().fetchColumns();
                 await get().fetchData();
                 set({ isLoading: false, uploadProgress: 0 });
+                // Generate geochem mappings from fetched columns
+                const cols = get().columns;
+                const columnNames = cols.map(c => c.name);
+                const mappings = createGeochemMappings(columnNames, cols);
+                set({ geochemMappings: mappings, showGeochemDialog: true });
                 // Auto-sync to QGIS
                 get().syncToQgis();
             }
@@ -312,20 +444,38 @@ export const useAppStore = create<CombinedState>()((set, get, api) => ({
             // Use full data from upload response if available
             if (result.data && result.data.length > 0) {
                 console.log(`[uploadDrillhole] Using ${result.data.length} rows from upload response`);
+                const columnInfo = result.column_info || [];
                 set({
                     data: result.data,
-                    columns: result.column_info || [],
+                    columns: columnInfo,
                     isLoading: false,
                     uploadProgress: 0
                 });
+                // Generate geochem mappings
+                const columnNames = columnInfo.map((c: ColumnInfo) => c.name);
+                const mappings = createGeochemMappings(columnNames, columnInfo);
+                set({ geochemMappings: mappings, showGeochemDialog: true });
                 // Auto-sync to QGIS
                 get().syncToQgis();
+                // Auto-enable sampling for large datasets
+                if (result.data.length > 20000) {
+                    const autoSize = Math.min(10000, Math.round(result.data.length * 0.25));
+                    set((state) => ({
+                        samplingConfig: { ...state.samplingConfig, enabled: true, sampleSize: autoSize }
+                    }));
+                    get().computeSample();
+                }
             } else {
                 // Fallback to fetching data separately
                 console.log('[uploadDrillhole] No data in response, fetching separately...');
                 await get().fetchColumns();
                 await get().fetchData();
                 set({ isLoading: false, uploadProgress: 0 });
+                // Generate geochem mappings from fetched columns
+                const cols = get().columns;
+                const columnNames = cols.map(c => c.name);
+                const mappings = createGeochemMappings(columnNames, cols);
+                set({ geochemMappings: mappings, showGeochemDialog: true });
                 // Auto-sync to QGIS
                 get().syncToQgis();
             }
@@ -363,45 +513,11 @@ export const useAppStore = create<CombinedState>()((set, get, api) => ({
 
     updateColumnType: (column: string, newType: string, treatNegativeAsZero: boolean = true) => {
         set((state) => {
-            // Convert data values based on new type
-            const newData = state.data.map(row => {
-                const value = row[column];
-                let convertedValue = value;
+            const newData = state.data.map(row => ({
+                ...row,
+                [column]: convertValueForType(row[column], newType, treatNegativeAsZero)
+            }));
 
-                if (newType === 'numeric' || newType === 'float' || newType === 'integer') {
-                    // Convert to numeric
-                    if (value === null || value === undefined || value === '' || value === 'NA' || value === 'N/A' || value === '-') {
-                        convertedValue = 0; // Treat null/empty as 0
-                    } else if (typeof value === 'string') {
-                        // Remove common non-numeric characters and try to parse
-                        const cleaned = value.replace(/[<>,%$]/g, '').trim();
-                        const parsed = parseFloat(cleaned);
-                        if (isNaN(parsed)) {
-                            convertedValue = 0; // Failed to parse, treat as 0
-                        } else if (parsed < 0 && treatNegativeAsZero) {
-                            convertedValue = 0; // Negative values treated as 0
-                        } else {
-                            convertedValue = newType === 'integer' ? Math.round(parsed) : parsed;
-                        }
-                    } else if (typeof value === 'number') {
-                        if (value < 0 && treatNegativeAsZero) {
-                            convertedValue = 0;
-                        } else {
-                            convertedValue = newType === 'integer' ? Math.round(value) : value;
-                        }
-                    }
-                } else if (newType === 'text' || newType === 'categorical') {
-                    // Convert to string
-                    convertedValue = value === null || value === undefined ? '' : String(value);
-                }
-
-                return {
-                    ...row,
-                    [column]: convertedValue
-                };
-            });
-
-            // Update column type
             const newColumns = state.columns.map(col =>
                 col.name === column
                     ? { ...col, type: newType }
@@ -415,45 +531,14 @@ export const useAppStore = create<CombinedState>()((set, get, api) => ({
 
     updateColumnTypes: (columnNames: string[], newType: string, treatNegativeAsZero: boolean = true) => {
         set((state) => {
-            // Helper function to convert a single value
-            const convertValue = (value: any): any => {
-                if (newType === 'numeric' || newType === 'float' || newType === 'integer') {
-                    if (value === null || value === undefined || value === '' || value === 'NA' || value === 'N/A' || value === '-') {
-                        return 0;
-                    } else if (typeof value === 'string') {
-                        const cleaned = value.replace(/[<>,%$]/g, '').trim();
-                        const parsed = parseFloat(cleaned);
-                        if (isNaN(parsed)) {
-                            return 0;
-                        } else if (parsed < 0 && treatNegativeAsZero) {
-                            return 0;
-                        } else {
-                            return newType === 'integer' ? Math.round(parsed) : parsed;
-                        }
-                    } else if (typeof value === 'number') {
-                        if (value < 0 && treatNegativeAsZero) {
-                            return 0;
-                        } else {
-                            return newType === 'integer' ? Math.round(value) : value;
-                        }
-                    }
-                    return value;
-                } else if (newType === 'text' || newType === 'categorical') {
-                    return value === null || value === undefined ? '' : String(value);
-                }
-                return value;
-            };
-
-            // Convert data for all specified columns in a single pass
             const newData = state.data.map(row => {
                 const updatedRow = { ...row };
                 columnNames.forEach(colName => {
-                    updatedRow[colName] = convertValue(row[colName]);
+                    updatedRow[colName] = convertValueForType(row[colName], newType, treatNegativeAsZero);
                 });
                 return updatedRow;
             });
 
-            // Update column types
             const newColumns = state.columns.map(col =>
                 columnNames.includes(col.name)
                     ? { ...col, type: newType }
@@ -464,6 +549,130 @@ export const useAppStore = create<CombinedState>()((set, get, api) => ({
             return { data: newData, columns: newColumns };
         });
     },
+
+    setSamplingEnabled: (enabled) => {
+        set((state) => ({
+            samplingConfig: { ...state.samplingConfig, enabled }
+        }));
+        if (enabled) {
+            get().computeSample();
+        } else {
+            get().clearSample();
+        }
+    },
+
+    updateSamplingConfig: (partial) => {
+        set((state) => ({
+            samplingConfig: { ...state.samplingConfig, ...partial }
+        }));
+        // Re-compute if sampling is enabled
+        if (get().samplingConfig.enabled) {
+            get().computeSample();
+        }
+    },
+
+    computeSample: async () => {
+        const { data, samplingConfig } = get();
+        if (!samplingConfig.enabled || data.length === 0) {
+            return;
+        }
+
+        set({ isSampling: true });
+        try {
+            const result = await dataApi.computeSample({
+                sample_size: samplingConfig.sampleSize,
+                method: samplingConfig.method,
+                outlier_columns: samplingConfig.outlierColumns,
+                classification_column: samplingConfig.classificationColumn,
+                drillhole_column: samplingConfig.drillholeColumn,
+                iqr_multiplier: samplingConfig.iqrMultiplier,
+                seed: samplingConfig.seed,
+            });
+
+            set({
+                sampleIndices: new Set(result.indices),
+                samplingResult: {
+                    totalRows: result.total_rows,
+                    sampleSize: result.sample_size,
+                    outlierCount: result.outlier_count,
+                    method: result.method,
+                },
+                isSampling: false,
+            });
+            console.log(`[computeSample] Sample: ${result.sample_size}/${result.total_rows} rows (${result.outlier_count} outliers preserved)`);
+        } catch (err: any) {
+            console.error('[computeSample] Failed:', err);
+            set({ isSampling: false });
+        }
+    },
+
+    clearSample: () => {
+        set({
+            sampleIndices: null,
+            samplingResult: null,
+            samplingConfig: { ...get().samplingConfig, enabled: false },
+        });
+    },
+
+    getDisplayData: () => {
+        const { data, sampleIndices } = get();
+        if (!sampleIndices) return data;
+        return data.filter((_, i) => sampleIndices.has(i));
+    },
+
+    getDisplayIndices: () => {
+        const { data, sampleIndices } = get();
+        if (!sampleIndices) return null;
+        const indices: number[] = [];
+        for (let i = 0; i < data.length; i++) {
+            if (sampleIndices.has(i)) indices.push(i);
+        }
+        return indices;
+    },
+
+    // Geochem mapping actions
+    setGeochemMappings: (mappings) => set({ geochemMappings: mappings }),
+
+    updateGeochemMapping: (columnName, updates) => {
+        set((state) => ({
+            geochemMappings: state.geochemMappings.map(m =>
+                m.originalName === columnName ? { ...m, ...updates } : m
+            )
+        }));
+    },
+
+    batchUpdateGeochemMappings: (updates) => {
+        set((state) => {
+            const updateMap = new Map(updates.map(u => [u.columnName, u.updates]));
+            return {
+                geochemMappings: state.geochemMappings.map(m => {
+                    const upd = updateMap.get(m.originalName);
+                    return upd ? { ...m, ...upd } : m;
+                })
+            };
+        });
+    },
+
+    setShowGeochemDialog: (show) => set({ showGeochemDialog: show }),
+
+    confirmAllMappings: () => {
+        set((state) => ({
+            geochemMappings: state.geochemMappings.map(m => ({ ...m, isConfirmed: true })),
+            showGeochemDialog: false,
+        }));
+    },
+
+    getColumnForOxide: (oxideFormula) => {
+        return findColumnForOxide(get().geochemMappings, oxideFormula);
+    },
+
+    getColumnForElement: (element, unit) => {
+        return findColumnForElement(get().geochemMappings, element, unit);
+    },
+
+    getMajorOxides: () => getColumnsByCategory(get().geochemMappings, 'majorOxide'),
+    getTraceElements: () => getColumnsByCategory(get().geochemMappings, 'traceElement'),
+    getREE: () => getColumnsByCategory(get().geochemMappings, 'ree'),
 
     syncToQgis: async () => {
         const { data, columns } = get();

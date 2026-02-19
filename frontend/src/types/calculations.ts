@@ -18,7 +18,7 @@ export type ValidationSeverity = 'error' | 'warning' | 'info';
 
 // Formula expression types for safe evaluation (no eval())
 export type FormulaOperator = '+' | '-' | '*' | '/' | '^';
-export type FormulaFunction = 'log10' | 'ln' | 'sqrt' | 'abs' | 'min' | 'max' | 'pow' | 'exp';
+export type FormulaFunction = 'log10' | 'log' | 'ln' | 'sqrt' | 'abs' | 'min' | 'max' | 'pow' | 'exp';
 
 export interface FormulaExpression {
     type: 'constant' | 'variable' | 'operation' | 'function';

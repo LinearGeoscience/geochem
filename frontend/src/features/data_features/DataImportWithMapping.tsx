@@ -109,6 +109,7 @@ export const DataImportWithMapping: React.FC = () => {
         collar: ColumnMapping;
         survey: ColumnMapping;
         assay: ColumnMapping;
+        negateDip: boolean;
     }) => {
         setShowMapper(false);
         useAppStore.setState({ error: null, isLoading: true, uploadProgress: 0 });
@@ -121,6 +122,7 @@ export const DataImportWithMapping: React.FC = () => {
             formData.append('collar_mapping', JSON.stringify(mappings.collar));
             formData.append('survey_mapping', JSON.stringify(mappings.survey));
             formData.append('assay_mapping', JSON.stringify(mappings.assay));
+            formData.append('negate_dip', mappings.negateDip ? 'true' : 'false');
 
             const response = await fetch('/api/drillhole/process', {
                 method: 'POST',

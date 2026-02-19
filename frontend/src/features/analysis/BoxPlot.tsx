@@ -16,13 +16,11 @@ import {
     FormControlLabel,
     Checkbox,
     Grid,
-    Chip,
-    OutlinedInput,
-    SelectChangeEvent,
     ToggleButton,
     ToggleButtonGroup,
     Tooltip,
 } from '@mui/material';
+import { MultiColumnSelector } from '../../components/MultiColumnSelector';
 
 // Color palette for box plots
 const BOX_COLORS = [
@@ -348,12 +346,6 @@ export const BoxPlot: React.FC = () => {
         return layout;
     }, [numericColumns, categoryColumn, categories, logScale, orientation, plotWidth]);
 
-    // Handlers
-    const handleNumericChange = (event: SelectChangeEvent<string[]>) => {
-        const value = event.target.value;
-        setNumericColumns(typeof value === 'string' ? value.split(',') : value);
-    };
-
     // Calculate statistics for display
     const stats = useMemo(() => {
         if (!numericColumns.length || !visibleData.length) return null;
@@ -406,28 +398,12 @@ export const BoxPlot: React.FC = () => {
             {/* Controls */}
             <Grid container spacing={2} sx={{ mb: 3 }}>
                 <Grid item xs={12} md={4}>
-                    <FormControl fullWidth>
-                        <InputLabel>Numeric Variables</InputLabel>
-                        <Select
-                            multiple
-                            value={numericColumns}
-                            onChange={handleNumericChange}
-                            input={<OutlinedInput label="Numeric Variables" />}
-                            renderValue={(selected) => (
-                                <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5 }}>
-                                    {selected.map((value) => (
-                                        <Chip key={value} label={value} size="small" />
-                                    ))}
-                                </Box>
-                            )}
-                        >
-                            {numericColumnOptions.map((col) => (
-                                <MenuItem key={col.name} value={col.name}>
-                                    {col.alias || col.name}
-                                </MenuItem>
-                            ))}
-                        </Select>
-                    </FormControl>
+                    <MultiColumnSelector
+                        columns={numericColumnOptions}
+                        selectedColumns={numericColumns}
+                        onChange={setNumericColumns}
+                        label="Numeric Variables"
+                    />
                 </Grid>
 
                 <Grid item xs={12} md={2}>

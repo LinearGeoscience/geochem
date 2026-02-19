@@ -1,5 +1,5 @@
 """
-Geopackage Export Manager for GeoChem Pro QGIS Plugin
+Geopackage Export Manager for GeoChem QGIS Plugin
 Handles saving styled layers to geopackage format with embedded styles
 """
 
@@ -108,7 +108,7 @@ class GeopackageExporter:
                 result['message'] = f"Export failed: {error_message}"
                 QgsMessageLog.logMessage(
                     f"GeoPackage export error: {error_message}",
-                    "GeoChem Pro",
+                    "GeoChem",
                     Qgis.Warning
                 )
                 return result
@@ -125,7 +125,7 @@ class GeopackageExporter:
                 if not style_result['success']:
                     QgsMessageLog.logMessage(
                         f"Style embedding warning: {style_result['message']}",
-                        "GeoChem Pro",
+                        "GeoChem",
                         Qgis.Warning
                     )
 
@@ -134,7 +134,7 @@ class GeopackageExporter:
 
             QgsMessageLog.logMessage(
                 f"Successfully exported layer to {filepath}",
-                "GeoChem Pro",
+                "GeoChem",
                 Qgis.Info
             )
 
@@ -144,7 +144,7 @@ class GeopackageExporter:
             result['message'] = f"Export error: {str(e)}"
             QgsMessageLog.logMessage(
                 f"GeoPackage export exception: {str(e)}",
-                "GeoChem Pro",
+                "GeoChem",
                 Qgis.Critical
             )
             return result
@@ -247,7 +247,7 @@ class GeopackageExporter:
                 except Exception as e:
                     QgsMessageLog.logMessage(
                         f"Failed to add style '{style_name}': {str(e)}",
-                        "GeoChem Pro",
+                        "GeoChem",
                         Qgis.Warning
                     )
 
@@ -259,7 +259,7 @@ class GeopackageExporter:
 
             QgsMessageLog.logMessage(
                 f"Exported layer with {result['styles_added']} styles to {filepath}",
-                "GeoChem Pro",
+                "GeoChem",
                 Qgis.Info
             )
 
@@ -269,7 +269,7 @@ class GeopackageExporter:
             result['message'] = f"Style export error: {str(e)}"
             QgsMessageLog.logMessage(
                 f"Multi-style export exception: {str(e)}",
-                "GeoChem Pro",
+                "GeoChem",
                 Qgis.Critical
             )
             return result
@@ -403,7 +403,7 @@ class GeopackageExporter:
         except Exception as e:
             QgsMessageLog.logMessage(
                 f"Error listing styles: {str(e)}",
-                "GeoChem Pro",
+                "GeoChem",
                 Qgis.Warning
             )
 
@@ -435,7 +435,7 @@ class GeopackageExporter:
                 INSERT OR REPLACE INTO layer_styles
                 (f_table_name, styleName, styleQML, useAsDefault, description)
                 VALUES (?, ?, ?, 1, ?)
-            ''', (layer_name, 'default', qml_content, 'Default GeoChem Pro style'))
+            ''', (layer_name, 'default', qml_content, 'Default GeoChem style'))
 
             conn.commit()
             conn.close()

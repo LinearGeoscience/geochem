@@ -27,6 +27,7 @@ import {
   Menu,
   ListItemIcon,
   ListItemText,
+  Snackbar,
 } from '@mui/material';
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 import CheckCircleIcon from '@mui/icons-material/CheckCircle';
@@ -46,6 +47,7 @@ import {
 } from '../../../types/associations';
 import { matchAssociations, summarizeAssociations } from '../../../utils/calculations/associationMatcher';
 import { CATEGORY_INFO } from '../../../data/elementAssociationPatterns';
+import { useAppStore } from '../../../store/appStore';
 import { PatternMatchCard } from './PatternMatchCard';
 import { ConfidenceEmoji } from './AssociationConfidenceBar';
 import { ElementVerificationDialog } from './ElementVerificationDialog';
@@ -469,6 +471,11 @@ export const AssociationResults: React.FC<AssociationResultsProps> = ({
   const [colorScaleSide, setColorScaleSide] = useState<'positive' | 'negative'>('positive');
   const [colorScalePcNumber, setColorScalePcNumber] = useState(1);
 
+  // Snackbar state
+  const [snackbar, setSnackbar] = useState<{ open: boolean; message: string; severity: 'success' | 'warning' }>({
+    open: false, message: '', severity: 'success',
+  });
+
   // Auto-detect element mappings when component mounts or columns change
   useEffect(() => {
     if (pcaResult.columns && pcaResult.columns.length > 0) {
@@ -497,13 +504,22 @@ export const AssociationResults: React.FC<AssociationResultsProps> = ({
     setVerificationDialogOpen(false);
   }, []);
 
+  // Check if PC columns exist
+  const { columns } = useAppStore();
+
   // Handle color scale creation
   const handleCreateColorScale = useCallback((match: MatchScore, side: 'positive' | 'negative', pcNumber?: number) => {
+    const pc = pcNumber ?? selectedPC + 1;
+    const hasPcColumns = columns.some((c) => c.name === `PC${pc}` || c.name === `negPC${pc}`);
+    if (!hasPcColumns) {
+      setSnackbar({ open: true, message: 'Add PC Scores to Data first', severity: 'warning' });
+      return;
+    }
     setColorScaleMatch(match);
     setColorScaleSide(side);
-    setColorScalePcNumber(pcNumber ?? selectedPC + 1);
+    setColorScalePcNumber(pc);
     setColorScaleDialogOpen(true);
-  }, [selectedPC]);
+  }, [selectedPC, columns]);
 
   // Run association matching
   const analyses = useMemo(() => {
@@ -757,12 +773,29 @@ export const AssociationResults: React.FC<AssociationResultsProps> = ({
             setColorScaleDialogOpen(false);
             setColorScaleMatch(null);
           }}
+          onSuccess={(msg) => setSnackbar({ open: true, message: msg, severity: 'success' })}
           pcNumber={colorScalePcNumber}
           association={colorScaleMatch}
           side={colorScaleSide}
           varianceExplained={analyses[colorScalePcNumber - 1]?.varianceExplained || 0}
         />
       )}
+
+      {/* Snackbar feedback */}
+      <Snackbar
+        open={snackbar.open}
+        autoHideDuration={5000}
+        onClose={() => setSnackbar((s) => ({ ...s, open: false }))}
+        anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
+      >
+        <Alert
+          onClose={() => setSnackbar((s) => ({ ...s, open: false }))}
+          severity={snackbar.severity}
+          variant="filled"
+        >
+          {snackbar.message}
+        </Alert>
+      </Snackbar>
     </Box>
   );
 };

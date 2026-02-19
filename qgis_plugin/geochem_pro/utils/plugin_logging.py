@@ -1,5 +1,5 @@
 """
-Logging Utilities for GeoChem Pro QGIS Plugin
+Logging Utilities for GeoChem QGIS Plugin
 Provides consistent logging throughout the plugin
 """
 
@@ -19,13 +19,13 @@ class LogLevel(IntEnum):
 
 class PluginLogger:
     """
-    Centralized logging for the GeoChem Pro plugin.
+    Centralized logging for the GeoChem plugin.
 
     Provides consistent formatting and routing of log messages
     to both QGIS message log and optional file logging.
     """
 
-    TAG = "GeoChem Pro"
+    TAG = "GeoChem"
     _instance: Optional['PluginLogger'] = None
     _file_path: Optional[str] = None
     _log_to_file: bool = False

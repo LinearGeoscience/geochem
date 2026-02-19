@@ -27,7 +27,9 @@ import {
   Tab,
   Grid,
   Chip,
+  Snackbar,
 } from '@mui/material';
+import CloseIcon from '@mui/icons-material/Close';
 import { useAppStore } from '../../store/appStore';
 import { useTransformationStore } from '../../store/transformationStore';
 import { useAttributeStore } from '../../store/attributeStore';
@@ -39,6 +41,7 @@ import {
   createElementMappings,
   buildMappingMap,
   getMappingSummary,
+  isNonElementColumn,
 } from '../../utils/calculations/elementNameNormalizer';
 
 // Import visualization components
@@ -73,9 +76,10 @@ function inverseNormalCDF(p: number): number {
 }
 
 export const PCAWorkflow: React.FC = () => {
-  const { data, addColumn, getFilteredColumns } = useAppStore();
+  const { data, addColumn, getFilteredColumns, geochemMappings } = useAppStore();
   const filteredColumns = getFilteredColumns();
-  useAttributeStore(); // Subscribe to attribute changes
+  const attributeColor = useAttributeStore((s) => s.color);
+  const { setField: setAttributeField, setEntries: setAttributeEntries } = useAttributeStore();
 
   const {
     fullPcaResult,
@@ -95,10 +99,26 @@ export const PCAWorkflow: React.FC = () => {
   const [nComponents, setNComponents] = useState(8);
   const [resultsTab, setResultsTab] = useState(0);
   const [expandedElement, setExpandedElement] = useState<string | null>(null);
+  const [snackbar, setSnackbar] = useState<{ open: boolean; message: string; severity: 'success' | 'info' | 'warning' }>({
+    open: false, message: '', severity: 'success',
+  });
 
   // Shared association analysis state (lifted from AssociationResults)
   const [associationAnalyses, setAssociationAnalyses] = useState<PCAssociationAnalysis[]>([]);
   const [loadingThreshold] = useState(0.3);
+
+  // Active colour scale detection
+  const activeColorScale = useMemo(() => {
+    const field = attributeColor.field;
+    if (!field || (!field.startsWith('PC') && !field.startsWith('negPC'))) return null;
+    const method = attributeColor.method;
+    const numClasses = attributeColor.entries.filter((e) => !e.isDefault).length;
+    const methodLabels: Record<string, string> = { quantile: 'quantile', jenks: 'Jenks', equal: 'equal interval', categorical: 'categorical', manual: 'manual' };
+    return {
+      field,
+      description: `${field} (${numClasses} classes, ${methodLabels[method] || method})`,
+    };
+  }, [attributeColor]);
 
   // Get style arrays for probability plots (respects visibility and coloring)
   const styleArrays = useMemo(() => getStyleArrays(data), [data]);
@@ -114,6 +134,40 @@ export const PCAWorkflow: React.FC = () => {
     [filteredColumns]
   );
 
+  // Identify non-element columns (coordinates, depth, weights, etc.)
+  const nonElementColumns = useMemo(() => {
+    const set = new Set<string>();
+    for (const col of numericColumns) {
+      // If geochem mappings exist, use them as source of truth
+      const mapping = geochemMappings.find(m => m.originalName === col.name);
+      if (mapping) {
+        // Column was classified in chemistry dialog
+        if (mapping.isExcluded || mapping.category === 'nonGeochemical') {
+          set.add(col.name);
+        }
+        // Otherwise it's a recognized geochemical column - don't add to non-elements
+      } else {
+        // No mapping exists - fall back to heuristic detection
+        if (isNonElementColumn(col.name, col.role)) {
+          set.add(col.name);
+        }
+      }
+    }
+    return set;
+  }, [numericColumns, geochemMappings]);
+
+  // After quality assessment auto-selects elements, filter out non-element columns
+  useEffect(() => {
+    if (elementQualityInfo.length > 0 && nonElementColumns.size > 0) {
+      const filtered = pcaSelectedElements.filter((e) => !nonElementColumns.has(e));
+      if (filtered.length !== pcaSelectedElements.length) {
+        setPcaSelectedElements(filtered);
+      }
+    }
+  // Only run when elementQualityInfo changes (i.e. after quality assessment)
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [elementQualityInfo]);
+
   // Compute association analyses when PCA result changes
   useEffect(() => {
     if (!fullPcaResult || !fullPcaResult.columns) {
@@ -121,8 +175,10 @@ export const PCAWorkflow: React.FC = () => {
       return;
     }
 
-    // Auto-detect element mappings
-    const mappings = createElementMappings(fullPcaResult.columns);
+    // Use stored geochem mappings if available, otherwise auto-detect
+    const mappings = geochemMappings.length > 0
+      ? geochemMappings.filter(m => fullPcaResult.columns.includes(m.originalName))
+      : createElementMappings(fullPcaResult.columns);
     const summary = getMappingSummary(mappings);
 
     // Build element mapping map
@@ -146,7 +202,7 @@ export const PCAWorkflow: React.FC = () => {
 
     const analyses = matchAssociations(fullPcaResult, options);
     setAssociationAnalyses(analyses);
-  }, [fullPcaResult, loadingThreshold]);
+  }, [fullPcaResult, loadingThreshold, geochemMappings]);
 
   // Step handlers
   const handleNext = () => setActiveStep((prev) => prev + 1);
@@ -176,14 +232,16 @@ export const PCAWorkflow: React.FC = () => {
 
   const handleSelectAllGoodQuality = useCallback(() => {
     const goodElements = elementQualityInfo
-      .filter((q) => q.isAcceptable)
+      .filter((q) => q.isAcceptable && !nonElementColumns.has(q.element))
       .map((q) => q.element);
     setPcaSelectedElements(goodElements);
-  }, [elementQualityInfo, setPcaSelectedElements]);
+  }, [elementQualityInfo, nonElementColumns, setPcaSelectedElements]);
 
   const handleSelectAll = useCallback(() => {
-    setPcaSelectedElements(elementQualityInfo.map((q) => q.element));
-  }, [elementQualityInfo, setPcaSelectedElements]);
+    setPcaSelectedElements(elementQualityInfo
+      .filter((q) => !nonElementColumns.has(q.element))
+      .map((q) => q.element));
+  }, [elementQualityInfo, nonElementColumns, setPcaSelectedElements]);
 
   const handleClearSelection = useCallback(() => {
     setPcaSelectedElements([]);
@@ -257,7 +315,11 @@ export const PCAWorkflow: React.FC = () => {
       addColumn(negPcName, negPcValues, 'numeric', 'PCA', 'pca' as any);
     }
 
-    alert(`Added ${numPCs * 2} columns (PC1-PC${numPCs} and negPC1-negPC${numPCs}) to the dataset`);
+    setSnackbar({
+      open: true,
+      message: `Added ${numPCs * 2} columns (PC1-PC${numPCs} and negPC1-negPC${numPCs}) to the dataset`,
+      severity: 'success',
+    });
   }, [fullPcaResult, nComponents, addColumn]);
 
   // Step content rendering
@@ -312,7 +374,7 @@ export const PCAWorkflow: React.FC = () => {
               Clear
             </Button>
             <Chip
-              label={`${pcaSelectedElements.length} of ${elementQualityInfo.length} selected`}
+              label={`${pcaSelectedElements.length} of ${elementQualityInfo.length} selected${nonElementColumns.size > 0 ? ` (${nonElementColumns.size} non-element excluded)` : ''}`}
               color="primary"
               variant="outlined"
             />
@@ -339,6 +401,7 @@ export const PCAWorkflow: React.FC = () => {
                   getPlotData={() => getProbabilityPlotData(info.element)}
                   isExpanded={isExpanded}
                   onExpandToggle={handleExpandToggle}
+                  isNonElement={nonElementColumns.has(info.element)}
                 />
               </Grid>
             );
@@ -464,11 +527,24 @@ export const PCAWorkflow: React.FC = () => {
           Step 3: Results & Visualizations
         </Typography>
 
-        <Box sx={{ display: 'flex', gap: 2, mb: 2 }}>
+        <Box sx={{ display: 'flex', gap: 2, mb: 2, alignItems: 'center', flexWrap: 'wrap' }}>
           <Button variant="contained" onClick={handleAddPCScores}>
             Add PC Scores to Data
           </Button>
           <PCAReportExport pcaResult={fullPcaResult} />
+          {activeColorScale && (
+            <Chip
+              label={`Active Colour Scale: ${activeColorScale.description}`}
+              color="secondary"
+              variant="outlined"
+              onDelete={() => {
+                setAttributeField('color', null);
+                setAttributeEntries('color', []);
+                setSnackbar({ open: true, message: 'Colour scale cleared', severity: 'info' });
+              }}
+              deleteIcon={<CloseIcon />}
+            />
+          )}
         </Box>
 
         <Box sx={{ borderBottom: 1, borderColor: 'divider', mb: 2 }}>
@@ -546,6 +622,22 @@ export const PCAWorkflow: React.FC = () => {
           )}
         </Box>
       </Box>
+
+      {/* Snackbar feedback */}
+      <Snackbar
+        open={snackbar.open}
+        autoHideDuration={5000}
+        onClose={() => setSnackbar((s) => ({ ...s, open: false }))}
+        anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
+      >
+        <Alert
+          onClose={() => setSnackbar((s) => ({ ...s, open: false }))}
+          severity={snackbar.severity}
+          variant="filled"
+        >
+          {snackbar.message}
+        </Alert>
+      </Snackbar>
     </Box>
   );
 };

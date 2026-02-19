@@ -1,3 +1,5 @@
+import logging
+
 import pandas as pd
 import numpy as np
 from typing import Dict, Any, List, Optional
@@ -8,13 +10,15 @@ from functools import partial
 import warnings
 warnings.filterwarnings('ignore')
 
+logger = logging.getLogger(__name__)
+
 # Try to import numba for JIT compilation
 try:
     from numba import jit, prange
     NUMBA_AVAILABLE = True
 except ImportError:
     NUMBA_AVAILABLE = False
-    print("Numba not available, using pure NumPy (install numba for 2x faster math)")
+    logger.info("Numba not available, using pure NumPy (install numba for 2x faster math)")
 
 class DrillholeManagerOptimized:
     """Ultra-optimized drillhole manager with 75-90x speedup"""
@@ -50,13 +54,11 @@ class DrillholeManagerOptimized:
         start_time = time.time()
 
         # Progress reporting
-        print("=" * 60)
-        print("ULTRA-FAST DESURVEY STARTING")
-        print(f"Data size: {len(collar_df)} collars, {len(survey_df)} surveys, {len(assay_df)} assays")
-        print("=" * 60)
+        logger.info("ULTRA-FAST DESURVEY STARTING - Data size: %d collars, %d surveys, %d assays",
+                     len(collar_df), len(survey_df), len(assay_df))
 
         # OPTIMIZATION 1: Standardize and optimize memory usage
-        print("\n[1/6] Optimizing memory usage...")
+        logger.info("[1/6] Optimizing memory usage...")
         collar_df, survey_df, assay_df = self._optimize_memory(collar_df, survey_df, assay_df)
 
         # Identify columns - use explicit mapping if provided
@@ -81,10 +83,10 @@ class DrillholeManagerOptimized:
         assay_hole_col = self._find_hole_column(assay_df)
 
         # OPTIMIZATION 2: Use groupby instead of filtering in loop
-        print("[2/6] Creating optimized data groups...")
-        print(f"Using columns - Collar: hole={hole_col}, E={east_col}, N={north_col}, RL={rl_col}")
-        print(f"Using columns - Survey: hole={survey_hole_col}, depth={depth_col}, dip={dip_col}, azi={azi_col}")
-        print(f"Using columns - Assay: hole={assay_hole_col}, from={from_col}, to={to_col}")
+        logger.info("[2/6] Creating optimized data groups...")
+        logger.info("Using columns - Collar: hole=%s, E=%s, N=%s, RL=%s", hole_col, east_col, north_col, rl_col)
+        logger.info("Using columns - Survey: hole=%s, depth=%s, dip=%s, azi=%s", survey_hole_col, depth_col, dip_col, azi_col)
+        logger.info("Using columns - Assay: hole=%s, from=%s, to=%s", assay_hole_col, from_col, to_col)
 
         # Use the correct hole column for each file type
         assay_groups = assay_df.groupby(assay_hole_col, sort=False)
@@ -94,11 +96,11 @@ class DrillholeManagerOptimized:
         # Get list of holes to process
         holes = collar_df[hole_col].unique()
         total_holes = len(holes)
-        print(f"[OK] Created groups for {total_holes} holes")
+        logger.info("[OK] Created groups for %d holes", total_holes)
 
         # OPTIMIZATION 3: Parallel processing
         if use_parallel and total_holes > 100:  # Only use parallel for larger datasets
-            print(f"[3/6] Processing in parallel using {self.n_workers} CPU cores...")
+            logger.info("[3/6] Processing in parallel using %d CPU cores...", self.n_workers)
             results = self._parallel_desurvey(
                 holes, collar_indexed, survey_groups, assay_groups,
                 hole_col, east_col, north_col, rl_col,
@@ -106,7 +108,7 @@ class DrillholeManagerOptimized:
                 from_col, to_col
             )
         else:
-            print("[3/6] Processing holes with optimized algorithm...")
+            logger.info("[3/6] Processing holes with optimized algorithm...")
             results = self._sequential_desurvey_optimized(
                 holes, collar_indexed, survey_groups, assay_groups,
                 hole_col, east_col, north_col, rl_col,
@@ -115,25 +117,21 @@ class DrillholeManagerOptimized:
             )
 
         if not results:
-            print("⚠ No results generated")
+            logger.warning("No results generated")
             return pd.DataFrame()
 
         # OPTIMIZATION 4: Efficient concatenation
-        print("[4/6] Combining results...")
+        logger.info("[4/6] Combining results...")
         final_df = pd.concat(results, ignore_index=True, copy=False)
 
         # OPTIMIZATION 5: Final memory optimization
-        print("[5/6] Final optimization...")
+        logger.info("[5/6] Final optimization...")
         final_df = self._optimize_output(final_df)
 
         # Report performance
         elapsed = time.time() - start_time
-        print("\n[6/6] COMPLETE!")
-        print("=" * 60)
-        print(f"Total time: {elapsed:.2f} seconds")
-        print(f"Speed: {len(assay_df) / elapsed:.0f} assays/second")
-        print(f"Speedup: {75 / elapsed:.1f}x faster than original")
-        print("=" * 60)
+        logger.info("[6/6] COMPLETE! Total time: %.2f seconds, Speed: %.0f assays/second, Speedup: %.1fx faster than original",
+                     elapsed, len(assay_df) / elapsed, 75 / elapsed)
 
         return final_df
 
@@ -217,7 +215,7 @@ class DrillholeManagerOptimized:
             # Progress reporting
             if i % 100 == 0:
                 progress = (i / total_holes) * 100
-                print(f"  Processing: {i}/{total_holes} holes ({progress:.1f}%)", end='\r')
+                logger.info("Processing: %d/%d holes (%.1f%%)", i, total_holes, progress)
 
             try:
                 # FAST LOOKUPS (no scanning!)
@@ -247,7 +245,7 @@ class DrillholeManagerOptimized:
             except Exception as e:
                 continue
 
-        print(f"  Processing: {total_holes}/{total_holes} holes (100.0%)")
+        logger.info("Processing: %d/%d holes (100.0%%)", total_holes, total_holes)
         return results
 
     def _process_single_hole_vectorized(self, hole_id, collar, surveys, assays,
@@ -277,11 +275,11 @@ class DrillholeManagerOptimized:
             self._debug_count = 1
 
         if self._debug_count <= 5:
-            print(f"\n[DEBUG DESURVEY] Hole: {hole_id}")
-            print(f"  Collar: E={start_x:.1f}, N={start_y:.1f}, RL={start_z:.1f}")
-            print(f"  Survey depths: {surveys[depth_col].values}")
-            print(f"  Survey dips: {surveys[dip_col].values}")
-            print(f"  Survey azis: {surveys[azi_col].values}")
+            logger.debug("[DEBUG DESURVEY] Hole: %s", hole_id)
+            logger.debug("  Collar: E=%.1f, N=%.1f, RL=%.1f", start_x, start_y, start_z)
+            logger.debug("  Survey depths: %s", surveys[depth_col].values)
+            logger.debug("  Survey dips: %s", surveys[dip_col].values)
+            logger.debug("  Survey azis: %s", surveys[azi_col].values)
 
         # ALWAYS use NumPy version - JIT version has race condition bug with prange
         # The JIT version uses parallel prange but each iteration depends on previous,
@@ -294,9 +292,9 @@ class DrillholeManagerOptimized:
         )
 
         if self._debug_count <= 5:
-            print(f"  Calculated X range: {survey_x.min():.1f} to {survey_x.max():.1f}")
-            print(f"  Calculated Y range: {survey_y.min():.1f} to {survey_y.max():.1f}")
-            print(f"  Calculated Z range: {survey_z.min():.1f} to {survey_z.max():.1f}")
+            logger.debug("  Calculated X range: %.1f to %.1f", survey_x.min(), survey_x.max())
+            logger.debug("  Calculated Y range: %.1f to %.1f", survey_y.min(), survey_y.max())
+            logger.debug("  Calculated Z range: %.1f to %.1f", survey_z.min(), survey_z.max())
 
         # Vectorized interpolation for all assays at once
         assay_mids = ((assays[from_col] + assays[to_col]) / 2).values
@@ -377,7 +375,7 @@ class DrillholeManagerOptimized:
         chunk_size = max(1, len(holes) // (self.n_workers * 4))
         hole_chunks = [holes[i:i+chunk_size] for i in range(0, len(holes), chunk_size)]
 
-        print(f"  Processing {len(holes)} holes in {len(hole_chunks)} chunks using {self.n_workers} workers")
+        logger.info("Processing %d holes in %d chunks using %d workers", len(holes), len(hole_chunks), self.n_workers)
 
         # Create partial function with fixed parameters
         process_func = partial(
@@ -410,12 +408,12 @@ class DrillholeManagerOptimized:
                     chunk_results = future.result()
                     results.extend(chunk_results)
                     completed += 1
-                    print(f"  Progress: {completed}/{len(futures)} chunks complete ({completed*100/len(futures):.1f}%)", end='\r')
+                    logger.info("Progress: %d/%d chunks complete (%.1f%%)", completed, len(futures), completed * 100 / len(futures))
                 except Exception as e:
-                    print(f"\n  Warning: Chunk failed: {e}")
+                    logger.warning("Chunk failed: %s", e)
                     continue
 
-        print(f"  Progress: {len(futures)}/{len(futures)} chunks complete (100.0%)")
+        logger.info("Progress: %d/%d chunks complete (100.0%%)", len(futures), len(futures))
         return results
 
     def _optimize_output(self, df):

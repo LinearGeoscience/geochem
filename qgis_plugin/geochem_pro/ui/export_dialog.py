@@ -1,5 +1,5 @@
 """
-Export Options Dialog for GeoChem Pro QGIS Plugin
+Export Options Dialog for GeoChem QGIS Plugin
 """
 
 from typing import Optional, Dict, Any, List

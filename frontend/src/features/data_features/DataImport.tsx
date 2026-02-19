@@ -8,6 +8,7 @@ import { CloudUpload, Layers, Settings, Close, Science, ExpandMore, ExpandLess, 
 import { useAppStore } from '../../store/appStore';
 import { useAttributeStore } from '../../store/attributeStore';
 import { DrillholeColumnMapper } from '../../components/DrillholeColumnMapper';
+import { createGeochemMappings } from '../../utils/calculations/elementNameNormalizer';
 import Papa from 'papaparse';
 import {
     isVantaPxrfFormat,
@@ -133,6 +134,11 @@ export const DataImport: React.FC = () => {
                 currentView: 'plots'
             });
 
+            // Generate geochem mappings
+            const columnNames = sortedColumnInfo.map(c => c.name);
+            const mappings = createGeochemMappings(columnNames, sortedColumnInfo);
+            useAppStore.setState({ geochemMappings: mappings, showGeochemDialog: true });
+
             // Show transformation summary
             setPxrfTransformStats(formatTransformSummary(transformed.stats));
 
@@ -187,6 +193,11 @@ export const DataImport: React.FC = () => {
                 currentView: 'plots'
             });
 
+            // Generate geochem mappings
+            const iogasColumnNames = result.column_info.map((c: any) => c.name);
+            const iogasMappings = createGeochemMappings(iogasColumnNames, result.column_info);
+            useAppStore.setState({ geochemMappings: iogasMappings, showGeochemDialog: true });
+
             // Format import stats
             const iogasMetadata = result.iogas_metadata || {};
             const specialCols = iogasMetadata.special_columns || {};
@@ -237,6 +248,7 @@ export const DataImport: React.FC = () => {
         collar: ColumnMapping;
         survey: ColumnMapping;
         assay: ColumnMapping;
+        negateDip: boolean;
     }) => {
         setShowMapper(false);
         // Reset attribute classifications for new data
@@ -251,6 +263,7 @@ export const DataImport: React.FC = () => {
             formData.append('collar_mapping', JSON.stringify(mappings.collar));
             formData.append('survey_mapping', JSON.stringify(mappings.survey));
             formData.append('assay_mapping', JSON.stringify(mappings.assay));
+            formData.append('negate_dip', mappings.negateDip ? 'true' : 'false');
 
             const response = await fetch('/api/drillhole/process', {
                 method: 'POST',
@@ -293,6 +306,10 @@ export const DataImport: React.FC = () => {
                             uploadProgress: 100,
                             currentView: 'plots'
                         });
+                        // Generate geochem mappings
+                        const manualColNames = columns.map((c: any) => c.name);
+                        const manualMappings = createGeochemMappings(manualColNames, columns);
+                        useAppStore.setState({ geochemMappings: manualMappings, showGeochemDialog: true });
                         console.log('[DEBUG] Store updated with full data');
                         return;
                     }
@@ -312,6 +329,10 @@ export const DataImport: React.FC = () => {
                     uploadProgress: 100,
                     currentView: 'plots'
                 });
+                // Generate geochem mappings
+                const fbColNames = result.column_info.map((c: any) => c.name);
+                const fbMappings = createGeochemMappings(fbColNames, result.column_info);
+                useAppStore.setState({ geochemMappings: fbMappings, showGeochemDialog: true });
                 console.log('[DEBUG] Store updated with fallback data:', result.column_info?.length, 'columns,', fallbackData.length, 'rows');
             } else {
                 throw new Error('No column info returned from processing');

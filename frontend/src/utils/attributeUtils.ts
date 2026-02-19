@@ -10,6 +10,7 @@ export interface PointStyle {
     shape: string;
     size: number;
     visible: boolean;
+    opacity: number;
 }
 
 export interface StyleArrays {
@@ -29,19 +30,34 @@ const DEFAULT_SHAPE = 'circle';
 const DEFAULT_SIZE = 10; // Increased from 8 for better visibility in exports
 
 /**
+ * Build a pre-computed lookup map from data index → custom entry.
+ * This turns the O(n*m) find+includes into O(1) per data point.
+ */
+function buildCustomEntryLookup(customEntries: AttributeEntry[]): Map<number, AttributeEntry> {
+    const map = new Map<number, AttributeEntry>();
+    for (const entry of customEntries) {
+        if (entry.visible) {
+            for (const idx of entry.assignedIndices) {
+                map.set(idx, entry);
+            }
+        }
+    }
+    return map;
+}
+
+/**
  * Find which entry matches a data point based on its value and the config
  */
 function findMatchingEntry(
     value: any,
     entries: AttributeEntry[],
-    customEntries: AttributeEntry[],
+    customLookup: Map<number, AttributeEntry>,
     dataIndex: number
 ): AttributeEntry | null {
-    // First check custom entries that have this index assigned
-    for (const entry of customEntries) {
-        if (entry.assignedIndices.includes(dataIndex) && entry.visible) {
-            return entry;
-        }
+    // First check custom entries via pre-computed lookup
+    const customMatch = customLookup.get(dataIndex);
+    if (customMatch) {
+        return customMatch;
     }
 
     // Then check field-based entries
@@ -75,26 +91,31 @@ export function getPointStyle(
     sizeField: string | null
 ): PointStyle {
     const state = useAttributeStore.getState();
-    const { color, shape, size, customEntries } = state;
+    const { color, shape, size, customEntries, globalOpacity } = state;
+
+    // Build lookup once per call
+    const customLookup = buildCustomEntryLookup(customEntries);
 
     let pointColor = DEFAULT_COLOR;
     let pointShape = DEFAULT_SHAPE;
     let pointSize = DEFAULT_SIZE;
     let pointVisible = true;
+    let combinedOpacity = 1.0;
 
     // Get color
     if (colorField) {
         const value = dataPoint[colorField];
-        const entry = findMatchingEntry(value, color.entries, customEntries, dataIndex);
+        const entry = findMatchingEntry(value, color.entries, customLookup, dataIndex);
         if (entry) {
             pointColor = entry.color || DEFAULT_COLOR;
+            combinedOpacity *= (entry.opacity ?? 1.0);
             if (!entry.visible) pointVisible = false;
         }
     } else {
-        // Check if any custom entry claims this point
-        const customMatch = customEntries.find(e => e.assignedIndices.includes(dataIndex));
+        const customMatch = customLookup.get(dataIndex);
         if (customMatch) {
             pointColor = customMatch.color || DEFAULT_COLOR;
+            combinedOpacity *= (customMatch.opacity ?? 1.0);
             if (!customMatch.visible) pointVisible = false;
         }
     }
@@ -102,13 +123,14 @@ export function getPointStyle(
     // Get shape
     if (shapeField) {
         const value = dataPoint[shapeField];
-        const entry = findMatchingEntry(value, shape.entries, customEntries, dataIndex);
+        const entry = findMatchingEntry(value, shape.entries, customLookup, dataIndex);
         if (entry) {
             pointShape = entry.shape || DEFAULT_SHAPE;
+            if (!entry.isCustom) combinedOpacity *= (entry.opacity ?? 1.0);
             if (!entry.visible) pointVisible = false;
         }
     } else {
-        const customMatch = customEntries.find(e => e.assignedIndices.includes(dataIndex));
+        const customMatch = customLookup.get(dataIndex);
         if (customMatch) {
             pointShape = customMatch.shape || DEFAULT_SHAPE;
         }
@@ -117,13 +139,14 @@ export function getPointStyle(
     // Get size
     if (sizeField) {
         const value = dataPoint[sizeField];
-        const entry = findMatchingEntry(value, size.entries, customEntries, dataIndex);
+        const entry = findMatchingEntry(value, size.entries, customLookup, dataIndex);
         if (entry) {
             pointSize = entry.size || DEFAULT_SIZE;
+            if (!entry.isCustom) combinedOpacity *= (entry.opacity ?? 1.0);
             if (!entry.visible) pointVisible = false;
         }
     } else {
-        const customMatch = customEntries.find(e => e.assignedIndices.includes(dataIndex));
+        const customMatch = customLookup.get(dataIndex);
         if (customMatch) {
             pointSize = customMatch.size || DEFAULT_SIZE;
         }
@@ -134,6 +157,7 @@ export function getPointStyle(
         shape: pointShape,
         size: pointSize,
         visible: pointVisible,
+        opacity: combinedOpacity * globalOpacity,
     };
 }
 
@@ -141,38 +165,48 @@ export function getPointStyle(
  * Get styles for all data points (optimized for batch operations)
  * Returns arrays of colors, shapes, sizes, and visibility flags
  */
-export function getStyleArrays(data: Record<string, any>[]): StyleArrays {
+export function getStyleArrays(
+    data: Record<string, any>[],
+    originalIndices?: number[]  // maps display position -> original data index
+): StyleArrays {
     const state = useAttributeStore.getState();
-    const { color, shape, size, filter, customEntries } = state;
+    const { color, shape, size, filter, customEntries, globalOpacity } = state;
+
+    // Pre-compute custom entry lookup map (O(1) per data point instead of O(n*m))
+    const customLookup = buildCustomEntryLookup(customEntries);
 
     const colors: string[] = [];
     const shapes: string[] = [];
     const sizes: number[] = [];
     const visible: boolean[] = [];
+    const entryOpacities: number[] = [];
 
     for (let i = 0; i < data.length; i++) {
         const dataPoint = data[i];
+        const dataIndex = originalIndices ? originalIndices[i] : i;
         let pointColor = DEFAULT_COLOR;
         let pointShape = DEFAULT_SHAPE;
         let pointSize = DEFAULT_SIZE;
         let pointVisible = true;
+        let combinedEntryOpacity = 1.0;
 
-        // Check custom entries first
-        const customMatch = customEntries.find(e => e.assignedIndices.includes(i));
+        // Check custom entries first via pre-computed lookup
+        const customMatch = customLookup.get(dataIndex);
 
         // Get color
         if (color.field) {
             const value = dataPoint[color.field];
-            const entry = findMatchingEntry(value, color.entries, customEntries, i);
+            const entry = findMatchingEntry(value, color.entries, customLookup, dataIndex);
             if (entry) {
                 pointColor = entry.color || DEFAULT_COLOR;
-                // Hide if entry is not visible (including default entry)
+                combinedEntryOpacity *= (entry.opacity ?? 1.0);
                 if (!entry.visible) {
                     pointVisible = false;
                 }
             }
         } else if (customMatch) {
             pointColor = customMatch.color || DEFAULT_COLOR;
+            combinedEntryOpacity *= (customMatch.opacity ?? 1.0);
             if (!customMatch.visible) {
                 pointVisible = false;
             }
@@ -181,10 +215,10 @@ export function getStyleArrays(data: Record<string, any>[]): StyleArrays {
         // Get shape
         if (shape.field) {
             const value = dataPoint[shape.field];
-            const entry = findMatchingEntry(value, shape.entries, customEntries, i);
+            const entry = findMatchingEntry(value, shape.entries, customLookup, dataIndex);
             if (entry) {
                 pointShape = entry.shape || DEFAULT_SHAPE;
-                // Hide if entry is not visible (including default entry)
+                if (!entry.isCustom) combinedEntryOpacity *= (entry.opacity ?? 1.0);
                 if (!entry.visible) {
                     pointVisible = false;
                 }
@@ -196,10 +230,10 @@ export function getStyleArrays(data: Record<string, any>[]): StyleArrays {
         // Get size
         if (size.field) {
             const value = dataPoint[size.field];
-            const entry = findMatchingEntry(value, size.entries, customEntries, i);
+            const entry = findMatchingEntry(value, size.entries, customLookup, dataIndex);
             if (entry) {
                 pointSize = entry.size || DEFAULT_SIZE;
-                // Hide if entry is not visible (including default entry)
+                if (!entry.isCustom) combinedEntryOpacity *= (entry.opacity ?? 1.0);
                 if (!entry.visible) {
                     pointVisible = false;
                 }
@@ -211,10 +245,12 @@ export function getStyleArrays(data: Record<string, any>[]): StyleArrays {
         // Check filter
         if (filter.field && pointVisible) {
             const value = dataPoint[filter.field];
-            const entry = findMatchingEntry(value, filter.entries, customEntries, i);
-            // Hide if entry is not visible (including default entry)
-            if (entry && !entry.visible) {
-                pointVisible = false;
+            const entry = findMatchingEntry(value, filter.entries, customLookup, dataIndex);
+            if (entry) {
+                if (!entry.isCustom) combinedEntryOpacity *= (entry.opacity ?? 1.0);
+                if (!entry.visible) {
+                    pointVisible = false;
+                }
             }
         }
 
@@ -222,6 +258,7 @@ export function getStyleArrays(data: Record<string, any>[]): StyleArrays {
         shapes.push(pointShape);
         sizes.push(pointSize);
         visible.push(pointVisible);
+        entryOpacities.push(combinedEntryOpacity);
     }
 
     // Calculate emphasis
@@ -232,14 +269,14 @@ export function getStyleArrays(data: Record<string, any>[]): StyleArrays {
         color.field
     );
 
-    // Apply emphasis to sizes and extract opacity/zIndex arrays
+    // Apply emphasis to sizes and combine opacity: entryOpacity * emphasisOpacity * globalOpacity
     const opacity: number[] = [];
     const zIndices: number[] = [];
     const finalSizes: number[] = [];
 
     for (let i = 0; i < data.length; i++) {
         const emphResult = emphasisResults[i];
-        opacity.push(emphResult.opacity);
+        opacity.push(entryOpacities[i] * emphResult.opacity * globalOpacity);
         zIndices.push(emphResult.zIndex);
         finalSizes.push(sizes[i] * emphResult.sizeMultiplier);
     }
@@ -333,6 +370,15 @@ export function getSortedIndices(styleArrays: StyleArrays): number[] {
  * Sort columns by priority (lower number = higher priority)
  * Columns without priority get a default priority of 10
  */
+/** Resolve a column name to its display alias (falls back to raw name) */
+export function getColumnDisplayName(
+    columns: { name: string; alias: string | null }[],
+    columnName: string
+): string {
+    const col = columns.find(c => c.name === columnName);
+    return col?.alias || columnName;
+}
+
 export function sortColumnsByPriority<T extends { name: string; priority?: number }>(columns: T[]): T[] {
     return [...columns].sort((a, b) => {
         const prioA = a.priority ?? 10;

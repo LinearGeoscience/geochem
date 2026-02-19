@@ -2,7 +2,7 @@ import React, { useState, useMemo } from 'react';
 import Plot from 'react-plotly.js';
 import { useAppStore } from '../../store/appStore';
 import { useAttributeStore } from '../../store/attributeStore';
-import { getStyleArrays, applyOpacityToColor, getSortedIndices, sortColumnsByPriority } from '../../utils/attributeUtils';
+import { getStyleArrays, applyOpacityToColor, getSortedIndices, sortColumnsByPriority, getColumnDisplayName } from '../../utils/attributeUtils';
 import {
     clrTransform,
     simplePCA,
@@ -19,15 +19,17 @@ import {
     InputLabel,
     Select,
     MenuItem,
-    Chip,
-    OutlinedInput,
-    SelectChangeEvent,
     ToggleButton,
     ToggleButtonGroup,
     Tooltip,
     Grid,
     Alert,
+    Checkbox,
+    FormControlLabel,
+    Slider,
 } from '@mui/material';
+import { MultiColumnSelector } from '../../components/MultiColumnSelector';
+import { computePointDensities, DENSITY_JET_POINT_COLORSCALE } from '../../utils/densityGrid';
 
 type PlotType = 'biplot' | 'scatter' | 'correlation';
 
@@ -51,8 +53,11 @@ interface CLRPlotProps {
 }
 
 export const CLRPlot: React.FC<CLRPlotProps> = ({ plotId }) => {
-    const { data, columns, getPlotSettings, updatePlotSettings, getFilteredColumns } = useAppStore();
+    const { data, columns, getPlotSettings, updatePlotSettings, getFilteredColumns, getDisplayData, getDisplayIndices, sampleIndices } = useAppStore();
     const filteredColumns = getFilteredColumns();
+    const d = (name: string) => getColumnDisplayName(columns, name);
+    const displayData = useMemo(() => getDisplayData(), [data, sampleIndices]);
+    const displayIndices = useMemo(() => getDisplayIndices(), [data, sampleIndices]);
     useAttributeStore(); // Subscribe to style changes
 
     // Get stored settings or defaults
@@ -63,6 +68,9 @@ export const CLRPlot: React.FC<CLRPlotProps> = ({ plotId }) => {
     const [zeroStrategy, setZeroStrategyLocal] = useState<ZeroHandlingStrategy>(storedSettings.zeroStrategy || 'half-min');
     const [scatterX, setScatterXLocal] = useState<string>(storedSettings.clrScatterX || '');
     const [scatterY, setScatterYLocal] = useState<string>(storedSettings.clrScatterY || '');
+    const [showDensity, setShowDensityLocal] = useState<boolean>(storedSettings.showDensity || false);
+    const [densitySmoothing, setDensitySmoothingLocal] = useState<number>(storedSettings.densitySmoothing ?? 2.0);
+    const [densityOpacity, setDensityOpacityLocal] = useState<number>(storedSettings.densityOpacity ?? 0.7);
 
     // Wrapper functions to persist settings
     const setSelectedColumns = (cols: string[]) => {
@@ -85,6 +93,18 @@ export const CLRPlot: React.FC<CLRPlotProps> = ({ plotId }) => {
         setScatterYLocal(col);
         updatePlotSettings(plotId, { clrScatterY: col });
     };
+    const setShowDensity = (show: boolean) => {
+        setShowDensityLocal(show);
+        updatePlotSettings(plotId, { showDensity: show });
+    };
+    const setDensitySmoothing = (smoothing: number) => {
+        setDensitySmoothingLocal(smoothing);
+        updatePlotSettings(plotId, { densitySmoothing: smoothing });
+    };
+    const setDensityOpacity = (opacity: number) => {
+        setDensityOpacityLocal(opacity);
+        updatePlotSettings(plotId, { densityOpacity: opacity });
+    };
 
     // Get numeric columns (compositional data), sorted by priority
     const numericColumns = useMemo(() =>
@@ -94,10 +114,10 @@ export const CLRPlot: React.FC<CLRPlotProps> = ({ plotId }) => {
 
     // Get visible data
     const visibleData = useMemo(() => {
-        if (!data.length) return [];
-        const styleArrays = getStyleArrays(data);
-        return data.filter((_, i) => styleArrays.visible[i]);
-    }, [data]);
+        if (!displayData.length) return [];
+        const styleArrays = getStyleArrays(displayData, displayIndices ?? undefined);
+        return displayData.filter((_, i) => styleArrays.visible[i]);
+    }, [displayData, displayIndices]);
 
     // Perform CLR transformation
     const clrResult = useMemo(() => {
@@ -121,23 +141,17 @@ export const CLRPlot: React.FC<CLRPlotProps> = ({ plotId }) => {
         return clrCorrelationMatrix(clrResult.transformed);
     }, [clrResult, plotType]);
 
-    // Handle column selection
-    const handleColumnChange = (event: SelectChangeEvent<string[]>) => {
-        const value = event.target.value;
-        setSelectedColumns(typeof value === 'string' ? value.split(',') : value);
-    };
-
     // Get style arrays for coloring
     const styleArrays = useMemo(() => {
-        if (!data.length) return null;
-        return getStyleArrays(data);
-    }, [data]);
+        if (!displayData.length) return null;
+        return getStyleArrays(displayData, displayIndices ?? undefined);
+    }, [displayData, displayIndices]);
 
     // Generate plot traces
     const traces = useMemo(() => {
         if (!clrResult || !styleArrays) return [];
 
-        const visibleIndices = data.map((_, i) => i).filter(i => styleArrays.visible[i]);
+        const visibleIndices = displayData.map((_, i) => i).filter(i => styleArrays.visible[i]);
 
         if (plotType === 'biplot' && biplotData) {
             // Biplot: samples as points + variable loadings as arrows
@@ -196,11 +210,11 @@ export const CLRPlot: React.FC<CLRPlotProps> = ({ plotId }) => {
                 traces.push({
                     type: 'scatter',
                     mode: 'lines+text',
-                    name: selectedColumns[i],
+                    name: d(selectedColumns[i]),
                     x: [0, loading[0] * loadingScale],
                     y: [0, loading[1] * loadingScale],
                     line: { color: '#e74c3c', width: 2 },
-                    text: ['', selectedColumns[i]],
+                    text: ['', d(selectedColumns[i])],
                     textposition: 'top center',
                     textfont: { size: 10, color: '#e74c3c' },
                     showlegend: false,
@@ -240,24 +254,37 @@ export const CLRPlot: React.FC<CLRPlotProps> = ({ plotId }) => {
                 }
             }
 
+            // Compute per-point density if enabled
+            let clrDensity: number[] | null = null;
+            if (showDensity && x.length >= 10) {
+                const result = computePointDensities(x, y, { smoothingSigma: densitySmoothing });
+                if (result) clrDensity = result.densities;
+            }
+
             return [{
                 type: 'scatter',
                 mode: 'markers',
                 x,
                 y,
-                marker: {
+                marker: clrDensity ? {
+                    color: clrDensity,
+                    colorscale: DENSITY_JET_POINT_COLORSCALE,
+                    showscale: false,
+                    opacity: densityOpacity,
+                    size: sizes,
+                } : {
                     color: colors,
                     size: sizes,
                 },
-                hovertemplate: `clr(${scatterX}): %{x:.3f}<br>clr(${scatterY}): %{y:.3f}<extra></extra>`,
+                hovertemplate: `clr(${d(scatterX)}): %{x:.3f}<br>clr(${d(scatterY)}): %{y:.3f}<extra></extra>`,
             }];
         } else if (plotType === 'correlation' && corrMatrix) {
             // Correlation matrix heatmap
             return [{
                 type: 'heatmap',
                 z: corrMatrix,
-                x: selectedColumns,
-                y: selectedColumns,
+                x: selectedColumns.map(c => d(c)),
+                y: selectedColumns.map(c => d(c)),
                 colorscale: CORRELATION_COLORSCALE,
                 zmin: -1,
                 zmax: 1,
@@ -270,7 +297,7 @@ export const CLRPlot: React.FC<CLRPlotProps> = ({ plotId }) => {
         }
 
         return [];
-    }, [clrResult, biplotData, corrMatrix, plotType, scatterX, scatterY, styleArrays, selectedColumns, data]);
+    }, [clrResult, biplotData, corrMatrix, plotType, scatterX, scatterY, styleArrays, selectedColumns, displayData, showDensity, densitySmoothing, densityOpacity]);
 
     // Layout configuration
     const layout = useMemo(() => {
@@ -296,9 +323,9 @@ export const CLRPlot: React.FC<CLRPlotProps> = ({ plotId }) => {
         } else if (plotType === 'scatter') {
             return {
                 ...baseLayout,
-                title: { text: `CLR Scatter: ${scatterX} vs ${scatterY}`, font: { size: EXPORT_FONT_SIZES.title }, x: 0, xanchor: 'left' },
-                xaxis: { title: { text: `clr(${scatterX})`, font: { size: EXPORT_FONT_SIZES.axisTitle } }, tickfont: { size: EXPORT_FONT_SIZES.tickLabels } },
-                yaxis: { title: { text: `clr(${scatterY})`, font: { size: EXPORT_FONT_SIZES.axisTitle } }, tickfont: { size: EXPORT_FONT_SIZES.tickLabels } },
+                title: { text: `CLR Scatter: ${d(scatterX)} vs ${d(scatterY)}`, font: { size: EXPORT_FONT_SIZES.title }, x: 0, xanchor: 'left' },
+                xaxis: { title: { text: `clr(${d(scatterX)})`, font: { size: EXPORT_FONT_SIZES.axisTitle } }, tickfont: { size: EXPORT_FONT_SIZES.tickLabels } },
+                yaxis: { title: { text: `clr(${d(scatterY)})`, font: { size: EXPORT_FONT_SIZES.axisTitle } }, tickfont: { size: EXPORT_FONT_SIZES.tickLabels } },
             };
         } else if (plotType === 'correlation') {
             return {
@@ -319,31 +346,12 @@ export const CLRPlot: React.FC<CLRPlotProps> = ({ plotId }) => {
             {/* Controls */}
             <Grid container spacing={2} sx={{ mb: 3 }}>
                 <Grid item xs={12} md={4}>
-                    <FormControl fullWidth>
-                        <InputLabel>Compositional Variables</InputLabel>
-                        <Select
-                            multiple
-                            value={selectedColumns}
-                            onChange={handleColumnChange}
-                            input={<OutlinedInput label="Compositional Variables" />}
-                            renderValue={(selected) => (
-                                <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5 }}>
-                                    {selected.slice(0, 3).map((value) => (
-                                        <Chip key={value} label={value} size="small" />
-                                    ))}
-                                    {selected.length > 3 && (
-                                        <Chip label={`+${selected.length - 3}`} size="small" />
-                                    )}
-                                </Box>
-                            )}
-                        >
-                            {numericColumns.map((col) => (
-                                <MenuItem key={col.name} value={col.name}>
-                                    {col.alias || col.name}
-                                </MenuItem>
-                            ))}
-                        </Select>
-                    </FormControl>
+                    <MultiColumnSelector
+                        columns={numericColumns}
+                        selectedColumns={selectedColumns}
+                        onChange={setSelectedColumns}
+                        label="Compositional Variables"
+                    />
                 </Grid>
 
                 <Grid item xs={12} md={3}>
@@ -404,6 +412,32 @@ export const CLRPlot: React.FC<CLRPlotProps> = ({ plotId }) => {
                                         ))}
                                     </Select>
                                 </FormControl>
+                                <FormControlLabel
+                                    control={<Checkbox checked={showDensity} onChange={(e) => setShowDensity(e.target.checked)} size="small" />}
+                                    label="Density"
+                                />
+                                {showDensity && (
+                                    <>
+                                        <Box sx={{ minWidth: 100, px: 1 }}>
+                                            <Typography variant="caption">Smoothing: {densitySmoothing.toFixed(1)}</Typography>
+                                            <Slider
+                                                value={densitySmoothing}
+                                                onChange={(_, v) => setDensitySmoothing(v as number)}
+                                                min={0.5} max={8} step={0.5}
+                                                size="small"
+                                            />
+                                        </Box>
+                                        <Box sx={{ minWidth: 100, px: 1 }}>
+                                            <Typography variant="caption">Opacity: {Math.round(densityOpacity * 100)}%</Typography>
+                                            <Slider
+                                                value={densityOpacity}
+                                                onChange={(_, v) => setDensityOpacity(v as number)}
+                                                min={0.1} max={1} step={0.05}
+                                                size="small"
+                                            />
+                                        </Box>
+                                    </>
+                                )}
                             </>
                         )}
                     </Box>

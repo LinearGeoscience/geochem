@@ -4,8 +4,19 @@
  * With histogram visualizations and threshold lines for each indicator
  */
 
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useCallback } from 'react';
 import Plot from 'react-plotly.js';
+import {
+  Box, Paper, Typography, Button, Tabs, Tab, Alert, CircularProgress,
+  Card, CardActionArea, Chip, Accordion, AccordionSummary,
+  AccordionDetails, Table, TableHead, TableBody, TableRow, TableCell,
+  Checkbox, IconButton, Tooltip, Snackbar,
+} from '@mui/material';
+import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
+import FileDownloadIcon from '@mui/icons-material/FileDownload';
+import AddchartIcon from '@mui/icons-material/Addchart';
+import WarningAmberIcon from '@mui/icons-material/WarningAmber';
+import CheckCircleOutlineIcon from '@mui/icons-material/CheckCircleOutline';
 import { useAppStore } from '../../store/appStore';
 import { useVectoringStore } from '../../store/vectoringStore';
 import { DepositType, CalculatedIndicator } from '../../types/vectoring';
@@ -24,26 +35,85 @@ const DEPOSIT_CATEGORIES: Record<string, DepositType[]> = {
 };
 
 // ============================================================================
+// CSV DOWNLOAD HELPER
+// ============================================================================
+
+function downloadCSV(content: string, filename: string) {
+  const blob = new Blob([content], { type: 'text/csv;charset=utf-8;' });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = filename;
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+  URL.revokeObjectURL(url);
+}
+
+function downloadText(content: string, filename: string) {
+  const blob = new Blob([content], { type: 'text/plain;charset=utf-8;' });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = filename;
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+  URL.revokeObjectURL(url);
+}
+
+// ============================================================================
 // INDICATOR HISTOGRAM COMPONENT
 // ============================================================================
 
 interface IndicatorHistogramProps {
   indicator: CalculatedIndicator;
   thresholds: { value: number; color: string; label: string }[];
+  onSaveToTable: (indicator: CalculatedIndicator) => void;
 }
 
-const IndicatorHistogram: React.FC<IndicatorHistogramProps> = ({ indicator, thresholds }) => {
+const IndicatorHistogram: React.FC<IndicatorHistogramProps> = ({ indicator, thresholds, onSaveToTable }) => {
   const validValues = indicator.values.filter((v): v is number => v !== null && !isNaN(v));
 
   if (validValues.length === 0) {
     return (
-      <div style={{ padding: '20px', textAlign: 'center', color: '#6b7280', background: '#f9fafb', borderRadius: '8px' }}>
-        No valid data for {indicator.name}
-      </div>
+      <Paper sx={{ p: 2.5, textAlign: 'center', bgcolor: 'grey.50' }}>
+        <Typography variant="body2" color="text.secondary">
+          No valid data for {indicator.name}
+        </Typography>
+      </Paper>
     );
   }
 
-  // Create threshold shapes for vertical lines
+  // Manual binning for proper per-bin coloring
+  const binCount = Math.min(30, Math.ceil(Math.sqrt(validValues.length)));
+  const min = Math.min(...validValues);
+  const max = Math.max(...validValues);
+  const binWidth = (max - min) / binCount || 1;
+
+  const bins: { start: number; end: number; count: number; color: string }[] = [];
+  for (let i = 0; i < binCount; i++) {
+    const start = min + i * binWidth;
+    const end = i === binCount - 1 ? max + 0.001 : min + (i + 1) * binWidth;
+    const midpoint = (start + end) / 2;
+
+    // Count values in this bin
+    const count = validValues.filter(v => v >= start && v < end).length;
+
+    // Determine bin color from threshold at midpoint
+    const sortedThresholds = [...thresholds].sort((a, b) => a.value - b.value);
+    let color = '#94a3b8'; // default gray
+    for (let j = sortedThresholds.length - 1; j >= 0; j--) {
+      if (midpoint >= sortedThresholds[j].value) {
+        color = sortedThresholds[j].color;
+        break;
+      }
+    }
+
+    bins.push({ start, end, count, color });
+  }
+
+  // Threshold shapes (vertical dashed lines)
   const shapes = thresholds.map(t => ({
     type: 'line' as const,
     x0: t.value,
@@ -54,11 +124,12 @@ const IndicatorHistogram: React.FC<IndicatorHistogramProps> = ({ indicator, thre
     line: { color: t.color, width: 2, dash: 'dash' as const }
   }));
 
-  // Create annotations for threshold labels
-  const annotations = thresholds.map(t => ({
+  // Stagger annotations to prevent overlap
+  const annotations = thresholds.map((t, idx) => ({
     x: t.value,
     y: 1,
     yref: 'paper' as const,
+    yshift: idx % 2 === 0 ? 8 : 24,
     text: t.label,
     showarrow: false,
     font: { size: 10, color: t.color },
@@ -66,72 +137,68 @@ const IndicatorHistogram: React.FC<IndicatorHistogramProps> = ({ indicator, thre
     textangle: '-45' as any
   }));
 
-  // Color the histogram bars based on thresholds
-  const getBarColor = (value: number): string => {
-    // Sort thresholds and find where value falls
-    const sortedThresholds = [...thresholds].sort((a, b) => a.value - b.value);
-    for (let i = sortedThresholds.length - 1; i >= 0; i--) {
-      if (value >= sortedThresholds[i].value) {
-        return sortedThresholds[i].color;
-      }
-    }
-    return '#94a3b8'; // Default gray
-  };
-
-  // Calculate histogram bins manually for coloring
-  const binCount = Math.min(30, Math.ceil(Math.sqrt(validValues.length)));
-
   return (
-    <div style={{ marginBottom: '24px', background: 'white', borderRadius: '8px', border: '1px solid #e5e7eb', overflow: 'hidden' }}>
+    <Paper sx={{ mb: 2, overflow: 'hidden' }}>
       {/* Header with stats */}
-      <div style={{ padding: '12px 16px', borderBottom: '1px solid #e5e7eb', background: '#f9fafb' }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-          <div>
-            <div style={{ fontWeight: 600, fontSize: '15px' }}>{indicator.name}</div>
-            <div style={{ fontSize: '12px', color: '#6b7280', marginTop: '2px' }}>
-              {indicator.statistics.validCount} valid samples
-            </div>
-          </div>
-          <div style={{ display: 'flex', gap: '16px', fontSize: '12px' }}>
-            <div><span style={{ color: '#6b7280' }}>Min:</span> <strong>{indicator.statistics.min.toFixed(2)}</strong></div>
-            <div><span style={{ color: '#6b7280' }}>Max:</span> <strong>{indicator.statistics.max.toFixed(2)}</strong></div>
-            <div><span style={{ color: '#6b7280' }}>Mean:</span> <strong>{indicator.statistics.mean.toFixed(2)}</strong></div>
-            <div><span style={{ color: '#6b7280' }}>Median:</span> <strong>{indicator.statistics.median.toFixed(2)}</strong></div>
-          </div>
-        </div>
-      </div>
+      <Box sx={{ p: '12px 16px', borderBottom: '1px solid', borderColor: 'divider', bgcolor: 'grey.50', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+        <Box>
+          <Typography variant="subtitle2" sx={{ fontWeight: 600, fontSize: '15px' }}>
+            {indicator.name}
+          </Typography>
+          <Typography variant="caption" color="text.secondary">
+            {indicator.statistics.validCount} valid samples
+          </Typography>
+        </Box>
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+          <Box sx={{ display: 'flex', gap: 2, fontSize: '12px' }}>
+            <Typography variant="caption"><Typography component="span" variant="caption" color="text.secondary">Min:</Typography> <strong>{indicator.statistics.min.toFixed(2)}</strong></Typography>
+            <Typography variant="caption"><Typography component="span" variant="caption" color="text.secondary">Max:</Typography> <strong>{indicator.statistics.max.toFixed(2)}</strong></Typography>
+            <Typography variant="caption"><Typography component="span" variant="caption" color="text.secondary">Mean:</Typography> <strong>{indicator.statistics.mean.toFixed(2)}</strong></Typography>
+            <Typography variant="caption"><Typography component="span" variant="caption" color="text.secondary">Median:</Typography> <strong>{indicator.statistics.median.toFixed(2)}</strong></Typography>
+          </Box>
+          <Tooltip title="Save indicator values as a new column in the data table">
+            <IconButton size="small" onClick={() => onSaveToTable(indicator)}>
+              <AddchartIcon fontSize="small" />
+            </IconButton>
+          </Tooltip>
+        </Box>
+      </Box>
 
-      {/* Histogram plot */}
+      {/* Bar chart with manual bins for proper coloring */}
       <Plot
         data={[{
-          x: validValues,
-          type: 'histogram',
+          x: bins.map(b => (b.start + b.end) / 2),
+          y: bins.map(b => b.count),
+          type: 'bar',
+          width: bins.map(b => b.end - b.start),
           marker: {
-            color: validValues.map(v => getBarColor(v)),
+            color: bins.map(b => b.color),
             line: { color: 'white', width: 1 }
           },
-          nbinsx: binCount,
-          hovertemplate: 'Value: %{x:.2f}<br>Count: %{y}<extra></extra>'
+          hovertemplate: 'Range: %{x:.2f}<br>Count: %{y}<extra></extra>'
         } as any]}
         layout={{
           height: 200,
-          margin: { t: 20, b: 40, l: 50, r: 20 },
+          margin: { t: 30, b: 40, l: 50, r: 20 },
           xaxis: { title: { text: indicator.name, font: { size: 11 } } },
           yaxis: { title: { text: 'Count', font: { size: 11 } } },
           shapes,
           annotations,
           showlegend: false,
           paper_bgcolor: 'white',
-          plot_bgcolor: 'white'
+          plot_bgcolor: 'white',
+          bargap: 0.05,
         }}
         config={{ responsive: true, displayModeBar: false }}
         style={{ width: '100%' }}
       />
 
       {/* Fertility distribution bar */}
-      <div style={{ padding: '12px 16px', borderTop: '1px solid #e5e7eb' }}>
-        <div style={{ fontSize: '11px', color: '#6b7280', marginBottom: '6px' }}>Sample Classification</div>
-        <div style={{ display: 'flex', height: '24px', borderRadius: '4px', overflow: 'hidden', background: '#e5e7eb' }}>
+      <Box sx={{ p: '12px 16px', borderTop: '1px solid', borderColor: 'divider' }}>
+        <Typography variant="caption" color="text.secondary" sx={{ mb: 0.75, display: 'block' }}>
+          Sample Classification
+        </Typography>
+        <Box sx={{ display: 'flex', height: 24, borderRadius: 1, overflow: 'hidden', bgcolor: 'grey.200' }}>
           {(() => {
             const veryHigh = indicator.fertility.filter(f => f === 'very-high').length;
             const high = indicator.fertility.filter(f => f === 'high').length;
@@ -140,133 +207,46 @@ const IndicatorHistogram: React.FC<IndicatorHistogramProps> = ({ indicator, thre
             const barren = indicator.fertility.filter(f => f === 'barren').length;
             const total = indicator.statistics.validCount;
 
-            return (
-              <>
-                {veryHigh > 0 && (
-                  <div
-                    style={{ width: `${(veryHigh/total)*100}%`, background: '#15803d', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'white', fontSize: '10px' }}
-                    title={`Very High: ${veryHigh} samples`}
-                  >
-                    {(veryHigh/total)*100 > 10 && `${((veryHigh/total)*100).toFixed(0)}%`}
-                  </div>
-                )}
-                {high > 0 && (
-                  <div
-                    style={{ width: `${(high/total)*100}%`, background: '#22c55e', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'white', fontSize: '10px' }}
-                    title={`High: ${high} samples`}
-                  >
-                    {(high/total)*100 > 10 && `${((high/total)*100).toFixed(0)}%`}
-                  </div>
-                )}
-                {mod > 0 && (
-                  <div
-                    style={{ width: `${(mod/total)*100}%`, background: '#f59e0b', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'white', fontSize: '10px' }}
-                    title={`Moderate: ${mod} samples`}
-                  >
-                    {(mod/total)*100 > 10 && `${((mod/total)*100).toFixed(0)}%`}
-                  </div>
-                )}
-                {low > 0 && (
-                  <div
-                    style={{ width: `${(low/total)*100}%`, background: '#94a3b8', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'white', fontSize: '10px' }}
-                    title={`Low: ${low} samples`}
-                  >
-                    {(low/total)*100 > 10 && `${((low/total)*100).toFixed(0)}%`}
-                  </div>
-                )}
-                {barren > 0 && (
-                  <div
-                    style={{ width: `${(barren/total)*100}%`, background: '#ef4444', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'white', fontSize: '10px' }}
-                    title={`Barren: ${barren} samples`}
-                  >
-                    {(barren/total)*100 > 10 && `${((barren/total)*100).toFixed(0)}%`}
-                  </div>
-                )}
-              </>
-            );
+            const segments = [
+              { count: veryHigh, color: '#15803d', label: 'Very High' },
+              { count: high, color: '#22c55e', label: 'High' },
+              { count: mod, color: '#f59e0b', label: 'Moderate' },
+              { count: low, color: '#94a3b8', label: 'Low' },
+              { count: barren, color: '#ef4444', label: 'Barren' },
+            ];
+
+            return segments.filter(s => s.count > 0).map(s => (
+              <Tooltip key={s.label} title={`${s.label}: ${s.count} samples (${((s.count / total) * 100).toFixed(0)}%)`}>
+                <Box
+                  sx={{
+                    width: `${(s.count / total) * 100}%`,
+                    bgcolor: s.color,
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    color: 'white', fontSize: '10px'
+                  }}
+                >
+                  {(s.count / total) * 100 > 10 && `${((s.count / total) * 100).toFixed(0)}%`}
+                </Box>
+              </Tooltip>
+            ));
           })()}
-        </div>
-        <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '4px', fontSize: '10px', color: '#6b7280' }}>
-          <div style={{ display: 'flex', gap: '12px' }}>
-            <span><span style={{ display: 'inline-block', width: 8, height: 8, background: '#15803d', borderRadius: 2, marginRight: 4 }}></span>Very High</span>
-            <span><span style={{ display: 'inline-block', width: 8, height: 8, background: '#22c55e', borderRadius: 2, marginRight: 4 }}></span>High</span>
-            <span><span style={{ display: 'inline-block', width: 8, height: 8, background: '#f59e0b', borderRadius: 2, marginRight: 4 }}></span>Moderate</span>
-            <span><span style={{ display: 'inline-block', width: 8, height: 8, background: '#94a3b8', borderRadius: 2, marginRight: 4 }}></span>Low</span>
-            <span><span style={{ display: 'inline-block', width: 8, height: 8, background: '#ef4444', borderRadius: 2, marginRight: 4 }}></span>Barren</span>
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-};
-
-// ============================================================================
-// TAB BUTTON COMPONENT
-// ============================================================================
-
-interface TabButtonProps {
-  active: boolean;
-  onClick: () => void;
-  children: React.ReactNode;
-}
-
-const TabButton: React.FC<TabButtonProps> = ({ active, onClick, children }) => (
-  <button
-    onClick={onClick}
-    style={{
-      padding: '10px 20px',
-      border: 'none',
-      borderBottom: active ? '3px solid #3b82f6' : '3px solid transparent',
-      background: active ? '#eff6ff' : 'transparent',
-      color: active ? '#1d4ed8' : '#6b7280',
-      fontWeight: active ? 600 : 400,
-      cursor: 'pointer',
-      fontSize: '14px',
-      transition: 'all 0.2s'
-    }}
-  >
-    {children}
-  </button>
-);
-
-// ============================================================================
-// DEPOSIT CARD COMPONENT
-// ============================================================================
-
-interface DepositCardProps {
-  type: DepositType;
-  selected: boolean;
-  onClick: () => void;
-}
-
-const DepositCard: React.FC<DepositCardProps> = ({ type, selected, onClick }) => {
-  const config = DEPOSIT_CONFIGS.find(c => c.type === type);
-  if (!config) return null;
-
-  return (
-    <button
-      onClick={onClick}
-      style={{
-        padding: '12px 16px',
-        borderRadius: '8px',
-        border: selected ? '2px solid #3b82f6' : '1px solid #d1d5db',
-        background: selected ? '#eff6ff' : 'white',
-        cursor: 'pointer',
-        textAlign: 'left',
-        transition: 'all 0.2s',
-        width: '100%'
-      }}
-    >
-      <div style={{ fontWeight: 600, fontSize: '13px', color: selected ? '#1d4ed8' : '#111827' }}>
-        {config.name}
-      </div>
-      <div style={{ fontSize: '11px', color: '#6b7280', marginTop: '4px', lineHeight: 1.4 }}>
-        {config.description}
-      </div>
-      <div style={{ fontSize: '10px', color: '#9ca3af', marginTop: '6px' }}>
-        Pathfinders: {config.pathfinderSuite.slice(0, 5).join(', ')}{config.pathfinderSuite.length > 5 ? '...' : ''}
-      </div>
-    </button>
+        </Box>
+        <Box sx={{ display: 'flex', gap: 1.5, mt: 0.5, fontSize: '10px', color: 'text.secondary' }}>
+          {[
+            { color: '#15803d', label: 'Very High' },
+            { color: '#22c55e', label: 'High' },
+            { color: '#f59e0b', label: 'Moderate' },
+            { color: '#94a3b8', label: 'Low' },
+            { color: '#ef4444', label: 'Barren' },
+          ].map(item => (
+            <Typography key={item.label} variant="caption" sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+              <Box sx={{ width: 8, height: 8, bgcolor: item.color, borderRadius: '2px', flexShrink: 0 }} />
+              {item.label}
+            </Typography>
+          ))}
+        </Box>
+      </Box>
+    </Paper>
   );
 };
 
@@ -275,7 +255,7 @@ const DepositCard: React.FC<DepositCardProps> = ({ type, selected, onClick }) =>
 // ============================================================================
 
 export const VectoringManager: React.FC = () => {
-  const { data, columns } = useAppStore();
+  const { data, columns, geochemMappings, addColumn } = useAppStore();
   const {
     selectedDepositType,
     currentResult,
@@ -287,25 +267,27 @@ export const VectoringManager: React.FC = () => {
     setActiveTab,
     runVectoring,
     runMultipleDepositTypes,
+    clearError,
   } = useVectoringStore();
 
   const [selectedForComparison, setSelectedForComparison] = useState<DepositType[]>([]);
   const [expandedCategory, setExpandedCategory] = useState<string | null>('Gold Systems');
+  const [snackbarMessage, setSnackbarMessage] = useState<string | null>(null);
 
   // Get column names
   const columnNames = useMemo(() => columns.map(c => c.name), [columns]);
 
   // Handle running analysis
-  const handleRunAnalysis = async () => {
+  const handleRunAnalysis = useCallback(async () => {
     if (!selectedDepositType) return;
-    await runVectoring(data, columnNames);
-  };
+    await runVectoring(data, columnNames, geochemMappings);
+  }, [selectedDepositType, data, columnNames, geochemMappings, runVectoring]);
 
   // Handle comparison analysis
-  const handleRunComparison = async () => {
+  const handleRunComparison = useCallback(async () => {
     if (selectedForComparison.length < 2) return;
-    await runMultipleDepositTypes(data, columnNames, selectedForComparison);
-  };
+    await runMultipleDepositTypes(data, columnNames, selectedForComparison, geochemMappings);
+  }, [selectedForComparison, data, columnNames, geochemMappings, runMultipleDepositTypes]);
 
   // Toggle deposit for comparison
   const toggleComparisonDeposit = (type: DepositType) => {
@@ -314,110 +296,199 @@ export const VectoringManager: React.FC = () => {
     );
   };
 
+  // Save indicator to data table
+  const handleSaveToTable = useCallback((indicator: CalculatedIndicator) => {
+    const colName = `VEC_${indicator.name.replace(/[^a-zA-Z0-9]/g, '_')}`;
+    addColumn(colName, indicator.values, 'numeric', 'Calculated');
+    setSnackbarMessage(`Saved "${indicator.name}" as column "${colName}"`);
+  }, [addColumn]);
+
+  // Export report
+  const handleExportReport = useCallback(() => {
+    if (!currentResult) return;
+    const config = getDepositConfig(currentResult.depositType);
+
+    // Summary text
+    const lines: string[] = [
+      `Vectoring Analysis Report`,
+      `========================`,
+      `Deposit Type: ${config?.name || currentResult.depositType}`,
+      `Date: ${new Date().toISOString().split('T')[0]}`,
+      `Samples Analyzed: ${currentResult.sampleCount}`,
+      ``,
+      `Overall Assessment: ${currentResult.summary.overallAssessment}`,
+      ``,
+      `Key Findings:`,
+      ...currentResult.summary.keyFindings.map(f => `  - ${f}`),
+      ``,
+      `Recommendations:`,
+      ...currentResult.summary.recommendations.map(r => `  - ${r}`),
+    ];
+
+    // Element availability
+    lines.push('', 'Element Availability:');
+    lines.push(`  Found: ${currentResult.elementAvailability.found.join(', ')}`);
+    if (currentResult.elementAvailability.missing.length > 0) {
+      lines.push(`  Missing: ${currentResult.elementAvailability.missing.join(', ')}`);
+    }
+    if (currentResult.missingIndicators.length > 0) {
+      lines.push('', 'Skipped Indicators:');
+      for (const mi of currentResult.missingIndicators) {
+        lines.push(`  - ${mi.name}: missing ${mi.missingElements.join(', ')}`);
+      }
+    }
+
+    downloadText(lines.join('\n'), `vectoring_report_${currentResult.depositType}.txt`);
+
+    // Indicator statistics CSV
+    if (currentResult.indicators.length > 0) {
+      const csvHeader = 'Indicator,Min,Max,Mean,Median,Std Dev,Valid Count,% High+Very High';
+      const csvRows = currentResult.indicators.map(ind => {
+        const highPct = ind.statistics.validCount > 0
+          ? ((ind.fertility.filter(f => f === 'high' || f === 'very-high').length / ind.statistics.validCount) * 100).toFixed(1)
+          : '0';
+        return [
+          ind.name,
+          ind.statistics.min.toFixed(4),
+          ind.statistics.max.toFixed(4),
+          ind.statistics.mean.toFixed(4),
+          ind.statistics.median.toFixed(4),
+          ind.statistics.std.toFixed(4),
+          ind.statistics.validCount,
+          highPct,
+        ].join(',');
+      });
+      downloadCSV([csvHeader, ...csvRows].join('\n'), `vectoring_stats_${currentResult.depositType}.csv`);
+    }
+
+    setSnackbarMessage('Report exported');
+  }, [currentResult]);
+
   // Get thresholds for an indicator
   const getIndicatorThresholds = (indicatorId: string): { value: number; color: string; label: string }[] => {
     const indicator = VECTORING_INDICATORS.find(i => i.id === indicatorId);
     if (!indicator) return [];
 
     return indicator.thresholds
-      .filter(t => t.operator !== 'between') // Skip 'between' for simple threshold lines
+      .filter(t => t.operator !== 'between')
       .map(t => ({
         value: t.value,
         color: t.color,
-        label: t.interpretation.split(' ')[0] // First word of interpretation
+        label: t.interpretation.split(' ')[0]
       }));
   };
 
+  // Improved comparison scoring
+  const getComparisonScore = useCallback((result: typeof comparisonResults[0]) => {
+    if (result.indicators.length === 0) return 0;
+    let weightedScore = 0;
+    let totalWeight = 0;
+
+    for (const ind of result.indicators) {
+      if (ind.statistics.validCount === 0) continue;
+      const veryHigh = ind.fertility.filter(f => f === 'very-high').length;
+      const high = ind.fertility.filter(f => f === 'high').length;
+      const mod = ind.fertility.filter(f => f === 'moderate').length;
+
+      // Weighted score: very-high=3, high=2, moderate=1
+      const indScore = ((veryHigh * 3 + high * 2 + mod * 1) / (ind.statistics.validCount * 3)) * 100;
+      // Core fertility indicators get more weight
+      const indicatorDef = VECTORING_INDICATORS.find(i => i.id === ind.indicatorId);
+      const weight = indicatorDef?.category === 'fertility' ? 2 : 1;
+
+      weightedScore += indScore * weight;
+      totalWeight += weight;
+    }
+
+    return totalWeight > 0 ? weightedScore / totalWeight : 0;
+  }, []);
+
   return (
-    <div style={{ padding: '16px', height: '100%', overflow: 'auto' }}>
-      <div style={{ marginBottom: '16px' }}>
-        <h2 style={{ margin: '0 0 4px 0', fontSize: '20px', fontWeight: 600 }}>
+    <Box sx={{ p: 2, height: '100%', overflow: 'auto' }}>
+      {/* Header */}
+      <Box sx={{ mb: 2 }}>
+        <Typography variant="h6" sx={{ fontWeight: 600 }}>
           Deposit-Specific Vectoring Analysis
-        </h2>
-        <p style={{ margin: 0, fontSize: '13px', color: '#6b7280' }}>
+        </Typography>
+        <Typography variant="body2" color="text.secondary">
           Analyze your geochemical data against deposit-specific fertility and proximity indicators
-        </p>
-      </div>
+        </Typography>
+      </Box>
 
       {/* Tabs */}
-      <div style={{ borderBottom: '1px solid #e5e7eb', marginBottom: '20px', display: 'flex' }}>
-        <TabButton active={activeTab === 'analysis'} onClick={() => setActiveTab('analysis')}>
-          Select Deposit Type
-        </TabButton>
-        <TabButton active={activeTab === 'results'} onClick={() => setActiveTab('results')}>
-          Results & Visualization
-        </TabButton>
-        <TabButton active={activeTab === 'compare'} onClick={() => setActiveTab('compare')}>
-          Compare Multiple Types
-        </TabButton>
-      </div>
+      <Tabs
+        value={activeTab}
+        onChange={(_, val) => setActiveTab(val)}
+        sx={{ borderBottom: 1, borderColor: 'divider', mb: 2.5 }}
+      >
+        <Tab label="Select Deposit Type" value="analysis" />
+        <Tab label="Results & Visualization" value="results" />
+        <Tab label="Compare Multiple Types" value="compare" />
+      </Tabs>
 
       {/* Error display */}
       {error && (
-        <div style={{
-          padding: '12px 16px',
-          background: '#fef2f2',
-          border: '1px solid #fecaca',
-          borderRadius: '8px',
-          color: '#dc2626',
-          marginBottom: '16px',
-          fontSize: '13px'
-        }}>
+        <Alert severity="error" onClose={clearError} sx={{ mb: 2 }}>
           {error}
-        </div>
+        </Alert>
       )}
 
-      {/* Analysis Tab - Deposit Selection */}
+      {/* ================================================================== */}
+      {/* ANALYSIS TAB - Deposit Selection */}
+      {/* ================================================================== */}
       {activeTab === 'analysis' && (
-        <div>
-          {/* Deposit categories */}
+        <Box>
           {Object.entries(DEPOSIT_CATEGORIES).map(([category, types]) => (
-            <div key={category} style={{ marginBottom: '16px' }}>
-              <button
-                onClick={() => setExpandedCategory(expandedCategory === category ? null : category)}
-                style={{
-                  width: '100%',
-                  padding: '12px 16px',
-                  background: '#f9fafb',
-                  border: '1px solid #e5e7eb',
-                  borderRadius: '8px',
-                  cursor: 'pointer',
-                  display: 'flex',
-                  justifyContent: 'space-between',
-                  alignItems: 'center',
-                  textAlign: 'left'
-                }}
-              >
-                <span style={{ fontWeight: 600, fontSize: '14px' }}>{category}</span>
-                <span style={{ fontSize: '12px', color: '#6b7280' }}>
-                  {types.filter(t => DEPOSIT_CONFIGS.some(c => c.type === t)).length} deposit types
-                  <span style={{ marginLeft: '8px' }}>{expandedCategory === category ? '▼' : '▶'}</span>
-                </span>
-              </button>
-
-              {expandedCategory === category && (
-                <div style={{
-                  display: 'grid',
-                  gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))',
-                  gap: '8px',
-                  marginTop: '8px',
-                  padding: '8px'
-                }}>
+            <Accordion
+              key={category}
+              expanded={expandedCategory === category}
+              onChange={(_, expanded) => setExpandedCategory(expanded ? category : null)}
+              sx={{ mb: 1, '&:before': { display: 'none' } }}
+              disableGutters
+            >
+              <AccordionSummary expandIcon={<ExpandMoreIcon />}>
+                <Box sx={{ display: 'flex', justifyContent: 'space-between', width: '100%', alignItems: 'center', pr: 1 }}>
+                  <Typography variant="subtitle2" sx={{ fontWeight: 600 }}>{category}</Typography>
+                  <Chip
+                    label={`${types.filter(t => DEPOSIT_CONFIGS.some(c => c.type === t)).length} types`}
+                    size="small"
+                    variant="outlined"
+                  />
+                </Box>
+              </AccordionSummary>
+              <AccordionDetails>
+                <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: 1 }}>
                   {types.map(type => {
                     const config = DEPOSIT_CONFIGS.find(c => c.type === type);
                     if (!config) return null;
+                    const isSelected = selectedDepositType === type;
                     return (
-                      <DepositCard
+                      <Card
                         key={type}
-                        type={type}
-                        selected={selectedDepositType === type}
-                        onClick={() => setSelectedDepositType(type)}
-                      />
+                        variant="outlined"
+                        sx={{
+                          border: isSelected ? '2px solid' : '1px solid',
+                          borderColor: isSelected ? 'primary.main' : 'divider',
+                          bgcolor: isSelected ? 'primary.50' : 'background.paper',
+                        }}
+                      >
+                        <CardActionArea onClick={() => setSelectedDepositType(type)} sx={{ p: '12px 16px' }}>
+                          <Typography variant="subtitle2" sx={{ fontWeight: 600, color: isSelected ? 'primary.dark' : 'text.primary' }}>
+                            {config.name}
+                          </Typography>
+                          <Typography variant="caption" color="text.secondary" sx={{ mt: 0.5, lineHeight: 1.4, display: 'block' }}>
+                            {config.description}
+                          </Typography>
+                          <Typography variant="caption" sx={{ color: 'text.disabled', mt: 0.75, display: 'block' }}>
+                            Pathfinders: {config.pathfinderSuite.slice(0, 5).join(', ')}{config.pathfinderSuite.length > 5 ? '...' : ''}
+                          </Typography>
+                        </CardActionArea>
+                      </Card>
                     );
                   })}
-                </div>
-              )}
-            </div>
+                </Box>
+              </AccordionDetails>
+            </Accordion>
           ))}
 
           {/* Selected deposit details */}
@@ -426,200 +497,231 @@ export const VectoringManager: React.FC = () => {
             if (!config) return null;
 
             return (
-              <div style={{
-                padding: '20px',
-                background: '#f0f9ff',
-                border: '2px solid #3b82f6',
-                borderRadius: '8px',
-                marginTop: '20px'
-              }}>
-                <h3 style={{ margin: '0 0 8px 0', fontSize: '18px', color: '#1d4ed8' }}>
+              <Paper
+                sx={{
+                  p: 2.5,
+                  mt: 2.5,
+                  border: '2px solid',
+                  borderColor: 'primary.main',
+                  bgcolor: 'primary.50',
+                }}
+              >
+                <Typography variant="h6" sx={{ color: 'primary.dark', mb: 1 }}>
                   Selected: {config.name}
-                </h3>
-                <p style={{ fontSize: '13px', color: '#374151', margin: '0 0 16px 0' }}>
+                </Typography>
+                <Typography variant="body2" color="text.primary" sx={{ mb: 2 }}>
                   {config.description}
-                </p>
+                </Typography>
 
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '16px', marginBottom: '16px' }}>
-                  <div>
-                    <div style={{ fontWeight: 600, fontSize: '12px', color: '#6b7280', marginBottom: '4px' }}>
-                      INDICATORS
-                    </div>
-                    <div style={{ fontSize: '13px' }}>
+                <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 2, mb: 2 }}>
+                  <Box>
+                    <Typography variant="overline" color="text.secondary" sx={{ fontWeight: 600 }}>
+                      Indicators
+                    </Typography>
+                    <Typography variant="body2">
                       {config.indicators.map(id => {
                         const ind = VECTORING_INDICATORS.find(i => i.id === id);
                         return ind?.name;
                       }).filter(Boolean).join(', ')}
-                    </div>
-                  </div>
-                  <div>
-                    <div style={{ fontWeight: 600, fontSize: '12px', color: '#6b7280', marginBottom: '4px' }}>
-                      PATHFINDER SUITE
-                    </div>
-                    <div style={{ fontSize: '13px' }}>
+                    </Typography>
+                  </Box>
+                  <Box>
+                    <Typography variant="overline" color="text.secondary" sx={{ fontWeight: 600 }}>
+                      Pathfinder Suite
+                    </Typography>
+                    <Typography variant="body2">
                       {config.pathfinderSuite.join(', ')}
-                    </div>
-                  </div>
-                  <div>
-                    <div style={{ fontWeight: 600, fontSize: '12px', color: '#6b7280', marginBottom: '4px' }}>
-                      KEY RATIOS
-                    </div>
-                    <div style={{ fontSize: '13px' }}>
+                    </Typography>
+                  </Box>
+                  <Box>
+                    <Typography variant="overline" color="text.secondary" sx={{ fontWeight: 600 }}>
+                      Key Ratios
+                    </Typography>
+                    <Typography variant="body2">
                       {config.keyRatios.length > 0 ? config.keyRatios.join(', ') : 'N/A'}
-                    </div>
-                  </div>
-                </div>
+                    </Typography>
+                  </Box>
+                </Box>
 
-                <button
+                <Button
+                  variant="contained"
+                  fullWidth
+                  size="large"
                   onClick={handleRunAnalysis}
                   disabled={isProcessing || data.length === 0}
-                  style={{
-                    width: '100%',
-                    padding: '14px',
-                    borderRadius: '8px',
-                    border: 'none',
-                    background: isProcessing ? '#9ca3af' : '#2563eb',
-                    color: 'white',
-                    fontWeight: 600,
-                    cursor: isProcessing ? 'not-allowed' : 'pointer',
-                    fontSize: '14px'
-                  }}
+                  startIcon={isProcessing ? <CircularProgress size={18} color="inherit" /> : undefined}
                 >
                   {isProcessing ? 'Analyzing...' : `Analyze for ${config.name}`}
-                </button>
+                </Button>
 
                 {data.length === 0 && (
-                  <p style={{ fontSize: '12px', color: '#dc2626', marginTop: '8px', textAlign: 'center' }}>
+                  <Typography variant="caption" color="error" sx={{ mt: 1, textAlign: 'center', display: 'block' }}>
                     Please load data first before running analysis
-                  </p>
+                  </Typography>
                 )}
-              </div>
+              </Paper>
             );
           })()}
-        </div>
+        </Box>
       )}
 
-      {/* Results Tab with Histograms */}
+      {/* ================================================================== */}
+      {/* RESULTS TAB */}
+      {/* ================================================================== */}
       {activeTab === 'results' && (
-        <div>
+        <Box>
           {!currentResult ? (
-            <div style={{
-              padding: '60px',
-              textAlign: 'center',
-              color: '#6b7280',
-              background: '#f9fafb',
-              borderRadius: '8px'
-            }}>
-              <div style={{ fontSize: '48px', marginBottom: '16px' }}>📊</div>
-              <p style={{ fontSize: '15px', margin: 0 }}>
-                No results yet. Select a deposit type and run analysis.
-              </p>
-            </div>
+            <Paper sx={{ p: 8, textAlign: 'center', bgcolor: 'grey.50' }}>
+              <Typography variant="h5" sx={{ mb: 2, opacity: 0.6 }}>No results yet</Typography>
+              <Typography variant="body2" color="text.secondary">
+                Select a deposit type and run analysis to see results.
+              </Typography>
+            </Paper>
           ) : (
             <>
               {/* Summary header */}
-              <div style={{
-                padding: '20px',
-                background: currentResult.summary.overallAssessment.includes('High')
-                  ? 'linear-gradient(135deg, #dcfce7 0%, #bbf7d0 100%)'
-                  : currentResult.summary.overallAssessment.includes('Moderate')
-                    ? 'linear-gradient(135deg, #fef3c7 0%, #fde68a 100%)'
-                    : 'linear-gradient(135deg, #f3f4f6 0%, #e5e7eb 100%)',
-                borderRadius: '12px',
-                marginBottom: '24px',
-                border: `2px solid ${
-                  currentResult.summary.overallAssessment.includes('High') ? '#22c55e'
-                    : currentResult.summary.overallAssessment.includes('Moderate') ? '#f59e0b' : '#d1d5db'
-                }`
-              }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-                  <div>
-                    <h3 style={{ margin: '0 0 4px 0', fontSize: '18px' }}>
+              <Paper
+                sx={{
+                  p: 2.5,
+                  mb: 3,
+                  border: '2px solid',
+                  borderColor: currentResult.summary.overallAssessment.includes('High') ? 'success.main'
+                    : currentResult.summary.overallAssessment.includes('Moderate') ? 'warning.main' : 'grey.300',
+                  background: currentResult.summary.overallAssessment.includes('High')
+                    ? 'linear-gradient(135deg, #dcfce7 0%, #bbf7d0 100%)'
+                    : currentResult.summary.overallAssessment.includes('Moderate')
+                      ? 'linear-gradient(135deg, #fef3c7 0%, #fde68a 100%)'
+                      : 'linear-gradient(135deg, #f3f4f6 0%, #e5e7eb 100%)',
+                }}
+              >
+                <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                  <Box>
+                    <Typography variant="h6" sx={{ mb: 0.5 }}>
                       {getDepositConfig(currentResult.depositType)?.name}
-                    </h3>
-                    <div style={{
-                      fontSize: '16px',
-                      fontWeight: 700,
-                      color: currentResult.summary.overallAssessment.includes('High') ? '#15803d'
-                        : currentResult.summary.overallAssessment.includes('Moderate') ? '#d97706' : '#374151'
-                    }}>
+                    </Typography>
+                    <Typography
+                      variant="subtitle1"
+                      sx={{
+                        fontWeight: 700,
+                        color: currentResult.summary.overallAssessment.includes('High') ? 'success.dark'
+                          : currentResult.summary.overallAssessment.includes('Moderate') ? 'warning.dark' : 'text.primary'
+                      }}
+                    >
                       {currentResult.summary.overallAssessment}
-                    </div>
-                  </div>
-                  <div style={{ textAlign: 'right', fontSize: '13px', color: '#6b7280' }}>
-                    <div>{currentResult.sampleCount.toLocaleString()} samples analyzed</div>
-                    <div>{currentResult.indicators.length} indicators calculated</div>
-                  </div>
-                </div>
+                    </Typography>
+                  </Box>
+                  <Box sx={{ textAlign: 'right' }}>
+                    <Typography variant="body2" color="text.secondary">
+                      {currentResult.sampleCount.toLocaleString()} samples analyzed
+                    </Typography>
+                    <Typography variant="body2" color="text.secondary">
+                      {currentResult.indicators.length} indicators calculated
+                    </Typography>
+                    <Button
+                      size="small"
+                      startIcon={<FileDownloadIcon />}
+                      onClick={handleExportReport}
+                      sx={{ mt: 0.5 }}
+                    >
+                      Export Report
+                    </Button>
+                  </Box>
+                </Box>
 
                 {/* Key findings */}
                 {currentResult.summary.keyFindings.length > 0 && currentResult.summary.keyFindings[0] !== 'No significant anomalies detected' && (
-                  <div style={{ marginTop: '16px', paddingTop: '16px', borderTop: '1px solid rgba(0,0,0,0.1)' }}>
-                    <div style={{ fontWeight: 600, fontSize: '13px', marginBottom: '8px' }}>Key Findings:</div>
-                    <ul style={{ margin: 0, paddingLeft: '20px', fontSize: '13px' }}>
+                  <Box sx={{ mt: 2, pt: 2, borderTop: '1px solid rgba(0,0,0,0.1)' }}>
+                    <Typography variant="subtitle2" sx={{ mb: 1 }}>Key Findings:</Typography>
+                    <ul style={{ margin: 0, paddingLeft: '20px' }}>
                       {currentResult.summary.keyFindings.map((f, i) => (
-                        <li key={i} style={{ marginBottom: '4px' }}>{f}</li>
+                        <li key={i}><Typography variant="body2">{f}</Typography></li>
                       ))}
                     </ul>
-                  </div>
+                  </Box>
                 )}
-              </div>
+              </Paper>
+
+              {/* Element Availability Card */}
+              {(currentResult.missingIndicators.length > 0 || currentResult.elementAvailability.missing.length > 0) && (
+                <Alert
+                  severity="info"
+                  icon={<WarningAmberIcon />}
+                  sx={{ mb: 3 }}
+                >
+                  <Typography variant="subtitle2" sx={{ mb: 0.5 }}>Element Availability</Typography>
+                  <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap', mb: 1 }}>
+                    {currentResult.elementAvailability.found.map(el => (
+                      <Chip key={el} label={el} size="small" color="success" variant="outlined" icon={<CheckCircleOutlineIcon />} />
+                    ))}
+                    {currentResult.elementAvailability.missing.map(el => (
+                      <Chip key={el} label={el} size="small" color="warning" variant="outlined" icon={<WarningAmberIcon />} />
+                    ))}
+                  </Box>
+                  {currentResult.missingIndicators.length > 0 && (
+                    <Typography variant="caption" color="text.secondary">
+                      Skipped: {currentResult.missingIndicators.map(m => `${m.name} (needs ${m.missingElements.join(', ')})`).join('; ')}
+                    </Typography>
+                  )}
+                </Alert>
+              )}
 
               {/* Indicator Histograms */}
-              <h4 style={{ margin: '0 0 16px 0', fontSize: '16px', fontWeight: 600 }}>
+              <Typography variant="subtitle1" sx={{ fontWeight: 600, mb: 2 }}>
                 Indicator Analysis
-              </h4>
+              </Typography>
 
               {currentResult.indicators.length === 0 ? (
-                <div style={{ padding: '40px', textAlign: 'center', color: '#6b7280', background: '#f9fafb', borderRadius: '8px' }}>
-                  No indicators could be calculated. Check that required elements are present in your data.
-                </div>
+                <Paper sx={{ p: 5, textAlign: 'center', bgcolor: 'grey.50' }}>
+                  <Typography variant="body2" color="text.secondary">
+                    No indicators could be calculated. Check that required elements are present in your data.
+                  </Typography>
+                </Paper>
               ) : (
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(500px, 1fr))', gap: '16px' }}>
+                <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(500px, 1fr))', gap: 2 }}>
                   {currentResult.indicators.map(indicator => (
                     <IndicatorHistogram
                       key={indicator.indicatorId}
                       indicator={indicator}
                       thresholds={getIndicatorThresholds(indicator.indicatorId)}
+                      onSaveToTable={handleSaveToTable}
                     />
                   ))}
-                </div>
+                </Box>
               )}
 
               {/* Recommendations */}
               {currentResult.summary.recommendations.length > 0 && (
-                <div style={{
-                  marginTop: '24px',
-                  padding: '16px',
-                  background: '#f0f9ff',
-                  borderRadius: '8px',
-                  border: '1px solid #bae6fd'
-                }}>
-                  <h4 style={{ margin: '0 0 8px 0', fontSize: '14px', color: '#0369a1' }}>Recommendations</h4>
-                  <ul style={{ margin: 0, paddingLeft: '20px', fontSize: '13px', color: '#0c4a6e' }}>
+                <Alert severity="info" sx={{ mt: 3 }}>
+                  <Typography variant="subtitle2" sx={{ mb: 0.5 }}>Recommendations</Typography>
+                  <ul style={{ margin: 0, paddingLeft: '20px' }}>
                     {currentResult.summary.recommendations.map((rec, i) => (
-                      <li key={i} style={{ marginBottom: '4px' }}>{rec}</li>
+                      <li key={i}><Typography variant="body2">{rec}</Typography></li>
                     ))}
                   </ul>
-                </div>
+                </Alert>
               )}
             </>
           )}
-        </div>
+        </Box>
       )}
 
-      {/* Compare Tab */}
+      {/* ================================================================== */}
+      {/* COMPARE TAB */}
+      {/* ================================================================== */}
       {activeTab === 'compare' && (
-        <div>
-          <p style={{ fontSize: '13px', color: '#6b7280', marginBottom: '16px' }}>
+        <Box>
+          <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
             Select 2-6 deposit types to compare. This will run all indicators and show which deposit type best matches your data.
-          </p>
+          </Typography>
 
-          {/* Quick select buttons */}
-          <div style={{ marginBottom: '16px', display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+          {/* Quick select chips */}
+          <Box sx={{ mb: 2, display: 'flex', gap: 1, flexWrap: 'wrap' }}>
             {Object.entries(DEPOSIT_CATEGORIES).map(([category, types]) => (
-              <button
+              <Chip
                 key={category}
+                label={category}
+                variant="outlined"
+                size="small"
                 onClick={() => {
                   const validTypes = types.filter(t => DEPOSIT_CONFIGS.some(c => c.type === t));
                   setSelectedForComparison(prev => {
@@ -630,169 +732,158 @@ export const VectoringManager: React.FC = () => {
                     return [...new Set([...prev, ...validTypes])];
                   });
                 }}
-                style={{
-                  padding: '6px 12px',
-                  fontSize: '12px',
-                  borderRadius: '16px',
-                  border: '1px solid #d1d5db',
-                  background: 'white',
-                  cursor: 'pointer'
-                }}
-              >
-                {category}
-              </button>
+              />
             ))}
-          </div>
+          </Box>
 
           {/* Deposit grid for selection */}
-          <div style={{
-            display: 'grid',
-            gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))',
-            gap: '8px',
-            marginBottom: '16px'
-          }}>
+          <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: 1, mb: 2 }}>
             {DEPOSIT_CONFIGS.map(config => (
-              <label
+              <Card
                 key={config.type}
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  padding: '10px 12px',
-                  borderRadius: '8px',
-                  border: selectedForComparison.includes(config.type)
-                    ? '2px solid #3b82f6'
-                    : '1px solid #d1d5db',
-                  background: selectedForComparison.includes(config.type) ? '#eff6ff' : 'white',
-                  cursor: 'pointer',
-                  fontSize: '13px'
+                variant="outlined"
+                sx={{
+                  border: selectedForComparison.includes(config.type) ? '2px solid' : '1px solid',
+                  borderColor: selectedForComparison.includes(config.type) ? 'primary.main' : 'divider',
+                  bgcolor: selectedForComparison.includes(config.type) ? 'primary.50' : 'background.paper',
                 }}
               >
-                <input
-                  type="checkbox"
-                  checked={selectedForComparison.includes(config.type)}
-                  onChange={() => toggleComparisonDeposit(config.type)}
-                  style={{ marginRight: '10px' }}
-                />
-                {config.name}
-              </label>
+                <CardActionArea
+                  onClick={() => toggleComparisonDeposit(config.type)}
+                  sx={{ p: '10px 12px', display: 'flex', justifyContent: 'flex-start', gap: 1 }}
+                >
+                  <Checkbox
+                    checked={selectedForComparison.includes(config.type)}
+                    size="small"
+                    sx={{ p: 0 }}
+                    tabIndex={-1}
+                  />
+                  <Typography variant="body2">{config.name}</Typography>
+                </CardActionArea>
+              </Card>
             ))}
-          </div>
+          </Box>
 
-          <button
+          <Button
+            variant="contained"
+            fullWidth
+            size="large"
             onClick={handleRunComparison}
             disabled={selectedForComparison.length < 2 || isProcessing || data.length === 0}
-            style={{
-              width: '100%',
-              padding: '14px',
-              borderRadius: '8px',
-              border: 'none',
-              background: (selectedForComparison.length < 2 || isProcessing) ? '#9ca3af' : '#2563eb',
-              color: 'white',
-              fontWeight: 600,
-              cursor: (selectedForComparison.length < 2 || isProcessing) ? 'not-allowed' : 'pointer',
-              marginBottom: '20px',
-              fontSize: '14px'
-            }}
+            startIcon={isProcessing ? <CircularProgress size={18} color="inherit" /> : undefined}
+            sx={{ mb: 2.5 }}
           >
             {isProcessing ? 'Comparing...' : `Compare ${selectedForComparison.length} Deposit Types`}
-          </button>
+          </Button>
 
           {/* Comparison results */}
           {comparisonResults.length > 0 && (
-            <div>
-              <h4 style={{ margin: '0 0 16px 0', fontSize: '16px', fontWeight: 600 }}>Comparison Results</h4>
+            <Box>
+              <Typography variant="subtitle1" sx={{ fontWeight: 600, mb: 2 }}>
+                Comparison Results
+              </Typography>
 
               {/* Ranking table */}
-              <div style={{ overflowX: 'auto', marginBottom: '24px' }}>
-                <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '13px' }}>
-                  <thead>
-                    <tr style={{ background: '#f9fafb' }}>
-                      <th style={{ padding: '12px', textAlign: 'left', borderBottom: '2px solid #e5e7eb' }}>Rank</th>
-                      <th style={{ padding: '12px', textAlign: 'left', borderBottom: '2px solid #e5e7eb' }}>Deposit Type</th>
-                      <th style={{ padding: '12px', textAlign: 'center', borderBottom: '2px solid #e5e7eb' }}>Positive Indicators</th>
-                      <th style={{ padding: '12px', textAlign: 'center', borderBottom: '2px solid #e5e7eb' }}>Match Score</th>
-                      <th style={{ padding: '12px', textAlign: 'left', borderBottom: '2px solid #e5e7eb' }}>Assessment</th>
-                    </tr>
-                  </thead>
-                  <tbody>
+              <Paper variant="outlined" sx={{ mb: 3, overflow: 'hidden' }}>
+                <Table size="small">
+                  <TableHead>
+                    <TableRow sx={{ bgcolor: 'grey.50' }}>
+                      <TableCell sx={{ fontWeight: 600 }}>Rank</TableCell>
+                      <TableCell sx={{ fontWeight: 600 }}>Deposit Type</TableCell>
+                      <TableCell align="center" sx={{ fontWeight: 600 }}>Calculated</TableCell>
+                      <TableCell align="center" sx={{ fontWeight: 600 }}>Positive</TableCell>
+                      <TableCell align="center" sx={{ fontWeight: 600 }}>Score</TableCell>
+                      <TableCell sx={{ fontWeight: 600 }}>Assessment</TableCell>
+                    </TableRow>
+                  </TableHead>
+                  <TableBody>
                     {comparisonResults
                       .map(result => {
                         const positiveIndicators = result.indicators.filter(ind =>
                           ind.fertility.filter(f => f === 'high' || f === 'very-high').length > ind.statistics.validCount * 0.1
                         ).length;
-                        const score = result.indicators.length > 0
-                          ? (positiveIndicators / result.indicators.length) * 100
-                          : 0;
+                        const score = getComparisonScore(result);
                         return { ...result, positiveIndicators, score };
                       })
                       .sort((a, b) => b.score - a.score)
                       .map((result, index) => {
                         const config = getDepositConfig(result.depositType);
                         return (
-                          <tr key={result.depositType} style={{ borderBottom: '1px solid #e5e7eb' }}>
-                            <td style={{ padding: '12px', fontWeight: 600 }}>#{index + 1}</td>
-                            <td style={{ padding: '12px' }}>{config?.name}</td>
-                            <td style={{ padding: '12px', textAlign: 'center' }}>
+                          <TableRow key={result.depositType}>
+                            <TableCell sx={{ fontWeight: 600 }}>#{index + 1}</TableCell>
+                            <TableCell>{config?.name}</TableCell>
+                            <TableCell align="center">{result.indicators.length}</TableCell>
+                            <TableCell align="center">
                               {result.positiveIndicators} / {result.indicators.length}
-                            </td>
-                            <td style={{ padding: '12px', textAlign: 'center' }}>
-                              <div style={{
-                                display: 'inline-block',
-                                padding: '4px 12px',
-                                borderRadius: '16px',
-                                background: result.score > 50 ? '#dcfce7' : result.score > 25 ? '#fef3c7' : '#f3f4f6',
-                                color: result.score > 50 ? '#15803d' : result.score > 25 ? '#d97706' : '#6b7280',
-                                fontWeight: 600
-                              }}>
-                                {result.score.toFixed(0)}%
-                              </div>
-                            </td>
-                            <td style={{ padding: '12px', color: '#6b7280', fontSize: '12px' }}>
-                              {result.summary.overallAssessment}
-                            </td>
-                          </tr>
+                            </TableCell>
+                            <TableCell align="center">
+                              <Chip
+                                label={`${result.score.toFixed(0)}%`}
+                                size="small"
+                                color={result.score > 50 ? 'success' : result.score > 25 ? 'warning' : 'default'}
+                                sx={{ fontWeight: 600 }}
+                              />
+                            </TableCell>
+                            <TableCell>
+                              <Typography variant="caption" color="text.secondary">
+                                {result.summary.overallAssessment}
+                              </Typography>
+                            </TableCell>
+                          </TableRow>
                         );
                       })}
-                  </tbody>
-                </table>
-              </div>
+                  </TableBody>
+                </Table>
+              </Paper>
 
               {/* Radar chart */}
-              <Plot
-                data={comparisonResults.slice(0, 6).map((result, i) => {
-                  const config = getDepositConfig(result.depositType);
-                  const scores = result.indicators.map(ind => {
-                    const high = ind.fertility.filter(f => f === 'high' || f === 'very-high').length;
-                    return ind.statistics.validCount > 0 ? (high / ind.statistics.validCount) * 100 : 0;
-                  });
-                  const labels = result.indicators.map(ind => ind.name.length > 15 ? ind.name.slice(0, 15) + '...' : ind.name);
+              <Paper variant="outlined" sx={{ p: 1 }}>
+                <Plot
+                  data={comparisonResults.slice(0, 6).map((result, i) => {
+                    const config = getDepositConfig(result.depositType);
+                    const scores = result.indicators.map(ind => {
+                      const high = ind.fertility.filter(f => f === 'high' || f === 'very-high').length;
+                      return ind.statistics.validCount > 0 ? (high / ind.statistics.validCount) * 100 : 0;
+                    });
+                    const labels = result.indicators.map(ind =>
+                      ind.name.length > 15 ? ind.name.slice(0, 15) + '...' : ind.name
+                    );
 
-                  return {
-                    type: 'scatterpolar',
-                    r: [...scores, scores[0]], // Close the polygon
-                    theta: [...labels, labels[0]],
-                    fill: 'toself',
-                    name: config?.name || result.depositType,
-                    opacity: 0.6,
-                    marker: { color: ['#3b82f6', '#22c55e', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899'][i] }
-                  } as any;
-                })}
-                layout={{
-                  title: { text: 'Indicator Comparison by Deposit Type', font: { size: 14 } },
-                  polar: { radialaxis: { visible: true, range: [0, 100] } },
-                  height: 450,
-                  margin: { t: 60, b: 40, l: 80, r: 80 },
-                  showlegend: true,
-                  legend: { x: 1.1, y: 0.5 }
-                }}
-                config={{ responsive: true }}
-                style={{ width: '100%' }}
-              />
-            </div>
+                    return {
+                      type: 'scatterpolar',
+                      r: [...scores, scores[0]],
+                      theta: [...labels, labels[0]],
+                      fill: 'toself',
+                      name: config?.name || result.depositType,
+                      opacity: 0.6,
+                      marker: { color: ['#3b82f6', '#22c55e', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899'][i] }
+                    } as any;
+                  })}
+                  layout={{
+                    title: { text: 'Indicator Comparison by Deposit Type', font: { size: 14 } },
+                    polar: { radialaxis: { visible: true, range: [0, 100] } },
+                    height: 450,
+                    margin: { t: 60, b: 40, l: 80, r: 80 },
+                    showlegend: true,
+                    legend: { x: 1.1, y: 0.5 }
+                  }}
+                  config={{ responsive: true }}
+                  style={{ width: '100%' }}
+                />
+              </Paper>
+            </Box>
           )}
-        </div>
+        </Box>
       )}
-    </div>
+
+      {/* Snackbar for notifications */}
+      <Snackbar
+        open={!!snackbarMessage}
+        autoHideDuration={3000}
+        onClose={() => setSnackbarMessage(null)}
+        message={snackbarMessage}
+      />
+    </Box>
   );
 };
 

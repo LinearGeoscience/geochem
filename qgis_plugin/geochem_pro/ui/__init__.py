@@ -1,5 +1,5 @@
 """
-UI modules for GeoChem Pro QGIS Plugin
+UI modules for GeoChem QGIS Plugin
 """
 
 from .main_dock import GeochemDockWidget

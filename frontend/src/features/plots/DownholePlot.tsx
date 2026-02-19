@@ -18,7 +18,7 @@ import {
 import { ExpandMore, ExpandLess } from '@mui/icons-material';
 import { MultiColumnSelector } from '../../components/MultiColumnSelector';
 import { useAttributeStore } from '../../store/attributeStore';
-import { getStyleArrays, sortColumnsByPriority } from '../../utils/attributeUtils';
+import { getStyleArrays, sortColumnsByPriority, getColumnDisplayName } from '../../utils/attributeUtils';
 import { getDownholePlotConfig, EXPORT_FONT_SIZES } from '../../utils/plotConfig';
 import { ExpandablePlotWrapper } from '../../components/ExpandablePlotWrapper';
 
@@ -54,6 +54,7 @@ interface DownholeHoleViewProps {
     plotHeight: number;
     trackWidth: number;
     lockAxes: boolean;
+    displayName: (name: string) => string;
 }
 
 // Single hole view component
@@ -69,6 +70,7 @@ const DownholeHoleView: React.FC<DownholeHoleViewProps> = ({
     plotHeight,
     trackWidth,
     lockAxes,
+    displayName: dn,
 }) => {
     const visibleTraces = traceConfigs.filter(t => t.visible);
 
@@ -97,10 +99,10 @@ const DownholeHoleView: React.FC<DownholeHoleViewProps> = ({
                 y: yValues,
                 type: 'scatter',
                 mode: 'lines+markers',
-                name: config.field,
+                name: dn(config.field),
                 line: { color: config.color, width: 1.5 },
                 marker: { color: config.color, size: 4 },
-                hovertemplate: `${config.field}: %{x}<br>Depth: %{y}<extra></extra>`,
+                hovertemplate: `${dn(config.field)}: %{x}<br>Depth: %{y}<extra></extra>`,
             });
         });
 
@@ -115,7 +117,7 @@ const DownholeHoleView: React.FC<DownholeHoleViewProps> = ({
             font: { size: EXPORT_FONT_SIZES.tickLabels },
             margin: { l: 60, r: 30, t: 50, b: 50 },
             xaxis: {
-                title: { text: visibleTraces.length === 1 ? visibleTraces[0].field : 'Value', font: { size: EXPORT_FONT_SIZES.axisTitle } },
+                title: { text: visibleTraces.length === 1 ? dn(visibleTraces[0].field) : 'Value', font: { size: EXPORT_FONT_SIZES.axisTitle } },
                 tickfont: { size: EXPORT_FONT_SIZES.tickLabels },
                 side: 'top',
                 showgrid: true,
@@ -239,9 +241,13 @@ interface DownholePlotProps {
 }
 
 export const DownholePlot: React.FC<DownholePlotProps> = ({ plotId }) => {
-    const { data, columns, lockAxes, getPlotSettings, updatePlotSettings, getFilteredColumns } = useAppStore();
+    const { data, columns, lockAxes, getPlotSettings, updatePlotSettings, getFilteredColumns, getDisplayData, getDisplayIndices, sampleIndices } = useAppStore();
     const filteredColumns = getFilteredColumns();
+    const d = (name: string) => getColumnDisplayName(columns, name);
     useAttributeStore(); // Subscribe to style changes
+
+    const displayData = useMemo(() => getDisplayData(), [data, sampleIndices]);
+    const displayIndices = useMemo(() => getDisplayIndices(), [data, sampleIndices]);
 
     // Get stored settings or defaults
     const storedSettings = getPlotSettings(plotId);
@@ -338,25 +344,25 @@ export const DownholePlot: React.FC<DownholePlotProps> = ({ plotId }) => {
     // Generate category colors
     const categoryColors = useMemo(() => {
         if (!categoryField) return {};
-        const uniqueCategories = Array.from(new Set(data.map(d => d[categoryField]))).filter(Boolean);
+        const uniqueCategories = Array.from(new Set(displayData.map(d => d[categoryField]))).filter(Boolean);
         const colors: Record<string, string> = {};
         uniqueCategories.forEach((cat, i) => {
             colors[cat as string] = LITHOLOGY_COLORS[i % LITHOLOGY_COLORS.length];
         });
         return colors;
-    }, [data, categoryField]);
+    }, [displayData, categoryField]);
 
     // Get hole data with visibility filtering
     const getHoleData = useCallback((holeName: string) => {
         if (!holeCol) return { data: [], indices: [] };
 
-        const styleArrays = getStyleArrays(data);
+        const styleArrays = getStyleArrays(displayData, displayIndices ?? undefined);
         const visibleData: any[] = [];
         const visibleIndices: number[] = [];
 
-        for (let i = 0; i < data.length; i++) {
-            if (data[i][holeCol] === holeName && styleArrays.visible[i]) {
-                visibleData.push(data[i]);
+        for (let i = 0; i < displayData.length; i++) {
+            if (displayData[i][holeCol] === holeName && styleArrays.visible[i]) {
+                visibleData.push(displayData[i]);
                 visibleIndices.push(i);
             }
         }
@@ -371,7 +377,7 @@ export const DownholePlot: React.FC<DownholePlotProps> = ({ plotId }) => {
             data: sortedPairs.map(p => p.data),
             indices: sortedPairs.map(p => p.idx),
         };
-    }, [data, holeCol, fromCol, depthCol]);
+    }, [displayData, displayIndices, holeCol, fromCol, depthCol]);
 
     // Handle hole selection toggle
     const toggleHole = (hole: string) => {
@@ -501,7 +507,7 @@ export const DownholePlot: React.FC<DownholePlotProps> = ({ plotId }) => {
                                             onChange={(e) => setTraceColor(field, e.target.value)}
                                             style={{ width: 24, height: 24, border: 'none', cursor: 'pointer', padding: 0 }}
                                         />
-                                        <Typography variant="caption">{field}</Typography>
+                                        <Typography variant="caption">{d(field)}</Typography>
                                     </Box>
                                 ))}
                             </Box>
@@ -523,7 +529,7 @@ export const DownholePlot: React.FC<DownholePlotProps> = ({ plotId }) => {
                                     backgroundColor: traceColors[field] || DEFAULT_TRACE_COLORS[i % DEFAULT_TRACE_COLORS.length],
                                 }}
                             />
-                            <Typography variant="caption">{field}</Typography>
+                            <Typography variant="caption">{d(field)}</Typography>
                         </Box>
                     ))}
 
@@ -581,6 +587,7 @@ export const DownholePlot: React.FC<DownholePlotProps> = ({ plotId }) => {
                                     plotHeight={plotHeight}
                                     trackWidth={trackWidth}
                                     lockAxes={lockAxes}
+                                    displayName={d}
                                 />
                             </Paper>
                         );

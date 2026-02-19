@@ -5,7 +5,7 @@ import { useAppStore } from '../../store/appStore';
 import Plot from 'react-plotly.js';
 import { ExpandablePlotWrapper } from '../../components/ExpandablePlotWrapper';
 import { useAttributeStore } from '../../store/attributeStore';
-import { getStyleArrays, shapeToPlotlySymbol, applyOpacityToColor, getSortedIndices, sortColumnsByPriority } from '../../utils/attributeUtils';
+import { getStyleArrays, shapeToPlotlySymbol, applyOpacityToColor, getSortedIndices, sortColumnsByPriority, getColumnDisplayName } from '../../utils/attributeUtils';
 import { buildCustomData, build3DHoverTemplate } from '../../utils/tooltipUtils';
 import { AxisRangeSlider } from '../../components/AxisRangeSlider';
 import { getPlotConfig } from '../../utils/plotConfig';
@@ -27,8 +27,11 @@ interface AttributeMap3DProps {
 }
 
 export const AttributeMap3D: React.FC<AttributeMap3DProps> = ({ plotId }) => {
-    const { data, columns, lockAxes, getPlotSettings, updatePlotSettings, getFilteredColumns } = useAppStore();
+    const { data, columns, lockAxes, getPlotSettings, updatePlotSettings, getFilteredColumns, getDisplayData, getDisplayIndices, sampleIndices } = useAppStore();
     const filteredColumns = getFilteredColumns();
+    const d = (name: string) => getColumnDisplayName(columns, name);
+    const displayData = useMemo(() => getDisplayData(), [data, sampleIndices]);
+    const displayIndices = useMemo(() => getDisplayIndices(), [data, sampleIndices]);
     useAttributeStore(); // Subscribe to changes
 
     // Get stored settings or defaults
@@ -148,10 +151,10 @@ export const AttributeMap3D: React.FC<AttributeMap3DProps> = ({ plotId }) => {
     }, [dataRanges]);
 
     const getPlotData = () => {
-        if (!data.length || !xAxis || !yAxis || !zAxis) return { traces: [], filteredCount: 0, totalCount: 0 };
+        if (!displayData.length || !xAxis || !yAxis || !zAxis) return { traces: [], filteredCount: 0, totalCount: 0 };
 
         // Get styles from attribute store (includes emphasis calculations)
-        const styleArrays = getStyleArrays(data);
+        const styleArrays = getStyleArrays(displayData, displayIndices ?? undefined);
 
         // Get sorted indices for z-ordering (low-grade first, high-grade last/on top)
         const sortedIndices = getSortedIndices(styleArrays);
@@ -169,9 +172,9 @@ export const AttributeMap3D: React.FC<AttributeMap3DProps> = ({ plotId }) => {
         const totalCount = sortedIndices.length;
 
         for (const i of sortedIndices) {
-            const x = data[i][xAxis];
-            const y = data[i][yAxis];
-            const z = data[i][zAxis];
+            const x = displayData[i][xAxis];
+            const y = displayData[i][yAxis];
+            const z = displayData[i][zAxis];
 
             // Skip invalid values
             if (x == null || y == null || z == null || isNaN(x) || isNaN(y) || isNaN(z)) {
@@ -196,7 +199,7 @@ export const AttributeMap3D: React.FC<AttributeMap3DProps> = ({ plotId }) => {
         }
 
         // Build customdata for hover tooltips
-        const customData = buildCustomData(data, filteredIndices);
+        const customData = buildCustomData(displayData, filteredIndices, displayIndices ?? undefined);
 
         const trace: any = {
             type: 'scatter3d',
@@ -205,7 +208,7 @@ export const AttributeMap3D: React.FC<AttributeMap3DProps> = ({ plotId }) => {
             y: sortedY,
             z: sortedZ,
             customdata: customData,
-            hovertemplate: build3DHoverTemplate(xAxis, yAxis, zAxis),
+            hovertemplate: build3DHoverTemplate(d(xAxis), d(yAxis), d(zAxis)),
             marker: {
                 size: sortedSizes,
                 color: sortedColors,
@@ -297,15 +300,15 @@ export const AttributeMap3D: React.FC<AttributeMap3DProps> = ({ plotId }) => {
                                     height: 600,
                                     scene: {
                                         xaxis: {
-                                            title: { text: xAxis, font: { size: 11 } },
+                                            title: { text: d(xAxis), font: { size: 11 } },
                                             range: axisRanges ? axisRanges.x : undefined,
                                         },
                                         yaxis: {
-                                            title: { text: yAxis, font: { size: 11 } },
+                                            title: { text: d(yAxis), font: { size: 11 } },
                                             range: axisRanges ? axisRanges.y : undefined,
                                         },
                                         zaxis: {
-                                            title: { text: zAxis, font: { size: 11 } },
+                                            title: { text: d(zAxis), font: { size: 11 } },
                                             range: axisRanges ? axisRanges.z : undefined,
                                         },
                                         camera: lockAxes && cameraRef.current

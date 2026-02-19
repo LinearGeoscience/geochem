@@ -3,7 +3,7 @@
  */
 
 import { create } from 'zustand';
-import { persist } from 'zustand/middleware';
+import { persist, createJSONStorage } from 'zustand/middleware';
 import {
   DepositType,
   VectoringResult,
@@ -14,6 +14,7 @@ import {
   VECTORING_INDICATORS,
   DEPOSIT_CONFIGS,
 } from '../utils/depositVectoring';
+import { ColumnGeochemMapping } from '../types/associations';
 
 // ============================================================================
 // STORE INTERFACE
@@ -26,7 +27,6 @@ interface VectoringState {
 
   // Results
   currentResult: VectoringResult | null;
-  analysisHistory: VectoringResult[];
 
   // Comparison mode
   comparisonResults: VectoringResult[];
@@ -35,18 +35,18 @@ interface VectoringState {
   // UI state
   isProcessing: boolean;
   error: string | null;
-  activeTab: 'analysis' | 'results' | 'compare' | 'map';
+  activeTab: 'analysis' | 'results' | 'compare';
   showAdvancedOptions: boolean;
 
   // Actions
   setSelectedDepositType: (type: DepositType | null) => void;
   setSelectedIndicators: (indicators: string[]) => void;
-  setActiveTab: (tab: 'analysis' | 'results' | 'compare' | 'map') => void;
+  setActiveTab: (tab: 'analysis' | 'results' | 'compare') => void;
   setShowAdvancedOptions: (show: boolean) => void;
 
   // Analysis execution
-  runVectoring: (data: Record<string, any>[], columns: string[]) => Promise<VectoringResult | null>;
-  runMultipleDepositTypes: (data: Record<string, any>[], columns: string[], types: DepositType[]) => Promise<void>;
+  runVectoring: (data: Record<string, any>[], columns: string[], geochemMappings?: ColumnGeochemMapping[]) => Promise<VectoringResult | null>;
+  runMultipleDepositTypes: (data: Record<string, any>[], columns: string[], types: DepositType[], geochemMappings?: ColumnGeochemMapping[]) => Promise<void>;
 
   // Comparison
   addToComparison: (result: VectoringResult) => void;
@@ -62,6 +62,36 @@ interface VectoringState {
 }
 
 // ============================================================================
+// SAFE STORAGE WRAPPER
+// ============================================================================
+
+const safeStorage = createJSONStorage(() => {
+  return {
+    getItem: (name: string) => {
+      try {
+        return localStorage.getItem(name);
+      } catch {
+        return null;
+      }
+    },
+    setItem: (name: string, value: string) => {
+      try {
+        localStorage.setItem(name, value);
+      } catch (e) {
+        console.warn('Vectoring store: localStorage quota exceeded, skipping persist', e);
+      }
+    },
+    removeItem: (name: string) => {
+      try {
+        localStorage.removeItem(name);
+      } catch {
+        // ignore
+      }
+    },
+  };
+});
+
+// ============================================================================
 // STORE IMPLEMENTATION
 // ============================================================================
 
@@ -72,7 +102,6 @@ export const useVectoringStore = create<VectoringState>()(
       selectedDepositType: null,
       selectedIndicators: [],
       currentResult: null,
-      analysisHistory: [],
       comparisonResults: [],
       isComparisonMode: false,
       isProcessing: false,
@@ -97,7 +126,7 @@ export const useVectoringStore = create<VectoringState>()(
       setShowAdvancedOptions: (show) => set({ showAdvancedOptions: show }),
 
       // Main vectoring analysis
-      runVectoring: async (data, columns) => {
+      runVectoring: async (data, columns, geochemMappings) => {
         const { selectedDepositType } = get();
 
         if (!selectedDepositType) {
@@ -113,14 +142,13 @@ export const useVectoringStore = create<VectoringState>()(
         set({ isProcessing: true, error: null });
 
         try {
-          const result = calculateVectoring(data, columns, selectedDepositType);
+          const result = calculateVectoring(data, columns, selectedDepositType, geochemMappings);
 
-          set(state => ({
+          set({
             currentResult: result,
-            analysisHistory: [...state.analysisHistory.slice(-9), result], // Keep last 10
             isProcessing: false,
             activeTab: 'results'
-          }));
+          });
 
           return result;
         } catch (error) {
@@ -133,7 +161,7 @@ export const useVectoringStore = create<VectoringState>()(
       },
 
       // Run analysis for multiple deposit types
-      runMultipleDepositTypes: async (data, columns, types) => {
+      runMultipleDepositTypes: async (data, columns, types, geochemMappings) => {
         set({ isProcessing: true, error: null, comparisonResults: [] });
 
         try {
@@ -141,7 +169,7 @@ export const useVectoringStore = create<VectoringState>()(
 
           for (const depositType of types) {
             try {
-              const result = calculateVectoring(data, columns, depositType);
+              const result = calculateVectoring(data, columns, depositType, geochemMappings);
               results.push(result);
             } catch (e) {
               console.warn(`Failed to calculate vectoring for ${depositType}:`, e);
@@ -165,7 +193,6 @@ export const useVectoringStore = create<VectoringState>()(
       // Comparison management
       addToComparison: (result) => {
         set(state => {
-          // Don't add duplicates
           if (state.comparisonResults.some(r => r.depositType === result.depositType)) {
             return state;
           }
@@ -199,9 +226,9 @@ export const useVectoringStore = create<VectoringState>()(
     }),
     {
       name: 'vectoring-storage',
+      storage: safeStorage,
       partialize: (state) => ({
         selectedDepositType: state.selectedDepositType,
-        analysisHistory: state.analysisHistory.slice(-5) // Only persist last 5
       })
     }
   )

@@ -6,7 +6,10 @@ from pydantic import BaseModel
 from typing import List, Optional
 import pandas as pd
 import numpy as np
+import logging
 from app.core.data_manager import DataManager
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter()
 data_manager = DataManager()

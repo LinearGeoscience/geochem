@@ -10,12 +10,14 @@ import {
   CalculatedIndicator,
   DepositConfig,
   VectoringResult,
+  MissingIndicatorInfo,
   PorphyryFertilityResult,
   KomatiiteNiResult,
   CarlinGoldResult,
   LCTPegmatiteResult,
   ELEMENT_MAPPINGS,
 } from '../types/vectoring';
+import { ColumnGeochemMapping } from '../types/associations';
 
 // ============================================================================
 // CHONDRITE NORMALIZATION VALUES (McDonough & Sun 1995)
@@ -27,28 +29,75 @@ const CHONDRITE_VALUES: Record<string, number> = {
   Er: 0.160, Tm: 0.0247, Yb: 0.161, Lu: 0.0246
 };
 
+// Short element symbols that need strict matching to avoid false positives
+const SHORT_SYMBOLS = new Set(['V', 'W', 'Y', 'U', 'F', 'P', 'K', 'S', 'B', 'C', 'N', 'O', 'I']);
+
 // ============================================================================
 // UTILITY FUNCTIONS
 // ============================================================================
 
 /**
- * Find column name in data that matches an element
+ * Find column name in data that matches an element.
+ * Uses geochemMappings (user-verified) when available, falls back to local ELEMENT_MAPPINGS
+ * with strict matching to avoid false positives.
  */
 export function findElementColumn(
   columns: string[],
-  element: string
+  element: string,
+  geochemMappings?: ColumnGeochemMapping[]
 ): string | null {
+  // Strategy 1: Use geochemMappings if available (user has already verified these)
+  if (geochemMappings && geochemMappings.length > 0) {
+    const mapping = geochemMappings.find(m => {
+      const detected = m.userOverride || m.detectedElement;
+      return detected === element && !m.isExcluded;
+    });
+    if (mapping) {
+      // Verify column exists in the data
+      const exists = columns.find(c => c === mapping.originalName);
+      if (exists) return exists;
+    }
+  }
+
+  // Strategy 2: Strict local matching using ELEMENT_MAPPINGS
   const mapping = ELEMENT_MAPPINGS.find(m => m.standardName === element);
   if (!mapping) return null;
 
+  const isShort = SHORT_SYMBOLS.has(element) || element.length <= 2;
+
   for (const alias of mapping.aliases) {
-    const found = columns.find(col =>
-      col.toLowerCase() === alias.toLowerCase() ||
-      col.toLowerCase().startsWith(alias.toLowerCase() + '_') ||
-      col.toLowerCase().includes(alias.toLowerCase())
-    );
+    // Exact match (case-insensitive)
+    const exact = columns.find(col => col.toLowerCase() === alias.toLowerCase());
+    if (exact) return exact;
+  }
+
+  for (const alias of mapping.aliases) {
+    // Prefix match with separator (e.g., "Au_ppm", "Cu_pct", "Fe2O3_pct")
+    const found = columns.find(col => {
+      const lower = col.toLowerCase();
+      const aliasLower = alias.toLowerCase();
+      // Must start with alias followed by a separator character
+      if (lower.startsWith(aliasLower)) {
+        if (lower.length === aliasLower.length) return true;
+        const nextChar = lower[aliasLower.length];
+        return nextChar === '_' || nextChar === '-' || nextChar === ' ' || nextChar === '.';
+      }
+      return false;
+    });
     if (found) return found;
   }
+
+  // For longer element names (3+ chars), allow substring match only if not ambiguous
+  if (!isShort) {
+    for (const alias of mapping.aliases) {
+      if (alias.length < 3) continue; // Skip short aliases even for longer elements
+      const found = columns.find(col =>
+        col.toLowerCase().includes(alias.toLowerCase())
+      );
+      if (found) return found;
+    }
+  }
+
   return null;
 }
 
@@ -126,7 +175,7 @@ export function interpretThreshold(
   thresholds: IndicatorThreshold[]
 ): { interpretation: string; fertility: string | null; color: string } {
   if (value === null) {
-    return { interpretation: 'No data', fertility: null, color: '#gray' };
+    return { interpretation: 'No data', fertility: null, color: '#9ca3af' };
   }
 
   for (const t of thresholds) {
@@ -150,7 +199,32 @@ export function interpretThreshold(
     }
   }
 
-  return { interpretation: 'Unknown', fertility: null, color: '#gray' };
+  return { interpretation: 'Unknown', fertility: null, color: '#9ca3af' };
+}
+
+// ============================================================================
+// GENERIC INDICATOR BUILDER
+// ============================================================================
+
+/**
+ * Build a CalculatedIndicator from computed values and an indicator definition.
+ * Reduces repetitive boilerplate across all calculator functions.
+ */
+function buildIndicator(
+  indicatorId: string,
+  values: (number | null)[],
+  missingElements: string[] = []
+): CalculatedIndicator {
+  const indicator = VECTORING_INDICATORS.find(i => i.id === indicatorId)!;
+  return {
+    indicatorId,
+    name: indicator.name,
+    values,
+    interpretation: values.map(v => interpretThreshold(v, indicator.thresholds).interpretation),
+    fertility: values.map(v => interpretThreshold(v, indicator.thresholds).fertility as any),
+    missingElements,
+    statistics: calculateStats(values)
+  };
 }
 
 // ============================================================================
@@ -696,7 +770,7 @@ export const DEPOSIT_CONFIGS: DepositConfig[] = [
     description: 'Nickel sulfide deposits in channelized komatiite flows',
     indicators: ['ni-cr', 'kambalda-ratio', 'mg-number', 'th-yb'],
     pathfinderSuite: ['Ni', 'Cu', 'Co', 'PGE', 'Cr'],
-    keyRatios: ['Ni/Cr', '(Ni/Cr)×(Cu/Zn)', 'Mg#'],
+    keyRatios: ['Ni/Cr', '(Ni/Cr)x(Cu/Zn)', 'Mg#'],
     references: ['Barnes et al. (2004)', 'Lesher et al. (1999)']
   },
   {
@@ -853,23 +927,46 @@ export const DEPOSIT_CONFIGS: DepositConfig[] = [
 ];
 
 // ============================================================================
-// MAIN CALCULATION FUNCTIONS
+// CALCULATOR REGISTRY
 // ============================================================================
 
-/**
- * Calculate Eu/Eu* anomaly
- */
-export function calculateEuAnomaly(
+type CalculatorFn = (
   data: Record<string, any>[],
-  columns: string[]
-): CalculatedIndicator | null {
-  const euCol = findElementColumn(columns, 'Eu');
-  const smCol = findElementColumn(columns, 'Sm');
-  const gdCol = findElementColumn(columns, 'Gd');
+  columns: string[],
+  geochemMappings?: ColumnGeochemMapping[]
+) => CalculatedIndicator | null;
 
-  if (!euCol || !smCol || !gdCol) {
-    return null;
-  }
+/**
+ * Specialized calculator functions for complex indicators.
+ * Simple ratio and single-element indicators are handled by generic calculators.
+ */
+const CALCULATOR_REGISTRY: Record<string, CalculatorFn> = {
+  'eu-anomaly': calculateEuAnomaly,
+  'kambalda-ratio': calculateKambaldaRatio,
+  'sedex-metal-index': calculateSEDEXMetalIndex,
+  'sedex-alteration-index': calculateSEDEXAlterationIndex,
+  'three-k-al': calculate3KAl,
+  'alteration-index': calculateAlterationIndex,
+  'ccpi': calculateCCPI,
+  'mg-number': calculateMgNumber,
+  'bi-te-signature': calculateBiTeSignature,
+  'k-rb': calculateKRb,
+};
+
+// ============================================================================
+// SPECIALIZED CALCULATOR FUNCTIONS
+// ============================================================================
+
+function calculateEuAnomaly(
+  data: Record<string, any>[],
+  columns: string[],
+  geochemMappings?: ColumnGeochemMapping[]
+): CalculatedIndicator | null {
+  const euCol = findElementColumn(columns, 'Eu', geochemMappings);
+  const smCol = findElementColumn(columns, 'Sm', geochemMappings);
+  const gdCol = findElementColumn(columns, 'Gd', geochemMappings);
+
+  if (!euCol || !smCol || !gdCol) return null;
 
   const values: (number | null)[] = data.map(row => {
     const eu = Number(row[euCol]);
@@ -878,7 +975,6 @@ export function calculateEuAnomaly(
 
     if (isNaN(eu) || isNaN(sm) || isNaN(gd) || sm <= 0 || gd <= 0) return null;
 
-    // Normalize to chondrite
     const euN = eu / CHONDRITE_VALUES.Eu;
     const smN = sm / CHONDRITE_VALUES.Sm;
     const gdN = gd / CHONDRITE_VALUES.Gd;
@@ -886,34 +982,20 @@ export function calculateEuAnomaly(
     return euN / Math.sqrt(smN * gdN);
   });
 
-  const indicator = VECTORING_INDICATORS.find(i => i.id === 'eu-anomaly')!;
-
-  return {
-    indicatorId: 'eu-anomaly',
-    name: indicator.name,
-    values,
-    interpretation: values.map(v => interpretThreshold(v, indicator.thresholds).interpretation),
-    fertility: values.map(v => interpretThreshold(v, indicator.thresholds).fertility as any),
-    missingElements: [],
-    statistics: calculateStats(values)
-  };
+  return buildIndicator('eu-anomaly', values);
 }
 
-/**
- * Calculate Kambalda Ratio for komatiite Ni exploration
- */
-export function calculateKambaldaRatio(
+function calculateKambaldaRatio(
   data: Record<string, any>[],
-  columns: string[]
+  columns: string[],
+  geochemMappings?: ColumnGeochemMapping[]
 ): CalculatedIndicator | null {
-  const niCol = findElementColumn(columns, 'Ni');
-  const crCol = findElementColumn(columns, 'Cr');
-  const cuCol = findElementColumn(columns, 'Cu');
-  const znCol = findElementColumn(columns, 'Zn');
+  const niCol = findElementColumn(columns, 'Ni', geochemMappings);
+  const crCol = findElementColumn(columns, 'Cr', geochemMappings);
+  const cuCol = findElementColumn(columns, 'Cu', geochemMappings);
+  const znCol = findElementColumn(columns, 'Zn', geochemMappings);
 
-  if (!niCol || !crCol || !cuCol || !znCol) {
-    return null;
-  }
+  if (!niCol || !crCol || !cuCol || !znCol) return null;
 
   const values: (number | null)[] = data.map(row => {
     const ni = Number(row[niCol]);
@@ -926,33 +1008,19 @@ export function calculateKambaldaRatio(
     return (ni / cr) * (cu / zn);
   });
 
-  const indicator = VECTORING_INDICATORS.find(i => i.id === 'kambalda-ratio')!;
-
-  return {
-    indicatorId: 'kambalda-ratio',
-    name: indicator.name,
-    values,
-    interpretation: values.map(v => interpretThreshold(v, indicator.thresholds).interpretation),
-    fertility: values.map(v => interpretThreshold(v, indicator.thresholds).fertility as any),
-    missingElements: [],
-    statistics: calculateStats(values)
-  };
+  return buildIndicator('kambalda-ratio', values);
 }
 
-/**
- * Calculate SEDEX Metal Index
- */
-export function calculateSEDEXMetalIndex(
+function calculateSEDEXMetalIndex(
   data: Record<string, any>[],
-  columns: string[]
+  columns: string[],
+  geochemMappings?: ColumnGeochemMapping[]
 ): CalculatedIndicator | null {
-  const znCol = findElementColumn(columns, 'Zn');
-  const pbCol = findElementColumn(columns, 'Pb');
-  const tlCol = findElementColumn(columns, 'Tl');
+  const znCol = findElementColumn(columns, 'Zn', geochemMappings);
+  const pbCol = findElementColumn(columns, 'Pb', geochemMappings);
+  const tlCol = findElementColumn(columns, 'Tl', geochemMappings);
 
-  if (!znCol || !pbCol) {
-    return null;
-  }
+  if (!znCol || !pbCol) return null;
 
   const values: (number | null)[] = data.map(row => {
     const zn = Number(row[znCol]);
@@ -964,35 +1032,20 @@ export function calculateSEDEXMetalIndex(
     return zn + 100 * pb + 100 * (isNaN(tl) ? 0 : tl);
   });
 
-  const indicator = VECTORING_INDICATORS.find(i => i.id === 'sedex-metal-index')!;
-
-  return {
-    indicatorId: 'sedex-metal-index',
-    name: indicator.name,
-    values,
-    interpretation: values.map(v => interpretThreshold(v, indicator.thresholds).interpretation),
-    fertility: values.map(v => interpretThreshold(v, indicator.thresholds).fertility as any),
-    missingElements: tlCol ? [] : ['Tl'],
-    statistics: calculateStats(values)
-  };
+  return buildIndicator('sedex-metal-index', values, tlCol ? [] : ['Tl']);
 }
 
-/**
- * Calculate Ishikawa Alteration Index (AI)
- * AI = 100 × (K2O + MgO) / (K2O + MgO + Na2O + CaO)
- */
-export function calculateAlterationIndex(
+function calculateAlterationIndex(
   data: Record<string, any>[],
-  columns: string[]
+  columns: string[],
+  geochemMappings?: ColumnGeochemMapping[]
 ): CalculatedIndicator | null {
-  const kCol = findElementColumn(columns, 'K');
-  const mgCol = findElementColumn(columns, 'Mg');
-  const naCol = findElementColumn(columns, 'Na');
-  const caCol = findElementColumn(columns, 'Ca');
+  const kCol = findElementColumn(columns, 'K', geochemMappings);
+  const mgCol = findElementColumn(columns, 'Mg', geochemMappings);
+  const naCol = findElementColumn(columns, 'Na', geochemMappings);
+  const caCol = findElementColumn(columns, 'Ca', geochemMappings);
 
-  if (!kCol || !mgCol || !naCol || !caCol) {
-    return null;
-  }
+  if (!kCol || !mgCol || !naCol || !caCol) return null;
 
   const values: (number | null)[] = data.map(row => {
     const k = Number(row[kCol]);
@@ -1007,35 +1060,20 @@ export function calculateAlterationIndex(
     return 100 * (k + mg) / denom;
   });
 
-  const indicator = VECTORING_INDICATORS.find(i => i.id === 'alteration-index')!;
-
-  return {
-    indicatorId: 'alteration-index',
-    name: indicator.name,
-    values,
-    interpretation: values.map(v => interpretThreshold(v, indicator.thresholds).interpretation),
-    fertility: values.map(v => interpretThreshold(v, indicator.thresholds).fertility as any),
-    missingElements: [],
-    statistics: calculateStats(values)
-  };
+  return buildIndicator('alteration-index', values);
 }
 
-/**
- * Calculate CCPI (Chlorite-Carbonate-Pyrite Index)
- * CCPI = 100 × (MgO + FeO) / (MgO + FeO + Na2O + K2O)
- */
-export function calculateCCPI(
+function calculateCCPI(
   data: Record<string, any>[],
-  columns: string[]
+  columns: string[],
+  geochemMappings?: ColumnGeochemMapping[]
 ): CalculatedIndicator | null {
-  const mgCol = findElementColumn(columns, 'Mg');
-  const feCol = findElementColumn(columns, 'Fe');
-  const naCol = findElementColumn(columns, 'Na');
-  const kCol = findElementColumn(columns, 'K');
+  const mgCol = findElementColumn(columns, 'Mg', geochemMappings);
+  const feCol = findElementColumn(columns, 'Fe', geochemMappings);
+  const naCol = findElementColumn(columns, 'Na', geochemMappings);
+  const kCol = findElementColumn(columns, 'K', geochemMappings);
 
-  if (!mgCol || !feCol || !naCol || !kCol) {
-    return null;
-  }
+  if (!mgCol || !feCol || !naCol || !kCol) return null;
 
   const values: (number | null)[] = data.map(row => {
     const mg = Number(row[mgCol]);
@@ -1050,34 +1088,19 @@ export function calculateCCPI(
     return 100 * (mg + fe) / denom;
   });
 
-  const indicator = VECTORING_INDICATORS.find(i => i.id === 'ccpi')!;
-
-  return {
-    indicatorId: 'ccpi',
-    name: indicator.name,
-    values,
-    interpretation: values.map(v => interpretThreshold(v, indicator.thresholds).interpretation),
-    fertility: values.map(v => interpretThreshold(v, indicator.thresholds).fertility as any),
-    missingElements: [],
-    statistics: calculateStats(values)
-  };
+  return buildIndicator('ccpi', values);
 }
 
-/**
- * Calculate SEDEX Alteration Index
- * SEDEX AI = (FeO + 10×MnO) × 100 / (FeO + 10×MnO + MgO)
- */
-export function calculateSEDEXAlterationIndex(
+function calculateSEDEXAlterationIndex(
   data: Record<string, any>[],
-  columns: string[]
+  columns: string[],
+  geochemMappings?: ColumnGeochemMapping[]
 ): CalculatedIndicator | null {
-  const feCol = findElementColumn(columns, 'Fe');
-  const mnCol = findElementColumn(columns, 'Mn');
-  const mgCol = findElementColumn(columns, 'Mg');
+  const feCol = findElementColumn(columns, 'Fe', geochemMappings);
+  const mnCol = findElementColumn(columns, 'Mn', geochemMappings);
+  const mgCol = findElementColumn(columns, 'Mg', geochemMappings);
 
-  if (!feCol || !mnCol || !mgCol) {
-    return null;
-  }
+  if (!feCol || !mnCol || !mgCol) return null;
 
   const values: (number | null)[] = data.map(row => {
     const fe = Number(row[feCol]);
@@ -1092,33 +1115,18 @@ export function calculateSEDEXAlterationIndex(
     return 100 * feMnTerm / denom;
   });
 
-  const indicator = VECTORING_INDICATORS.find(i => i.id === 'sedex-alteration-index')!;
-
-  return {
-    indicatorId: 'sedex-alteration-index',
-    name: indicator.name,
-    values,
-    interpretation: values.map(v => interpretThreshold(v, indicator.thresholds).interpretation),
-    fertility: values.map(v => interpretThreshold(v, indicator.thresholds).fertility as any),
-    missingElements: [],
-    statistics: calculateStats(values)
-  };
+  return buildIndicator('sedex-alteration-index', values);
 }
 
-/**
- * Calculate Mg# (Magnesium Number)
- * Mg# = 100 × Mg / (Mg + Fe)
- */
-export function calculateMgNumber(
+function calculateMgNumber(
   data: Record<string, any>[],
-  columns: string[]
+  columns: string[],
+  geochemMappings?: ColumnGeochemMapping[]
 ): CalculatedIndicator | null {
-  const mgCol = findElementColumn(columns, 'Mg');
-  const feCol = findElementColumn(columns, 'Fe');
+  const mgCol = findElementColumn(columns, 'Mg', geochemMappings);
+  const feCol = findElementColumn(columns, 'Fe', geochemMappings);
 
-  if (!mgCol || !feCol) {
-    return null;
-  }
+  if (!mgCol || !feCol) return null;
 
   const values: (number | null)[] = data.map(row => {
     const mg = Number(row[mgCol]);
@@ -1131,32 +1139,18 @@ export function calculateMgNumber(
     return 100 * mg / denom;
   });
 
-  const indicator = VECTORING_INDICATORS.find(i => i.id === 'mg-number')!;
-
-  return {
-    indicatorId: 'mg-number',
-    name: indicator.name,
-    values,
-    interpretation: values.map(v => interpretThreshold(v, indicator.thresholds).interpretation),
-    fertility: values.map(v => interpretThreshold(v, indicator.thresholds).fertility as any),
-    missingElements: [],
-    statistics: calculateStats(values)
-  };
+  return buildIndicator('mg-number', values);
 }
 
-/**
- * Calculate Bi-Te Signature (sum indicator)
- */
-export function calculateBiTeSignature(
+function calculateBiTeSignature(
   data: Record<string, any>[],
-  columns: string[]
+  columns: string[],
+  geochemMappings?: ColumnGeochemMapping[]
 ): CalculatedIndicator | null {
-  const biCol = findElementColumn(columns, 'Bi');
-  const teCol = findElementColumn(columns, 'Te');
+  const biCol = findElementColumn(columns, 'Bi', geochemMappings);
+  const teCol = findElementColumn(columns, 'Te', geochemMappings);
 
-  if (!biCol || !teCol) {
-    return null;
-  }
+  if (!biCol || !teCol) return null;
 
   const values: (number | null)[] = data.map(row => {
     const bi = Number(row[biCol]);
@@ -1167,33 +1161,18 @@ export function calculateBiTeSignature(
     return bi + te;
   });
 
-  const indicator = VECTORING_INDICATORS.find(i => i.id === 'bi-te-signature')!;
-
-  return {
-    indicatorId: 'bi-te-signature',
-    name: indicator.name,
-    values,
-    interpretation: values.map(v => interpretThreshold(v, indicator.thresholds).interpretation),
-    fertility: values.map(v => interpretThreshold(v, indicator.thresholds).fertility as any),
-    missingElements: [],
-    statistics: calculateStats(values)
-  };
+  return buildIndicator('bi-te-signature', values);
 }
 
-/**
- * Calculate K/Rb ratio (for pegmatite fractionation)
- * Often expressed as K2O × 10000 / Rb for proper scaling
- */
-export function calculateKRb(
+function calculateKRb(
   data: Record<string, any>[],
-  columns: string[]
+  columns: string[],
+  geochemMappings?: ColumnGeochemMapping[]
 ): CalculatedIndicator | null {
-  const kCol = findElementColumn(columns, 'K');
-  const rbCol = findElementColumn(columns, 'Rb');
+  const kCol = findElementColumn(columns, 'K', geochemMappings);
+  const rbCol = findElementColumn(columns, 'Rb', geochemMappings);
 
-  if (!kCol || !rbCol) {
-    return null;
-  }
+  if (!kCol || !rbCol) return null;
 
   const values: (number | null)[] = data.map(row => {
     const k = Number(row[kCol]);
@@ -1201,129 +1180,77 @@ export function calculateKRb(
 
     if (isNaN(k) || isNaN(rb) || rb === 0) return null;
 
-    // If K is in wt% oxide form, convert to comparable units with Rb (ppm)
-    // K2O (wt%) × 10000 / Rb (ppm) gives comparable K/Rb ratio
-    // Typical K2O values are 1-5 wt%, Rb is 10-500 ppm
-    // If K2O = 3% and Rb = 100 ppm, ratio = 30000/100 = 300
     return (k * 10000) / rb;
   });
 
-  const indicator = VECTORING_INDICATORS.find(i => i.id === 'k-rb')!;
-
-  return {
-    indicatorId: 'k-rb',
-    name: indicator.name,
-    values,
-    interpretation: values.map(v => interpretThreshold(v, indicator.thresholds).interpretation),
-    fertility: values.map(v => interpretThreshold(v, indicator.thresholds).fertility as any),
-    missingElements: [],
-    statistics: calculateStats(values)
-  };
+  return buildIndicator('k-rb', values);
 }
 
-/**
- * Calculate 3K/Al molar ratio for sericite saturation
- */
-export function calculate3KAl(
+function calculate3KAl(
   data: Record<string, any>[],
-  columns: string[]
+  columns: string[],
+  geochemMappings?: ColumnGeochemMapping[]
 ): CalculatedIndicator | null {
-  const kCol = findElementColumn(columns, 'K');
-  const alCol = findElementColumn(columns, 'Al');
+  const kCol = findElementColumn(columns, 'K', geochemMappings);
+  const alCol = findElementColumn(columns, 'Al', geochemMappings);
 
-  if (!kCol || !alCol) {
-    return null;
-  }
+  if (!kCol || !alCol) return null;
 
-  // Molecular weights: K2O = 94.2, Al2O3 = 101.96
   const values: (number | null)[] = data.map(row => {
-    let k = Number(row[kCol]);
-    let al = Number(row[alCol]);
+    const k = Number(row[kCol]);
+    const al = Number(row[alCol]);
 
     if (isNaN(k) || isNaN(al) || al === 0) return null;
-
-    // If values look like weight percent oxides
-    // K2O to K molar: K2O / 94.2
-    // Al2O3 to Al molar: Al2O3 / 101.96
 
     return 3 * (k / 94.2) / (al / 101.96);
   });
 
-  const indicator = VECTORING_INDICATORS.find(i => i.id === 'three-k-al')!;
-
-  return {
-    indicatorId: 'three-k-al',
-    name: indicator.name,
-    values,
-    interpretation: values.map(v => interpretThreshold(v, indicator.thresholds).interpretation),
-    fertility: values.map(v => interpretThreshold(v, indicator.thresholds).fertility as any),
-    missingElements: [],
-    statistics: calculateStats(values)
-  };
+  return buildIndicator('three-k-al', values);
 }
 
 /**
- * Calculate a generic ratio indicator
+ * Calculate a generic ratio indicator (2 elements)
  */
-export function calculateRatioIndicator(
+function calculateRatioIndicator(
   data: Record<string, any>[],
   columns: string[],
-  indicatorId: string
+  indicatorId: string,
+  geochemMappings?: ColumnGeochemMapping[]
 ): CalculatedIndicator | null {
   const indicator = VECTORING_INDICATORS.find(i => i.id === indicatorId);
-  if (!indicator) return null;
+  if (!indicator || indicator.requiredElements.length !== 2) return null;
 
-  const elements = indicator.requiredElements;
-  if (elements.length !== 2) return null;
+  const numCol = findElementColumn(columns, indicator.requiredElements[0], geochemMappings);
+  const denCol = findElementColumn(columns, indicator.requiredElements[1], geochemMappings);
 
-  const numCol = findElementColumn(columns, elements[0]);
-  const denCol = findElementColumn(columns, elements[1]);
-
-  if (!numCol || !denCol) {
-    return null;
-  }
+  if (!numCol || !denCol) return null;
 
   const values = calculateRatio(data, numCol, denCol);
-
-  return {
-    indicatorId,
-    name: indicator.name,
-    values,
-    interpretation: values.map(v => interpretThreshold(v, indicator.thresholds).interpretation),
-    fertility: values.map(v => interpretThreshold(v, indicator.thresholds).fertility as any),
-    missingElements: [],
-    statistics: calculateStats(values)
-  };
+  return buildIndicator(indicatorId, values);
 }
 
 /**
  * Calculate a single-element indicator (pathfinder)
  */
-export function calculateElementIndicator(
+function calculateElementIndicator(
   data: Record<string, any>[],
   columns: string[],
-  indicatorId: string
+  indicatorId: string,
+  geochemMappings?: ColumnGeochemMapping[]
 ): CalculatedIndicator | null {
   const indicator = VECTORING_INDICATORS.find(i => i.id === indicatorId);
   if (!indicator) return null;
 
-  const element = indicator.requiredElements[0];
-  const col = findElementColumn(columns, element);
-
+  const col = findElementColumn(columns, indicator.requiredElements[0], geochemMappings);
   if (!col) return null;
 
   const values = getColumnValues(data, col);
-
-  return {
-    indicatorId,
-    name: indicator.name,
-    values,
-    interpretation: values.map(v => interpretThreshold(v, indicator.thresholds).interpretation),
-    fertility: values.map(v => interpretThreshold(v, indicator.thresholds).fertility as any),
-    missingElements: [],
-    statistics: calculateStats(values)
-  };
+  return buildIndicator(indicatorId, values);
 }
+
+// ============================================================================
+// MAIN CALCULATION FUNCTION
+// ============================================================================
 
 /**
  * Main vectoring calculation for a deposit type
@@ -1331,7 +1258,8 @@ export function calculateElementIndicator(
 export function calculateVectoring(
   data: Record<string, any>[],
   columns: string[],
-  depositType: DepositType
+  depositType: DepositType,
+  geochemMappings?: ColumnGeochemMapping[]
 ): VectoringResult {
   const config = DEPOSIT_CONFIGS.find(c => c.type === depositType);
   if (!config) {
@@ -1339,45 +1267,60 @@ export function calculateVectoring(
   }
 
   const indicators: CalculatedIndicator[] = [];
+  const missingIndicators: MissingIndicatorInfo[] = [];
+  const allRequiredElements = new Set<string>();
+  const foundElements = new Set<string>();
+  const missingElements = new Set<string>();
 
   // Calculate each indicator for this deposit type
   for (const indicatorId of config.indicators) {
-    const indicator = VECTORING_INDICATORS.find(i => i.id === indicatorId);
-    if (!indicator) continue;
+    const indicatorDef = VECTORING_INDICATORS.find(i => i.id === indicatorId);
+    if (!indicatorDef) continue;
+
+    // Track all required elements
+    for (const el of indicatorDef.requiredElements) {
+      allRequiredElements.add(el);
+    }
 
     let result: CalculatedIndicator | null = null;
 
-    // Use specialized calculation for complex indicators
-    if (indicatorId === 'eu-anomaly') {
-      result = calculateEuAnomaly(data, columns);
-    } else if (indicatorId === 'kambalda-ratio') {
-      result = calculateKambaldaRatio(data, columns);
-    } else if (indicatorId === 'sedex-metal-index') {
-      result = calculateSEDEXMetalIndex(data, columns);
-    } else if (indicatorId === 'sedex-alteration-index') {
-      result = calculateSEDEXAlterationIndex(data, columns);
-    } else if (indicatorId === 'three-k-al') {
-      result = calculate3KAl(data, columns);
-    } else if (indicatorId === 'alteration-index') {
-      result = calculateAlterationIndex(data, columns);
-    } else if (indicatorId === 'ccpi') {
-      result = calculateCCPI(data, columns);
-    } else if (indicatorId === 'mg-number') {
-      result = calculateMgNumber(data, columns);
-    } else if (indicatorId === 'bi-te-signature') {
-      result = calculateBiTeSignature(data, columns);
-    } else if (indicatorId === 'k-rb') {
-      result = calculateKRb(data, columns);
-    } else if (indicator.requiredElements.length === 2) {
-      result = calculateRatioIndicator(data, columns, indicatorId);
-    } else if (indicator.requiredElements.length === 1) {
-      result = calculateElementIndicator(data, columns, indicatorId);
+    // Use registry for specialized calculators, fall back to generic
+    const specializedCalc = CALCULATOR_REGISTRY[indicatorId];
+    if (specializedCalc) {
+      result = specializedCalc(data, columns, geochemMappings);
+    } else if (indicatorDef.requiredElements.length === 2) {
+      result = calculateRatioIndicator(data, columns, indicatorId, geochemMappings);
+    } else if (indicatorDef.requiredElements.length === 1) {
+      result = calculateElementIndicator(data, columns, indicatorId, geochemMappings);
     }
 
     if (result) {
       indicators.push(result);
+      // Mark found elements
+      for (const el of indicatorDef.requiredElements) {
+        foundElements.add(el);
+      }
+    } else {
+      // Track which elements are missing for this indicator
+      const missing = indicatorDef.requiredElements.filter(
+        el => !findElementColumn(columns, el, geochemMappings)
+      );
+      missingIndicators.push({
+        indicatorId,
+        name: indicatorDef.name,
+        missingElements: missing,
+      });
+      for (const el of missing) {
+        missingElements.add(el);
+      }
     }
   }
+
+  // Build element availability summary
+  const elementAvailability = {
+    found: Array.from(foundElements).sort(),
+    missing: Array.from(missingElements).sort(),
+  };
 
   // Calculate type-specific summary results
   const result: VectoringResult = {
@@ -1385,7 +1328,9 @@ export function calculateVectoring(
     timestamp: new Date(),
     sampleCount: data.length,
     indicators,
-    summary: generateSummary(indicators, depositType)
+    missingIndicators,
+    elementAvailability,
+    summary: generateSummary(indicators, missingIndicators, depositType, elementAvailability)
   };
 
   // Add type-specific results
@@ -1402,17 +1347,22 @@ export function calculateVectoring(
   return result;
 }
 
-/**
- * Generate overall summary from calculated indicators
- */
+// ============================================================================
+// DATA-DRIVEN SUMMARY GENERATION
+// ============================================================================
+
 function generateSummary(
   indicators: CalculatedIndicator[],
-  depositType: DepositType
+  missingIndicators: MissingIndicatorInfo[],
+  depositType: DepositType,
+  _elementAvailability: { found: string[]; missing: string[] }
 ): { overallAssessment: string; keyFindings: string[]; recommendations: string[] } {
   const findings: string[] = [];
   const recommendations: string[] = [];
+  const config = DEPOSIT_CONFIGS.find(c => c.type === depositType);
 
   // Analyze each indicator
+  const positiveIndicatorNames: string[] = [];
   for (const ind of indicators) {
     const stats = ind.statistics;
     if (stats.validCount === 0) continue;
@@ -1422,28 +1372,62 @@ function generateSummary(
 
     if (pctHigh > 30) {
       findings.push(`${ind.name}: ${pctHigh.toFixed(0)}% of samples show high fertility/prospectivity`);
+      positiveIndicatorNames.push(ind.name);
     } else if (pctHigh > 10) {
       findings.push(`${ind.name}: ${pctHigh.toFixed(0)}% of samples show elevated values`);
+      positiveIndicatorNames.push(ind.name);
     }
   }
 
-  // Generate recommendations based on deposit type
-  const config = DEPOSIT_CONFIGS.find(c => c.type === depositType);
-  if (config) {
-    recommendations.push(`Review samples with multiple positive indicators`);
-    recommendations.push(`Consider spatial mapping of ${config.keyRatios.slice(0, 2).join(', ')}`);
-    if (config.alteration) {
-      recommendations.push(`Assess ${config.alteration[0]} alteration intensity`);
+  // Data-driven recommendations
+  if (positiveIndicatorNames.length >= 2) {
+    recommendations.push(
+      `Samples with coincident positive ${positiveIndicatorNames.slice(0, 3).join(' AND ')} are highest priority targets`
+    );
+  }
+
+  if (positiveIndicatorNames.length >= 1 && config) {
+    const ratioNames = config.keyRatios.slice(0, 2).join(', ');
+    if (ratioNames) {
+      recommendations.push(`Map spatial distribution of ${ratioNames} to identify zonation trends`);
     }
   }
 
-  // Overall assessment
+  // Recommendations for missing data
+  if (missingIndicators.length > 0) {
+    const uniqueMissing = [...new Set(missingIndicators.flatMap(m => m.missingElements))];
+    const skippedNames = missingIndicators.map(m => m.name).join(', ');
+    recommendations.push(
+      `Add ${uniqueMissing.join(', ')} analysis to enable ${skippedNames}`
+    );
+  }
+
+  // Alteration-specific recommendation if applicable
+  if (config?.alteration && config.alteration.length > 0) {
+    const hasAlterationIndicator = indicators.some(i =>
+      i.indicatorId.includes('alteration') || i.indicatorId === 'ccpi' || i.indicatorId === 'k-na'
+    );
+    if (hasAlterationIndicator) {
+      recommendations.push(`Assess ${config.alteration[0]} alteration intensity in prospective zones`);
+    }
+  }
+
+  // Low prospectivity - suggest alternatives
   const positiveIndicators = indicators.filter(ind =>
     ind.fertility.filter(f => f === 'high' || f === 'very-high').length > ind.statistics.validCount * 0.1
   ).length;
 
+  if (positiveIndicators === 0 && indicators.length > 0) {
+    recommendations.push(
+      `Low prospectivity for ${config?.name || depositType} - consider running comparison against other deposit types`
+    );
+  }
+
+  // Overall assessment
   let overallAssessment = 'Low prospectivity';
-  if (positiveIndicators >= 3) {
+  if (indicators.length === 0) {
+    overallAssessment = 'Unable to assess - insufficient element data';
+  } else if (positiveIndicators >= 3) {
     overallAssessment = 'High prospectivity - multiple positive indicators';
   } else if (positiveIndicators >= 2) {
     overallAssessment = 'Moderate prospectivity - some positive indicators';
@@ -1468,7 +1452,6 @@ function generatePorphyryResult(indicators: CalculatedIndicator[]): PorphyryFert
   const euAnomaly = indicators.find(i => i.indicatorId === 'eu-anomaly') || null;
   const kNa = indicators.find(i => i.indicatorId === 'k-na') || null;
 
-  // Calculate overall fertility score
   let score = 0;
   let count = 0;
 
@@ -1511,7 +1494,6 @@ function generateKomatiiteResult(indicators: CalculatedIndicator[]): KomatiiteNi
   const kambaldaRatio = indicators.find(i => i.indicatorId === 'kambalda-ratio') || null;
   const mgNumber = indicators.find(i => i.indicatorId === 'mg-number') || null;
 
-  // Determine if channelized
   const channelPotential = kambaldaRatio
     ? kambaldaRatio.fertility.filter(f => f === 'high').length > kambaldaRatio.statistics.validCount * 0.1
     : false;
@@ -1536,7 +1518,6 @@ function generateCarlinResult(indicators: CalculatedIndicator[]): CarlinGoldResu
   const hgAnomalies = indicators.find(i => i.indicatorId === 'carlin-hg') || null;
   const tlAnomalies = indicators.find(i => i.indicatorId === 'carlin-tl') || null;
 
-  // Calculate pathfinder score
   let pathfinderScore = 0;
   [asAnomalies, sbAnomalies, hgAnomalies, tlAnomalies].forEach(ind => {
     if (!ind) return;
@@ -1545,8 +1526,6 @@ function generateCarlinResult(indicators: CalculatedIndicator[]): CarlinGoldResu
     if (total > 0) pathfinderScore += (high / total) * 25;
   });
 
-  // Determine distance to ore based on pathfinder intensity
-  // Order from distal to proximal: Hg > As > Sb > Tl > Au
   let distanceToOre: 'distal' | 'intermediate' | 'proximal' = 'distal';
   if (tlAnomalies && tlAnomalies.fertility.filter(f => f === 'high').length > 0) {
     distanceToOre = 'proximal';
@@ -1570,7 +1549,6 @@ function generateLCTResult(indicators: CalculatedIndicator[]): LCTPegmatiteResul
   const zrHf = indicators.find(i => i.indicatorId === 'zr-hf') || null;
   const mgLi = indicators.find(i => i.indicatorId === 'mg-li') || null;
 
-  // Determine fractionation degree from K/Rb
   let fractionationDegree: 'primitive' | 'moderate' | 'evolved' | 'highly-evolved' = 'primitive';
   if (kRb) {
     const median = kRb.statistics.median;
@@ -1579,7 +1557,6 @@ function generateLCTResult(indicators: CalculatedIndicator[]): LCTPegmatiteResul
     else if (median < 150) fractionationDegree = 'moderate';
   }
 
-  // Assess Li, Cs, Ta potential
   const assessPotential = (ind: CalculatedIndicator | null): 'barren' | 'low' | 'moderate' | 'high' => {
     if (!ind) return 'barren';
     const high = ind.fertility.filter(f => f === 'high' || f === 'very-high').length;

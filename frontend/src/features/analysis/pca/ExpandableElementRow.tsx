@@ -22,6 +22,8 @@ import ExpandLessIcon from '@mui/icons-material/ExpandLess';
 import Plot from 'react-plotly.js';
 import { ExpandablePlotWrapper } from '../../../components/ExpandablePlotWrapper';
 import { getPlotConfig, EXPORT_FONT_SIZES } from '../../../utils/plotConfig';
+import { useAppStore } from '../../../store/appStore';
+import { getColumnDisplayName } from '../../../utils/attributeUtils';
 
 interface PlotData {
   x: number[];
@@ -42,6 +44,7 @@ interface ExpandableElementRowProps {
   getPlotData: () => PlotData | null;
   isExpanded: boolean;
   onExpandToggle: (element: string) => void;
+  isNonElement?: boolean;
 }
 
 export const ExpandableElementRow: React.FC<ExpandableElementRowProps> = ({
@@ -54,9 +57,12 @@ export const ExpandableElementRow: React.FC<ExpandableElementRowProps> = ({
   getPlotData,
   isExpanded,
   onExpandToggle,
+  isNonElement = false,
 }) => {
-  const bgColor = isAcceptable ? '#f0fdf4' : '#fef2f2';
-  const borderColor = isAcceptable ? '#86efac' : '#fecaca';
+  const { columns } = useAppStore();
+  const displayElement = getColumnDisplayName(columns, element);
+  const bgColor = isNonElement ? '#f3f4f6' : isAcceptable ? '#f0fdf4' : '#fef2f2';
+  const borderColor = isNonElement ? '#d1d5db' : isAcceptable ? '#86efac' : '#fecaca';
 
   const handleExpandClick = (e: React.MouseEvent) => {
     e.stopPropagation();
@@ -93,20 +99,29 @@ export const ExpandableElementRow: React.FC<ExpandableElementRowProps> = ({
             />
           }
           label={
-            <Typography variant="body2" fontWeight={500}>
-              {element}
+            <Typography variant="body2" fontWeight={500} color={isNonElement ? 'text.disabled' : 'text.primary'}>
+              {displayElement}
             </Typography>
           }
         />
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-          <Tooltip title={`BLD N-Score: ${bldNScore.toFixed(2)}, ${percentBLD.toFixed(1)}% BLD`}>
+          {isNonElement ? (
             <Chip
-              label={isAcceptable ? 'OK' : 'BLD>-1'}
+              label="Non-element"
               size="small"
-              color={isAcceptable ? 'success' : 'error'}
               variant="outlined"
+              sx={{ color: 'text.disabled', borderColor: '#d1d5db' }}
             />
-          </Tooltip>
+          ) : (
+            <Tooltip title={`BLD N-Score: ${bldNScore.toFixed(2)}, ${percentBLD.toFixed(1)}% BLD`}>
+              <Chip
+                label={isAcceptable ? 'OK' : 'BLD>-1'}
+                size="small"
+                color={isAcceptable ? 'success' : 'error'}
+                variant="outlined"
+              />
+            </Tooltip>
+          )}
           <Tooltip title={isExpanded ? 'Hide probability plot' : 'Show probability plot'}>
             <IconButton size="small" onClick={handleExpandClick}>
               {isExpanded ? <ExpandLessIcon /> : <ExpandMoreIcon />}
@@ -124,7 +139,7 @@ export const ExpandableElementRow: React.FC<ExpandableElementRowProps> = ({
                 data={[plotData as any]}
                 layout={{
                   title: {
-                    text: `${element} ${isAcceptable ? '✓' : '⚠'}`,
+                    text: `${displayElement} ${isAcceptable ? '✓' : '⚠'}`,
                     font: { size: EXPORT_FONT_SIZES.title },
                     x: 0,
                     xanchor: 'left',

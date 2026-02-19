@@ -1,8 +1,11 @@
+import logging
 import pandas as pd
 import numpy as np
 from typing import Dict, List, Optional, Tuple, Any
 from pathlib import Path
 import json
+
+logger = logging.getLogger(__name__)
 
 class DataManager:
     _instance = None

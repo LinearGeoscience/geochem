@@ -3,6 +3,9 @@
  * Based on established geochemical literature (Sun & McDonough 1989, McDonough & Sun 1995)
  */
 
+import { ColumnGeochemMapping } from '../types/associations';
+import { findColumnForElement } from './calculations/elementNameNormalizer';
+
 export interface ElementOrder {
     id: string;
     name: string;
@@ -189,19 +192,31 @@ export function matchColumnToElement(columnName: string): string | null {
 }
 
 /**
- * Find matching columns for a given element order
+ * Find matching columns for a given element order.
+ * When geochemMappings are provided, checks them first for confirmed/high-confidence matches.
  * @param columns - Array of column names from the data
  * @param order - The element order to match against
+ * @param geochemMappings - Optional geochem mappings from the store
  * @returns Object mapping element symbols to column names
  */
 export function findMatchingColumns(
     columns: string[],
-    order: ElementOrder
+    order: ElementOrder,
+    geochemMappings?: ColumnGeochemMapping[]
 ): Record<string, string> {
     const matches: Record<string, string> = {};
 
     for (const element of order.elements) {
-        // First try direct match
+        // First: try geochem mappings if available
+        if (geochemMappings && geochemMappings.length > 0) {
+            const geochemMatch = findColumnForElement(geochemMappings, element);
+            if (geochemMatch && columns.includes(geochemMatch)) {
+                matches[element] = geochemMatch;
+                continue;
+            }
+        }
+
+        // Second: try direct match
         const directMatch = columns.find(col =>
             col.toLowerCase() === element.toLowerCase() ||
             col.toLowerCase() === `${element.toLowerCase()}_ppm` ||
@@ -213,7 +228,7 @@ export function findMatchingColumns(
             continue;
         }
 
-        // Then try alias matching
+        // Third: try alias matching
         for (const col of columns) {
             const matchedElement = matchColumnToElement(col);
             if (matchedElement === element) {

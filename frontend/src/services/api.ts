@@ -4,6 +4,7 @@ const API_URL = '/api';
 
 const api = axios.create({
     baseURL: API_URL,
+    timeout: 60000, // 60s — generous enough for large file uploads
     headers: {
         'Content-Type': 'application/json',
     },
@@ -59,6 +60,25 @@ export const dataApi = {
     getData: async (limit: number = 100000) => {
         const response = await api.get(`/data/data?limit=${limit}`);
         return response.data;
+    },
+
+    computeSample: async (params: {
+        sample_size: number;
+        method: 'random' | 'stratified' | 'drillhole';
+        outlier_columns: string[];
+        classification_column?: string | null;
+        drillhole_column?: string | null;
+        iqr_multiplier?: number;
+        seed?: number | null;
+    }) => {
+        const response = await api.post('/data/sample', params);
+        return response.data as {
+            indices: number[];
+            total_rows: number;
+            sample_size: number;
+            outlier_count: number;
+            method: string;
+        };
     }
 };
 

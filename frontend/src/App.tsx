@@ -23,6 +23,7 @@ import { BoxPlot } from './features/analysis/BoxPlot';
 import { TransformationManager } from './features/analysis/TransformationManager';
 import { PCAWorkflow } from './features/analysis/PCAWorkflow';
 import { VectoringManager } from './features/vectoring/VectoringManager';
+import { RecalculationWizard } from './features/analysis/RecalculationWizard';
 import { CalculationManager } from './features/calculations/CalculationManager';
 import { QAQCManager, ControlChart, DuplicateAnalysis, BlankAnalysis, QAQCDashboard } from './features/qaqc';
 import { StatisticsManager } from './features/statistics';
@@ -30,14 +31,18 @@ import { Box, Typography, Paper, Tabs, Tab, IconButton } from '@mui/material';
 import { ChevronRight, ChevronLeft } from '@mui/icons-material';
 import { useAppStore } from './store/appStore';
 import { ErrorBoundary } from './components/ErrorBoundary';
+import { SamplingControls } from './components/SamplingControls';
+import { ColumnGeochemDialog } from './components/ColumnGeochemDialog';
+import { LoggingIntervalMerge } from './features/data_features/LoggingIntervalMerge';
+import { DiagramEditor } from './features/diagramEditor/DiagramEditor';
 
 // Sidebar width constraints
 const MIN_SIDEBAR_WIDTH = 280;
 const MAX_SIDEBAR_WIDTH = 600;
-const DEFAULT_SIDEBAR_WIDTH = 360;
+const DEFAULT_SIDEBAR_WIDTH = 420;
 
 function App() {
-    const { columns, data, currentView } = useAppStore();
+    const { columns, data, currentView, showGeochemDialog, setShowGeochemDialog } = useAppStore();
     const [analysisTab, setAnalysisTab] = React.useState(0);
     const [qaqcTab, setQaqcTab] = React.useState(0);
     const [rightSidebarOpen, setRightSidebarOpen] = useState(true);
@@ -79,6 +84,11 @@ function App() {
             return <DataImport />;
         }
 
+        // Diagram editor doesn't require data to be loaded
+        if (currentView === 'diagram-editor') {
+            return <DiagramEditor />;
+        }
+
         if (columns.length === 0) {
             return <DataImport />;
         }
@@ -95,6 +105,7 @@ function App() {
                                     <Typography>
                                         Data loaded: <strong>{data.length.toLocaleString()}</strong> rows | <strong>{columns.length}</strong> columns
                                     </Typography>
+                                    <SamplingControls />
                                 </Box>
                                 {useAppStore.getState().plots.length === 0 ? (
                                     <Paper sx={{ p: 4, textAlign: 'center' }}>
@@ -202,6 +213,7 @@ function App() {
                                 <Tab label="Transformations" />
                                 <Tab label="PCA Analysis" />
                                 <Tab label="Deposit Vectoring" />
+                                <Tab label="Recalculation" />
                             </Tabs>
                             {/* Keep all tabs mounted for state persistence, hide inactive with display:none */}
                             <Box sx={{ display: analysisTab === 0 ? 'block' : 'none' }}><SummaryStats /></Box>
@@ -211,6 +223,7 @@ function App() {
                             <Box sx={{ display: analysisTab === 4 ? 'block' : 'none' }}><TransformationManager /></Box>
                             <Box sx={{ display: analysisTab === 5 ? 'block' : 'none' }}><PCAWorkflow /></Box>
                             <Box sx={{ display: analysisTab === 6 ? 'block' : 'none' }}><VectoringManager /></Box>
+                            <Box sx={{ display: analysisTab === 7 ? 'block' : 'none' }}><RecalculationWizard /></Box>
                         </Box>
                         {/* Right sidebar */}
                         <Box sx={{ position: 'relative', width: rightSidebarOpen ? sidebarWidth : 40, flexShrink: 0, display: 'flex' }}>
@@ -382,6 +395,11 @@ function App() {
                 {renderContent()}
                 <SelectionManager />
                 <CalculationManager />
+                <ColumnGeochemDialog
+                    open={showGeochemDialog}
+                    onClose={() => setShowGeochemDialog(false)}
+                />
+                <LoggingIntervalMerge />
             </Layout>
         </ErrorBoundary>
     );
