@@ -245,18 +245,26 @@ export function computeDensityGrid(
         }
     }
 
+    // Log-compress bin counts to reduce stacked-point dominance
+    for (let r = 0; r < gridSize; r++) {
+        for (let c = 0; c < gridSize; c++) {
+            if (grid[r][c] > 0) {
+                grid[r][c] = Math.log1p(grid[r][c]);
+            }
+        }
+    }
+
     // Anisotropic KDE convolution
     const kernel = computeKernelFromData(xValues, yValues, xRange, yRange, gridSize, smoothing);
     const smoothed = convolve2D(grid, gridSize, gridSize, kernel);
 
-    // Normalize to [0, 1]
+    // Normalize to [0, 1] using max value
     let maxVal = 0;
     for (let r = 0; r < gridSize; r++) {
         for (let c = 0; c < gridSize; c++) {
             if (smoothed[r][c] > maxVal) maxVal = smoothed[r][c];
         }
     }
-
     if (maxVal === 0) return null;
 
     const z: (number | null)[][] = [];
@@ -332,18 +340,26 @@ export function computePointDensities(
         }
     }
 
+    // Log-compress bin counts to reduce stacked-point dominance
+    for (let r = 0; r < gridSize; r++) {
+        for (let c = 0; c < gridSize; c++) {
+            if (grid[r][c] > 0) {
+                grid[r][c] = Math.log1p(grid[r][c]);
+            }
+        }
+    }
+
     // Anisotropic KDE convolution
     const kernel = computeKernelFromData(xValues, yValues, xRange, yRange, gridSize, smoothing);
     const smoothed = convolve2D(grid, gridSize, gridSize, kernel);
 
-    // Find max
+    // Normalize to [0, 1] using max value
     let maxVal = 0;
     for (let r = 0; r < gridSize; r++) {
         for (let c = 0; c < gridSize; c++) {
             if (smoothed[r][c] > maxVal) maxVal = smoothed[r][c];
         }
     }
-
     if (maxVal === 0) return null;
 
     // Look up each point's density
