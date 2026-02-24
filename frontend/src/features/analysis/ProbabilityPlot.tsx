@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { Box, Paper, Typography, ToggleButtonGroup, ToggleButton, Grid, Alert } from '@mui/material';
 import Plot from 'react-plotly.js';
 import { useAppStore } from '../../store/appStore';
@@ -12,7 +12,7 @@ import { MultiColumnSelector } from '../../components/MultiColumnSelector';
 const MAX_SIMULTANEOUS_PLOTS = 12;
 
 export const ProbabilityPlot: React.FC = () => {
-    const { data, getFilteredColumns } = useAppStore();
+    const { data, columns, getFilteredColumns } = useAppStore();
     const filteredColumns = getFilteredColumns();
     useAttributeStore(); // Subscribe to changes
     const [selectedColumns, setSelectedColumns] = useState<string[]>([]);
@@ -22,6 +22,10 @@ export const ProbabilityPlot: React.FC = () => {
     const numericColumns = sortColumnsByPriority(
         filteredColumns.filter(c => c.type === 'numeric' || c.type === 'float' || c.type === 'integer')
     );
+
+    const allNumericColumns = useMemo(() => sortColumnsByPriority(
+        columns.filter(c => c && c.name && (c.type === 'numeric' || c.type === 'float' || c.type === 'integer'))
+    ), [columns]);
 
     // Get style arrays for visibility and colors
     const styleArrays = getStyleArrays(data);
@@ -116,6 +120,7 @@ export const ProbabilityPlot: React.FC = () => {
             <Box sx={{ display: 'flex', gap: 2, mb: 3, flexWrap: 'wrap', alignItems: 'flex-start' }}>
                 <MultiColumnSelector
                     columns={numericColumns}
+                    allColumns={allNumericColumns}
                     selectedColumns={selectedColumns}
                     onChange={setSelectedColumns}
                     label="Select Columns"

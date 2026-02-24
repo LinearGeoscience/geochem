@@ -30,7 +30,7 @@ const BOX_COLORS = [
 ];
 
 export const BoxPlot: React.FC = () => {
-    const { data, getFilteredColumns } = useAppStore();
+    const { data, columns, getFilteredColumns } = useAppStore();
     const filteredColumns = getFilteredColumns();
     useAttributeStore(); // Subscribe to visibility changes
 
@@ -50,6 +50,10 @@ export const BoxPlot: React.FC = () => {
         sortColumnsByPriority(filteredColumns.filter(c => c.type === 'numeric' || c.type === 'float' || c.type === 'integer')),
         [filteredColumns]
     );
+
+    const allNumericColumns = useMemo(() => sortColumnsByPriority(
+        columns.filter(c => c && c.name && (c.type === 'numeric' || c.type === 'float' || c.type === 'integer'))
+    ), [columns]);
 
     // Include all non-numeric columns as potential category options
     const categoricalColumnOptions = useMemo(() =>
@@ -400,6 +404,7 @@ export const BoxPlot: React.FC = () => {
                 <Grid item xs={12} md={4}>
                     <MultiColumnSelector
                         columns={numericColumnOptions}
+                        allColumns={allNumericColumns}
                         selectedColumns={numericColumns}
                         onChange={setNumericColumns}
                         label="Numeric Variables"

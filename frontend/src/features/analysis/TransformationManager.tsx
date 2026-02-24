@@ -5,6 +5,14 @@
 
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import Plot from 'react-plotly.js';
+import {
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
+  TextField,
+  Button as MuiButton,
+} from '@mui/material';
 import { useAppStore } from '../../store/appStore';
 import { useTransformationStore } from '../../store/transformationStore';
 import { TransformationResult } from '../../types/compositional';
@@ -61,7 +69,7 @@ const InfoTooltip: React.FC<{ text: string }> = ({ text }) => (
 // ============================================================================
 
 export const TransformationManager: React.FC = () => {
-  const { data, addColumn, getFilteredColumns } = useAppStore();
+  const { data, addColumn, getFilteredColumns, addTransformationGroup, setColumnFilter } = useAppStore();
   const filteredColumns = getFilteredColumns();
   const {
     activeTransformation,
@@ -106,6 +114,11 @@ export const TransformationManager: React.FC = () => {
   const [activeTab, setActiveTab] = useState<'transform' | 'variance' | 'pca' | 'zeros' | 'logindex'>('transform');
   const [groupColumn, setGroupColumn] = useState<string>('');
 
+  // Naming dialog state for transformation groups
+  const [pendingResult, setPendingResult] = useState<TransformationResult | null>(null);
+  const [groupName, setGroupName] = useState('');
+  const [showNameDialog, setShowNameDialog] = useState(false);
+
   // Get numeric columns - respects RAW/CLR filter
   const numericColumns = useMemo(() =>
     filteredColumns.filter(col => col.type === 'numeric').map(col => col.name),
@@ -131,7 +144,7 @@ export const TransformationManager: React.FC = () => {
   }, [numericColumns, selectedColumns.length, setSelectedColumns]);
 
   // Add transformed columns to main data store
-  const addTransformedColumnsToStore = useCallback((result: TransformationResult) => {
+  const addTransformedColumnsToStore = useCallback((result: TransformationResult, groupId?: string) => {
     // Add each transformed column to the main data store with transformation type
     const transformType = result.config.type as 'clr' | 'alr' | 'ilr' | 'plr' | 'slr' | 'chipower';
     const suffix = transformType.toUpperCase();
@@ -141,7 +154,7 @@ export const TransformationManager: React.FC = () => {
       // Suffix column name with transformation type (e.g., Au_ppm_CLR) to avoid overwriting original columns
       const newColName = colName.endsWith(`_${suffix}`) ? colName : `${colName}_${suffix}`;
       const values = result.values.map(row => row[colIndex]);
-      addColumn(newColName, values, 'numeric', 'Transformed', transformType);
+      addColumn(newColName, values, 'numeric', 'Transformed', transformType, groupId);
       addedColumns.push(newColName);
     });
     console.log(`[Transform] Added ${addedColumns.length} columns to data store: ${addedColumns.join(', ')}`);
@@ -155,8 +168,30 @@ export const TransformationManager: React.FC = () => {
     }
     const result = await executeTransformation(data, selectedColumns);
     if (result) {
-      addTransformedColumnsToStore(result);
+      const suffix = result.config.type.toUpperCase();
+      setPendingResult(result);
+      setGroupName(`${suffix} Transform`);
+      setShowNameDialog(true);
     }
+  };
+
+  // Confirm naming and add transformation group
+  const handleConfirmGroup = () => {
+    if (!pendingResult) return;
+    const transformType = pendingResult.config.type;
+    const suffix = transformType.toUpperCase();
+    const colNames = pendingResult.columnNames.map(n =>
+      n.endsWith(`_${suffix}`) ? n : `${n}_${suffix}`
+    );
+    const groupId = addTransformationGroup({
+      name: groupName.trim() || `${suffix} Transform`,
+      transformationType: transformType,
+      columnNames: colNames,
+    });
+    addTransformedColumnsToStore(pendingResult, groupId);
+    setColumnFilter(`group:${groupId}`);
+    setShowNameDialog(false);
+    setPendingResult(null);
   };
 
   // Handle variance decomposition
@@ -1127,6 +1162,27 @@ export const TransformationManager: React.FC = () => {
           )}
         </div>
       )}
+
+      {/* Naming dialog for transformation groups */}
+      <Dialog open={showNameDialog} onClose={() => setShowNameDialog(false)} maxWidth="xs" fullWidth>
+        <DialogTitle>Name This Transformation</DialogTitle>
+        <DialogContent>
+          <TextField
+            autoFocus
+            fullWidth
+            label="Group Name"
+            value={groupName}
+            onChange={(e) => setGroupName(e.target.value)}
+            onKeyDown={(e) => { if (e.key === 'Enter') handleConfirmGroup(); }}
+            sx={{ mt: 1 }}
+            helperText="This name will appear in the column filter dropdown"
+          />
+        </DialogContent>
+        <DialogActions>
+          <MuiButton onClick={() => { setShowNameDialog(false); setPendingResult(null); }}>Cancel</MuiButton>
+          <MuiButton variant="contained" onClick={handleConfirmGroup}>Add to Dataset</MuiButton>
+        </DialogActions>
+      </Dialog>
     </div>
   );
 };

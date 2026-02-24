@@ -88,6 +88,9 @@ export const SpiderPlot: React.FC<SpiderPlotProps> = ({ plotId }) => {
         ),
         [columns]
     );
+    const allNumericColumns = useMemo(() => sortColumnsByPriority(
+        columns.filter(c => c && c.name && (c.type === 'numeric' || c.type === 'float' || c.type === 'integer'))
+    ), [columns]);
     const columnNames = useMemo(() => numericColumns.map(c => c.name), [numericColumns]);
 
     // Get current element order
@@ -318,6 +321,7 @@ export const SpiderPlot: React.FC<SpiderPlotProps> = ({ plotId }) => {
                         selectedColumns={selectedElements}
                         onChange={setSelectedElements}
                         label={elementOrderId === 'custom' ? 'Select Elements' : 'Selected Elements (auto-matched)'}
+                        allColumns={allNumericColumns}
                     />
                 </Box>
             </Collapse>

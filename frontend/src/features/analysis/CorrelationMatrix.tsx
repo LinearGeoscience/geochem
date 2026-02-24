@@ -56,7 +56,7 @@ const spearmanCorrelation = (x: number[], y: number[]): number => {
 };
 
 export const CorrelationMatrix: React.FC = () => {
-    const { data, correlationSelectedColumns, setCorrelationSelectedColumns, getFilteredColumns, columnFilter } = useAppStore();
+    const { data, columns, correlationSelectedColumns, setCorrelationSelectedColumns, getFilteredColumns, columnFilter } = useAppStore();
     const filteredColumns = getFilteredColumns();
     useAttributeStore(); // Subscribe to changes
     const [method, setMethod] = useState<'pearson' | 'spearman'>('pearson');
@@ -177,6 +177,10 @@ export const CorrelationMatrix: React.FC = () => {
         filteredColumns.filter(c => c.type === 'numeric' || c.type === 'float' || c.type === 'integer')
     );
 
+    const allNumericColumns = useMemo(() => sortColumnsByPriority(
+        columns.filter(c => c && c.name && (c.type === 'numeric' || c.type === 'float' || c.type === 'integer'))
+    ), [columns]);
+
     return (
         <Box sx={{ p: 3 }}>
             <Typography variant="h5" gutterBottom>Correlation Matrix</Typography>
@@ -191,6 +195,7 @@ export const CorrelationMatrix: React.FC = () => {
             <Box sx={{ display: 'flex', gap: 2, mb: 3, flexWrap: 'wrap', alignItems: 'flex-start' }}>
                 <MultiColumnSelector
                     columns={numericColumns}
+                    allColumns={allNumericColumns}
                     selectedColumns={correlationSelectedColumns}
                     onChange={setCorrelationSelectedColumns}
                     label="Select Columns"

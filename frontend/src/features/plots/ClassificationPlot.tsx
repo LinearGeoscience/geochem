@@ -123,6 +123,7 @@ export const ClassificationPlot: React.FC<ClassificationPlotProps> = ({ plotId }
     const [showDensity, setShowDensityLocal] = useState<boolean>(storedSettings.showDensity || false);
     const [densitySmoothing, setDensitySmoothingLocal] = useState<number>(storedSettings.densitySmoothing ?? 2.0);
     const [densityOpacity, setDensityOpacityLocal] = useState<number>(storedSettings.densityOpacity ?? 0.7);
+    const [densitySqrtNorm, setDensitySqrtNormLocal] = useState<boolean>(storedSettings.densitySqrtNorm || false);
 
     const setShowDensity = (show: boolean) => {
         setShowDensityLocal(show);
@@ -135,6 +136,10 @@ export const ClassificationPlot: React.FC<ClassificationPlotProps> = ({ plotId }
     const setDensityOpacity = (opacity: number) => {
         setDensityOpacityLocal(opacity);
         updatePlotSettings(plotId, { densityOpacity: opacity });
+    };
+    const setDensitySqrtNorm = (sqrt: boolean) => {
+        setDensitySqrtNormLocal(sqrt);
+        updatePlotSettings(plotId, { densitySqrtNorm: sqrt });
     };
 
     // Dialog state
@@ -195,6 +200,13 @@ export const ClassificationPlot: React.FC<ClassificationPlotProps> = ({ plotId }
             filteredColumns.filter(c => c && c.name && (c.type === 'numeric' || c.type === 'float' || c.type === 'integer'))
         ),
         [filteredColumns]
+    );
+
+    const allNumericColumns = useMemo(() =>
+        sortColumnsByPriority(
+            columns.filter(c => c && c.name && (c.type === 'numeric' || c.type === 'float' || c.type === 'integer'))
+        ),
+        [columns]
     );
 
     // Numeric column names for resolution
@@ -448,33 +460,45 @@ export const ClassificationPlot: React.FC<ClassificationPlotProps> = ({ plotId }
                 const customData = buildCustomData(displayData, dataIndices, displayIndices ?? undefined);
 
                 // Compute density for ternary points if enabled
-                const ternDensity = showDensity ? computeTernaryDensities(
+                const ternDensityResult = showDensity ? computeTernaryDensities(
                     normalizedData.map(d => d.a),
                     normalizedData.map(d => d.b),
                     normalizedData.map(d => d.c),
-                    { smoothingSigma: densitySmoothing }
+                    { smoothingSigma: densitySmoothing, sqrtNorm: densitySqrtNorm }
                 ) : null;
+
+                // Apply density z-ordering if active
+                let ternTraceData = normalizedData;
+                let ternTraceCustomData = customData;
+                let ternDensities = ternDensityResult?.densities ?? null;
+
+                if (ternDensities) {
+                    const order = ternDensities.map((_, i) => i).sort((a, b) => ternDensities![a] - ternDensities![b]);
+                    ternTraceData = order.map(i => normalizedData[i]);
+                    ternTraceCustomData = order.map(i => customData[i]);
+                    ternDensities = order.map(i => ternDensities![i]);
+                }
 
                 traces.push({
                     type: 'scatterternary',
                     mode: 'markers',
-                    a: normalizedData.map(d => d.a),
-                    b: normalizedData.map(d => d.b),
-                    c: normalizedData.map(d => d.c),
-                    customdata: customData,
+                    a: ternTraceData.map(d => d.a),
+                    b: ternTraceData.map(d => d.b),
+                    c: ternTraceData.map(d => d.c),
+                    customdata: ternTraceCustomData,
                     hovertemplate: buildTernaryHoverTemplate(selectedDiagram.axes.a?.name || d(axisA), selectedDiagram.axes.b?.name || d(axisB), selectedDiagram.axes.c?.name || d(axisC)),
-                    marker: ternDensity ? {
-                        size: normalizedData.map(d => styleArrays.sizes[d.idx]),
-                        color: ternDensity.densities,
+                    marker: ternDensities ? {
+                        size: ternTraceData.map(d => styleArrays.sizes[d.idx]),
+                        color: ternDensities,
                         colorscale: DENSITY_JET_POINT_COLORSCALE,
                         showscale: false,
                         opacity: densityOpacity,
-                        symbol: normalizedData.map(d => shapeToPlotlySymbol(styleArrays.shapes[d.idx])),
+                        symbol: ternTraceData.map(d => shapeToPlotlySymbol(styleArrays.shapes[d.idx])),
                         line: { width: 0.5, color: 'white' }
                     } : {
-                        size: normalizedData.map(d => styleArrays.sizes[d.idx]),
-                        color: normalizedData.map(d => applyOpacityToColor(styleArrays.colors[d.idx], styleArrays.opacity[d.idx])),
-                        symbol: normalizedData.map(d => shapeToPlotlySymbol(styleArrays.shapes[d.idx])),
+                        size: ternTraceData.map(d => styleArrays.sizes[d.idx]),
+                        color: ternTraceData.map(d => applyOpacityToColor(styleArrays.colors[d.idx], styleArrays.opacity[d.idx])),
+                        symbol: ternTraceData.map(d => shapeToPlotlySymbol(styleArrays.shapes[d.idx])),
                         line: { width: 0.5, color: 'white' }
                     },
                     name: 'Data',
@@ -552,7 +576,7 @@ export const ClassificationPlot: React.FC<ClassificationPlotProps> = ({ plotId }
         };
 
         return { traces, layout };
-    }, [selectedDiagram, axisA, axisB, axisC, displayData, displayIndices, renderOptions, computedValues, showDensity, densitySmoothing, densityOpacity]);
+    }, [selectedDiagram, axisA, axisB, axisC, displayData, displayIndices, renderOptions, computedValues, showDensity, densitySmoothing, densityOpacity, densitySqrtNorm]);
 
     // Build XY classification plot
     const buildXYPlot = useCallback(() => {
@@ -735,7 +759,7 @@ export const ClassificationPlot: React.FC<ClassificationPlotProps> = ({ plotId }
                     if (densityPoints.length >= 10) {
                         const densityX = densityPoints.map(dd => xIsLog ? Math.log10(dd.x) : dd.x);
                         const densityY = densityPoints.map(dd => yIsLog ? Math.log10(dd.y) : dd.y);
-                        const result = computePointDensities(densityX, densityY, { smoothingSigma: densitySmoothing });
+                        const result = computePointDensities(densityX, densityY, { smoothingSigma: densitySmoothing, sqrtNorm: densitySqrtNorm });
                         if (result) {
                             // Map back to full validData array
                             xyDensity = new Array(validData.length).fill(0);
@@ -750,25 +774,36 @@ export const ClassificationPlot: React.FC<ClassificationPlotProps> = ({ plotId }
                     }
                 }
 
+                // Apply density z-ordering if active
+                let xyTraceData = validData;
+                let xyTraceCustomData = customData;
+
+                if (xyDensity) {
+                    const order = xyDensity.map((_, i) => i).sort((a, b) => xyDensity![a] - xyDensity![b]);
+                    xyTraceData = order.map(i => validData[i]);
+                    xyTraceCustomData = order.map(i => customData[i]);
+                    xyDensity = order.map(i => xyDensity![i]);
+                }
+
                 traces.push({
                     type: 'scatter',
                     mode: 'markers',
-                    x: validData.map(d => d.x),
-                    y: validData.map(d => d.y),
-                    customdata: customData,
+                    x: xyTraceData.map(d => d.x),
+                    y: xyTraceData.map(d => d.y),
+                    customdata: xyTraceCustomData,
                     hovertemplate: buildScatterHoverTemplate(selectedDiagram.axes.x?.name || d(axisX), selectedDiagram.axes.y?.name || d(axisY)),
                     marker: xyDensity ? {
-                        size: validData.map(d => styleArrays.sizes[d.idx]),
+                        size: xyTraceData.map(d => styleArrays.sizes[d.idx]),
                         color: xyDensity,
                         colorscale: DENSITY_JET_POINT_COLORSCALE,
                         showscale: false,
                         opacity: densityOpacity,
-                        symbol: validData.map(d => shapeToPlotlySymbol(styleArrays.shapes[d.idx])),
+                        symbol: xyTraceData.map(d => shapeToPlotlySymbol(styleArrays.shapes[d.idx])),
                         line: { width: 0.5, color: 'white' }
                     } : {
-                        size: validData.map(d => styleArrays.sizes[d.idx]),
-                        color: validData.map(d => applyOpacityToColor(styleArrays.colors[d.idx], styleArrays.opacity[d.idx])),
-                        symbol: validData.map(d => shapeToPlotlySymbol(styleArrays.shapes[d.idx])),
+                        size: xyTraceData.map(d => styleArrays.sizes[d.idx]),
+                        color: xyTraceData.map(d => applyOpacityToColor(styleArrays.colors[d.idx], styleArrays.opacity[d.idx])),
+                        symbol: xyTraceData.map(d => shapeToPlotlySymbol(styleArrays.shapes[d.idx])),
                         line: { width: 0.5, color: 'white' }
                     },
                     name: 'Data',
@@ -840,7 +875,7 @@ export const ClassificationPlot: React.FC<ClassificationPlotProps> = ({ plotId }
         };
 
         return { traces, layout };
-    }, [selectedDiagram, axisX, axisY, displayData, displayIndices, renderOptions, computedValues, showDensity, densitySmoothing, densityOpacity]);
+    }, [selectedDiagram, axisX, axisY, displayData, displayIndices, renderOptions, computedValues, showDensity, densitySmoothing, densityOpacity, densitySqrtNorm]);
 
     // Build the appropriate plot
     const plotData = selectedDiagram?.type === 'ternary' ? buildTernaryPlot() : buildXYPlot();
@@ -917,7 +952,7 @@ export const ClassificationPlot: React.FC<ClassificationPlotProps> = ({ plotId }
                                 </Box>
                             </MenuItem>
                         )}
-                        {numericColumns.map(c => (
+                        {(value && value !== COMPUTED_AXIS && !numericColumns.find(c => c.name === value) ? [...numericColumns, ...allNumericColumns.filter(c => c.name === value)] : numericColumns).map(c => (
                             <MenuItem key={c.name} value={c.name}>{c.alias || c.name}</MenuItem>
                         ))}
                     </Select>
@@ -1269,15 +1304,21 @@ export const ClassificationPlot: React.FC<ClassificationPlotProps> = ({ plotId }
                                             size="small"
                                         />
                                     </Box>
-                                    <Box sx={{ minWidth: 110, px: 1 }}>
+                                    <Box sx={{ minWidth: 200, px: 1 }}>
                                         <Typography variant="caption">Opacity: {Math.round(densityOpacity * 100)}%</Typography>
                                         <Slider
                                             value={densityOpacity}
                                             onChange={(_, v) => setDensityOpacity(v as number)}
-                                            min={0.1} max={1} step={0.05}
+                                            min={0} max={1} step={0.05}
                                             size="small"
                                         />
                                     </Box>
+                                    <Tooltip title="Spread color gradient across medium-density regions">
+                                        <FormControlLabel
+                                            control={<Checkbox checked={densitySqrtNorm} onChange={(e) => setDensitySqrtNorm(e.target.checked)} size="small" />}
+                                            label={<Typography variant="body2">Sqrt Scale</Typography>}
+                                        />
+                                    </Tooltip>
                                 </>
                             )}
                         </Box>

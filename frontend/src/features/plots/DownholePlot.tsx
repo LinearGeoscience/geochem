@@ -326,6 +326,9 @@ export const DownholePlot: React.FC<DownholePlotProps> = ({ plotId }) => {
         () => sortColumnsByPriority(filteredColumns.filter(c => c && c.name && (c.type === 'numeric' || c.type === 'float' || c.type === 'integer'))),
         [columns]
     );
+    const allNumericColumns = useMemo(() => sortColumnsByPriority(
+        columns.filter(c => c && c.name && (c.type === 'numeric' || c.type === 'float' || c.type === 'integer'))
+    ), [columns]);
 
     const categoricalColumns = useMemo(
         () => filteredColumns.filter(c => c && c.name && (c.type === 'categorical' || c.type === 'text')),
@@ -460,6 +463,7 @@ export const DownholePlot: React.FC<DownholePlotProps> = ({ plotId }) => {
                                 selectedColumns={selectedFields}
                                 onChange={setSelectedFields}
                                 label="Numeric Fields (Traces)"
+                                allColumns={allNumericColumns}
                             />
                         </Box>
 

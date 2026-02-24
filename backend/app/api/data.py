@@ -328,6 +328,21 @@ async def get_data(limit: int = 100000):
     return clean_for_json(df.head(limit))
 
 
+@router.post("/sync")
+async def sync_data(payload: dict):
+    """Re-sync frontend data into backend data_manager (e.g. after backend restart)."""
+    rows = payload.get("data")
+    if not rows:
+        raise HTTPException(status_code=400, detail="No data provided")
+    df = pd.DataFrame(rows)
+    data_manager.df = df
+    data_manager._detect_column_types()
+    data_manager._auto_detect_roles()
+    data_manager._guess_aliases()
+    logger.info("[sync] Loaded %d rows, %d columns from frontend", len(df), len(df.columns))
+    return {"success": True, "rows": len(df), "columns": len(df.columns)}
+
+
 @router.post("/sample")
 async def compute_sample(request: SampleRequest):
     """Compute representative sample indices using outlier-preserving stratified random sampling."""

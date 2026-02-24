@@ -142,13 +142,17 @@ class DrillholeManagerOptimized:
         survey_df.columns = [str(c).lower().strip() for c in survey_df.columns]
         assay_df.columns = [str(c).lower().strip() for c in assay_df.columns]
 
-        # Find hole column
-        hole_col = next((c for c in collar_df.columns if 'hole' in c or 'id' in c), collar_df.columns[0])
+        # Find hole ID column - prioritize 'hole_id'/'holeid' over other 'hole'-containing columns
+        hole_col = next((c for c in collar_df.columns if c.replace('_','') == 'holeid' or c == 'bhid'), None)
+        if hole_col is None:
+            hole_col = next((c for c in collar_df.columns if c == 'hole_id' or c == 'id'), collar_df.columns[0])
 
         # Convert hole IDs to categorical (massive memory savings)
-        collar_df[hole_col] = collar_df[hole_col].astype('category')
-        survey_df[hole_col] = survey_df[hole_col].astype('category')
-        assay_df[hole_col] = assay_df[hole_col].astype('category')
+        for df in [collar_df, survey_df, assay_df]:
+            hc = next((c for c in df.columns if c.replace('_','') == 'holeid' or c == 'bhid'),
+                      next((c for c in df.columns if 'hole' in c and 'type' not in c), None))
+            if hc and hc in df.columns:
+                df[hc] = df[hc].astype('category')
 
         # Downcast numeric columns to float32
         for df in [collar_df, survey_df, assay_df]:

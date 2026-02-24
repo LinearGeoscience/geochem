@@ -17,26 +17,36 @@ interface MultiColumnSelectorProps {
     selectedColumns: string[];
     onChange: (selected: string[]) => void;
     label?: string;
+    allColumns?: ColumnOption[];
 }
 
 export const MultiColumnSelector: React.FC<MultiColumnSelectorProps> = ({
     columns,
     selectedColumns,
     onChange,
-    label = "Select Columns"
+    label = "Select Columns",
+    allColumns,
 }) => {
     const lastClickedIndexRef = useRef<number | null>(null);
 
+    // Merge filtered columns with any selected columns from allColumns that aren't in the current filter
+    const mergedColumns = useMemo(() => {
+        if (!allColumns || allColumns.length === 0) return columns;
+        const filteredNames = new Set(columns.map(c => c.name));
+        const extras = allColumns.filter(c => selectedColumns.includes(c.name) && !filteredNames.has(c.name));
+        return extras.length > 0 ? [...columns, ...extras] : columns;
+    }, [columns, allColumns, selectedColumns]);
+
     // Sort columns by priority (lower = higher priority, undefined = middle)
     const sortedColumns = useMemo(() => {
-        return [...columns].sort((a, b) => {
+        return [...mergedColumns].sort((a, b) => {
             const prioA = a.priority ?? 10;
             const prioB = b.priority ?? 10;
             if (prioA !== prioB) return prioA - prioB;
             // Secondary sort by name
             return a.name.localeCompare(b.name);
         });
-    }, [columns]);
+    }, [mergedColumns]);
 
     const handleSelectAll = () => {
         onChange(columns.map(c => c.name));

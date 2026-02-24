@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useMemo } from 'react';
 import { Box, Paper, Typography, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, CircularProgress, Button } from '@mui/material';
 import Plot from 'react-plotly.js';
 import { useAppStore } from '../../store/appStore';
@@ -39,7 +39,7 @@ const standardDeviation = (arr: number[], mean: number): number | null => {
 };
 
 export const SummaryStats: React.FC = () => {
-    const { data, statsSelectedColumns, setStatsSelectedColumns, getFilteredColumns } = useAppStore();
+    const { data, columns, statsSelectedColumns, setStatsSelectedColumns, getFilteredColumns } = useAppStore();
     const filteredColumns = getFilteredColumns();
     useAttributeStore(); // Subscribe to changes
     const [stats, setStats] = useState<Record<string, Stats>>({});
@@ -120,6 +120,10 @@ export const SummaryStats: React.FC = () => {
         filteredColumns.filter(c => c.type === 'numeric' || c.type === 'float' || c.type === 'integer')
     );
 
+    const allNumericColumns = useMemo(() => sortColumnsByPriority(
+        columns.filter(c => c && c.name && (c.type === 'numeric' || c.type === 'float' || c.type === 'integer'))
+    ), [columns]);
+
     const formatNumber = (num: number | null) => {
         if (num === null) return 'N/A';
         if (Math.abs(num) < 0.01 || Math.abs(num) > 10000) {
@@ -135,6 +139,7 @@ export const SummaryStats: React.FC = () => {
             <Box sx={{ display: 'flex', gap: 2, mb: 3, alignItems: 'flex-start' }}>
                 <MultiColumnSelector
                     columns={numericColumns}
+                    allColumns={allNumericColumns}
                     selectedColumns={statsSelectedColumns}
                     onChange={setStatsSelectedColumns}
                     label="Select Columns"

@@ -407,6 +407,13 @@ export const PathfinderMap: React.FC<PathfinderMapProps> = ({ plotId }) => {
         filteredColumns.filter(c => c && c.name && (c.type === 'numeric' || c.type === 'float' || c.type === 'integer'))
     );
 
+    const allNumericColumns = useMemo(() =>
+        sortColumnsByPriority(
+            columns.filter(c => c && c.name && (c.type === 'numeric' || c.type === 'float' || c.type === 'integer'))
+        ),
+        [columns]
+    );
+
     // Toggle element selection
     const toggleElement = (element: PathfinderElement) => {
         if (selectedElements.includes(element)) {
@@ -817,7 +824,7 @@ export const PathfinderMap: React.FC<PathfinderMapProps> = ({ plotId }) => {
                         <FormControl sx={{ minWidth: 140 }} size="small">
                             <InputLabel>X-Axis</InputLabel>
                             <Select value={xAxis} onChange={(e) => setXAxis(e.target.value)} label="X-Axis">
-                                {numericColumns.map(col => (
+                                {(xAxis && !numericColumns.find(c => c.name === xAxis) ? [...numericColumns, ...allNumericColumns.filter(c => c.name === xAxis)] : numericColumns).map(col => (
                                     <MenuItem key={col.name} value={col.name}>{col.alias || col.name}</MenuItem>
                                 ))}
                             </Select>
@@ -825,7 +832,7 @@ export const PathfinderMap: React.FC<PathfinderMapProps> = ({ plotId }) => {
                         <FormControl sx={{ minWidth: 140 }} size="small">
                             <InputLabel>Y-Axis</InputLabel>
                             <Select value={yAxis} onChange={(e) => setYAxis(e.target.value)} label="Y-Axis">
-                                {numericColumns.map(col => (
+                                {(yAxis && !numericColumns.find(c => c.name === yAxis) ? [...numericColumns, ...allNumericColumns.filter(c => c.name === yAxis)] : numericColumns).map(col => (
                                     <MenuItem key={col.name} value={col.name}>{col.alias || col.name}</MenuItem>
                                 ))}
                             </Select>
@@ -834,7 +841,7 @@ export const PathfinderMap: React.FC<PathfinderMapProps> = ({ plotId }) => {
                             <FormControl sx={{ minWidth: 140 }} size="small">
                                 <InputLabel>Z-Axis</InputLabel>
                                 <Select value={zAxis} onChange={(e) => setZAxis(e.target.value)} label="Z-Axis">
-                                    {numericColumns.map(col => (
+                                    {(zAxis && !numericColumns.find(c => c.name === zAxis) ? [...numericColumns, ...allNumericColumns.filter(c => c.name === zAxis)] : numericColumns).map(col => (
                                         <MenuItem key={col.name} value={col.name}>{col.alias || col.name}</MenuItem>
                                     ))}
                                 </Select>

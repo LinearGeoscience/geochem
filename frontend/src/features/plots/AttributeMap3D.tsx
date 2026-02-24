@@ -111,6 +111,13 @@ export const AttributeMap3D: React.FC<AttributeMap3DProps> = ({ plotId }) => {
         filteredColumns.filter(c => c && c.name && (c.type === 'numeric' || c.type === 'float' || c.type === 'integer'))
     );
 
+    const allNumericColumns = useMemo(() =>
+        sortColumnsByPriority(
+            columns.filter(c => c && c.name && (c.type === 'numeric' || c.type === 'float' || c.type === 'integer'))
+        ),
+        [columns]
+    );
+
     // Calculate data ranges for each axis
     const dataRanges = useMemo(() => {
         if (!data.length || !xAxis || !yAxis || !zAxis) return null;
@@ -253,7 +260,7 @@ export const AttributeMap3D: React.FC<AttributeMap3DProps> = ({ plotId }) => {
                     <FormControl sx={{ minWidth: 150 }}>
                         <InputLabel>X-Axis</InputLabel>
                         <Select value={xAxis} onChange={(e) => setXAxis(e.target.value)} label="X-Axis" size="small">
-                            {numericColumns.map(col => (
+                            {(xAxis && !numericColumns.find(c => c.name === xAxis) ? [...numericColumns, ...allNumericColumns.filter(c => c.name === xAxis)] : numericColumns).map(col => (
                                 <MenuItem key={col.name} value={col.name}>{col.alias || col.name}</MenuItem>
                             ))}
                         </Select>
@@ -261,7 +268,7 @@ export const AttributeMap3D: React.FC<AttributeMap3DProps> = ({ plotId }) => {
                     <FormControl sx={{ minWidth: 150 }}>
                         <InputLabel>Y-Axis</InputLabel>
                         <Select value={yAxis} onChange={(e) => setYAxis(e.target.value)} label="Y-Axis" size="small">
-                            {numericColumns.map(col => (
+                            {(yAxis && !numericColumns.find(c => c.name === yAxis) ? [...numericColumns, ...allNumericColumns.filter(c => c.name === yAxis)] : numericColumns).map(col => (
                                 <MenuItem key={col.name} value={col.name}>{col.alias || col.name}</MenuItem>
                             ))}
                         </Select>
@@ -269,7 +276,7 @@ export const AttributeMap3D: React.FC<AttributeMap3DProps> = ({ plotId }) => {
                     <FormControl sx={{ minWidth: 150 }}>
                         <InputLabel>Z-Axis</InputLabel>
                         <Select value={zAxis} onChange={(e) => setZAxis(e.target.value)} label="Z-Axis" size="small">
-                            {numericColumns.map(col => (
+                            {(zAxis && !numericColumns.find(c => c.name === zAxis) ? [...numericColumns, ...allNumericColumns.filter(c => c.name === zAxis)] : numericColumns).map(col => (
                                 <MenuItem key={col.name} value={col.name}>{col.alias || col.name}</MenuItem>
                             ))}
                         </Select>
@@ -278,7 +285,7 @@ export const AttributeMap3D: React.FC<AttributeMap3DProps> = ({ plotId }) => {
                         <InputLabel>Color Attribute</InputLabel>
                         <Select value={colorAttribute} onChange={(e) => setColorAttribute(e.target.value)} label="Color Attribute" size="small">
                             <MenuItem value="">None</MenuItem>
-                            {numericColumns.map(col => (
+                            {(colorAttribute && !numericColumns.find(c => c.name === colorAttribute) ? [...numericColumns, ...allNumericColumns.filter(c => c.name === colorAttribute)] : numericColumns).map(col => (
                                 <MenuItem key={col.name} value={col.name}>{col.alias || col.name}</MenuItem>
                             ))}
                         </Select>

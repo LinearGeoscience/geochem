@@ -22,7 +22,7 @@ export const SamplingControls: React.FC = () => {
         columns,
         samplingConfig,
         samplingResult,
-        sampleIndices,
+        samplingError,
         isSampling,
         setSamplingEnabled,
         updateSamplingConfig,
@@ -82,20 +82,27 @@ export const SamplingControls: React.FC = () => {
 
             {isSampling && <CircularProgress size={16} />}
 
-            {samplingConfig.enabled && samplingResult && sampleIndices && (
+            {samplingConfig.enabled && (
                 <>
-                    <Chip
-                        size="small"
-                        label={`${samplingResult.sampleSize.toLocaleString()} of ${samplingResult.totalRows.toLocaleString()} rows${samplingResult.outlierCount > 0 ? ` (${samplingResult.outlierCount} outliers preserved)` : ''}`}
-                        color="info"
-                        variant="outlined"
-                    />
+                    {samplingResult && (
+                        <Chip
+                            size="small"
+                            label={`${samplingResult.sampleSize.toLocaleString()} of ${samplingResult.totalRows.toLocaleString()} rows${samplingResult.outlierCount > 0 ? ` (${samplingResult.outlierCount} outliers preserved)` : ''}`}
+                            color="info"
+                            variant="outlined"
+                        />
+                    )}
+
+                    {samplingError && (
+                        <Chip size="small" color="error" label={samplingError} />
+                    )}
 
                     <FormControl size="small" sx={{ minWidth: 100 }}>
                         <InputLabel>Size</InputLabel>
                         <Select
                             value={samplingConfig.sampleSize}
                             label="Size"
+                            disabled={isSampling}
                             onChange={(e) => updateSamplingConfig({ sampleSize: Number(e.target.value) })}
                         >
                             <MenuItem value={5000}>5,000</MenuItem>
@@ -110,6 +117,7 @@ export const SamplingControls: React.FC = () => {
                         <Select
                             value={samplingConfig.method}
                             label="Method"
+                            disabled={isSampling}
                             onChange={(e) => {
                                 const method = e.target.value as 'random' | 'stratified' | 'drillhole';
                                 const updates: any = { method };
@@ -131,6 +139,7 @@ export const SamplingControls: React.FC = () => {
                             <Select
                                 value={samplingConfig.classificationColumn || ''}
                                 label="Stratify By"
+                                disabled={isSampling}
                                 onChange={(e) => updateSamplingConfig({ classificationColumn: e.target.value || null })}
                             >
                                 {categoricalColumns.map(col => (

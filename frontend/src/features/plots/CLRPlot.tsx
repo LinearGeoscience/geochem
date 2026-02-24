@@ -71,6 +71,7 @@ export const CLRPlot: React.FC<CLRPlotProps> = ({ plotId }) => {
     const [showDensity, setShowDensityLocal] = useState<boolean>(storedSettings.showDensity || false);
     const [densitySmoothing, setDensitySmoothingLocal] = useState<number>(storedSettings.densitySmoothing ?? 2.0);
     const [densityOpacity, setDensityOpacityLocal] = useState<number>(storedSettings.densityOpacity ?? 0.7);
+    const [densitySqrtNorm, setDensitySqrtNormLocal] = useState<boolean>(storedSettings.densitySqrtNorm || false);
 
     // Wrapper functions to persist settings
     const setSelectedColumns = (cols: string[]) => {
@@ -105,12 +106,20 @@ export const CLRPlot: React.FC<CLRPlotProps> = ({ plotId }) => {
         setDensityOpacityLocal(opacity);
         updatePlotSettings(plotId, { densityOpacity: opacity });
     };
+    const setDensitySqrtNorm = (sqrt: boolean) => {
+        setDensitySqrtNormLocal(sqrt);
+        updatePlotSettings(plotId, { densitySqrtNorm: sqrt });
+    };
 
     // Get numeric columns (compositional data), sorted by priority
     const numericColumns = useMemo(() =>
         sortColumnsByPriority(filteredColumns.filter(c => c && c.name && (c.type === 'numeric' || c.type === 'float' || c.type === 'integer'))),
         [columns]
     );
+
+    const allNumericColumns = useMemo(() => sortColumnsByPriority(
+        columns.filter(c => c && c.name && (c.type === 'numeric' || c.type === 'float' || c.type === 'integer'))
+    ), [columns]);
 
     // Get visible data
     const visibleData = useMemo(() => {
@@ -257,21 +266,34 @@ export const CLRPlot: React.FC<CLRPlotProps> = ({ plotId }) => {
             // Compute per-point density if enabled
             let clrDensity: number[] | null = null;
             if (showDensity && x.length >= 10) {
-                const result = computePointDensities(x, y, { smoothingSigma: densitySmoothing });
+                const result = computePointDensities(x, y, { smoothingSigma: densitySmoothing, sqrtNorm: densitySqrtNorm });
                 if (result) clrDensity = result.densities;
+            }
+
+            // Apply density z-ordering if active
+            let traceX = x;
+            let traceY = y;
+            let traceSizes = sizes;
+
+            if (clrDensity) {
+                const order = clrDensity.map((_, i) => i).sort((a, b) => clrDensity![a] - clrDensity![b]);
+                traceX = order.map(i => x[i]);
+                traceY = order.map(i => y[i]);
+                traceSizes = order.map(i => sizes[i]);
+                clrDensity = order.map(i => clrDensity![i]);
             }
 
             return [{
                 type: 'scatter',
                 mode: 'markers',
-                x,
-                y,
+                x: traceX,
+                y: traceY,
                 marker: clrDensity ? {
                     color: clrDensity,
                     colorscale: DENSITY_JET_POINT_COLORSCALE,
                     showscale: false,
                     opacity: densityOpacity,
-                    size: sizes,
+                    size: traceSizes,
                 } : {
                     color: colors,
                     size: sizes,
@@ -297,7 +319,7 @@ export const CLRPlot: React.FC<CLRPlotProps> = ({ plotId }) => {
         }
 
         return [];
-    }, [clrResult, biplotData, corrMatrix, plotType, scatterX, scatterY, styleArrays, selectedColumns, displayData, showDensity, densitySmoothing, densityOpacity]);
+    }, [clrResult, biplotData, corrMatrix, plotType, scatterX, scatterY, styleArrays, selectedColumns, displayData, showDensity, densitySmoothing, densityOpacity, densitySqrtNorm]);
 
     // Layout configuration
     const layout = useMemo(() => {
@@ -351,6 +373,7 @@ export const CLRPlot: React.FC<CLRPlotProps> = ({ plotId }) => {
                         selectedColumns={selectedColumns}
                         onChange={setSelectedColumns}
                         label="Compositional Variables"
+                        allColumns={allNumericColumns}
                     />
                 </Grid>
 
@@ -427,15 +450,21 @@ export const CLRPlot: React.FC<CLRPlotProps> = ({ plotId }) => {
                                                 size="small"
                                             />
                                         </Box>
-                                        <Box sx={{ minWidth: 100, px: 1 }}>
+                                        <Box sx={{ minWidth: 200, px: 1 }}>
                                             <Typography variant="caption">Opacity: {Math.round(densityOpacity * 100)}%</Typography>
                                             <Slider
                                                 value={densityOpacity}
                                                 onChange={(_, v) => setDensityOpacity(v as number)}
-                                                min={0.1} max={1} step={0.05}
+                                                min={0} max={1} step={0.05}
                                                 size="small"
                                             />
                                         </Box>
+                                        <Tooltip title="Spread color gradient across medium-density regions">
+                                            <FormControlLabel
+                                                control={<Checkbox checked={densitySqrtNorm} onChange={(e) => setDensitySqrtNorm(e.target.checked)} size="small" />}
+                                                label={<Typography variant="body2">Sqrt Scale</Typography>}
+                                            />
+                                        </Tooltip>
                                     </>
                                 )}
                             </>

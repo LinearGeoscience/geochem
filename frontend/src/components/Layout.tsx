@@ -9,7 +9,7 @@ import { ProjectManager } from './ProjectManager';
 const DRAWER_WIDTH = 200;
 
 export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-    const { currentView, setCurrentView, columns, columnFilter, setColumnFilter, availableFilters, geochemMappings, setShowGeochemDialog } = useAppStore();
+    const { currentView, setCurrentView, columns, columnFilter, setColumnFilter, availableFilters, geochemMappings, setShowGeochemDialog, transformationGroups } = useAppStore();
     const { openCalculationManager } = useCalculationStore();
     const [sidebarOpen, setSidebarOpen] = useState(true);
 
@@ -18,8 +18,8 @@ export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) =>
         m => !m.isConfirmed && !m.isExcluded && (m.confidence === 'low' || m.confidence === 'unknown')
     ).length;
 
-    // Only show filter if we have transformed data
-    const hasTransformedData = availableFilters.length > 2 || availableFilters.some(f => f !== 'all' && f !== 'raw');
+    // Show filter when we have geochem mappings (raw-elements) or transformed data
+    const hasTransformedData = geochemMappings.length > 0 || availableFilters.length > 2 || availableFilters.some(f => f !== 'all' && f !== 'raw');
 
     const menuItems = [
         { id: 'import', label: 'Data Import', icon: <CloudUpload /> },
@@ -109,16 +109,30 @@ export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) =>
                                             height: 32
                                         }}
                                     >
-                                        {availableFilters.map((filter) => (
+                                        {availableFilters.filter(f => !f.startsWith('group:')).map((filter) => (
                                             <MenuItem key={filter} value={filter}>
-                                                {COLUMN_FILTER_LABELS[filter]}
+                                                {COLUMN_FILTER_LABELS[filter] || filter}
                                             </MenuItem>
                                         ))}
+                                        {transformationGroups.length > 0 && <Divider component="li" />}
+                                        {availableFilters.filter(f => f.startsWith('group:')).map((filter) => {
+                                            const groupId = filter.slice(6);
+                                            const group = transformationGroups.find(g => g.id === groupId);
+                                            return (
+                                                <MenuItem key={filter} value={filter}>
+                                                    {group?.name || filter}
+                                                </MenuItem>
+                                            );
+                                        })}
                                     </Select>
                                 </FormControl>
                                 {columnFilter !== 'all' && (
                                     <Chip
-                                        label={columnFilter.toUpperCase()}
+                                        label={
+                                            columnFilter.startsWith('group:')
+                                                ? transformationGroups.find(g => g.id === columnFilter.slice(6))?.name || columnFilter
+                                                : COLUMN_FILTER_LABELS[columnFilter] || columnFilter.toUpperCase()
+                                        }
                                         size="small"
                                         color="secondary"
                                         onDelete={() => setColumnFilter('all')}

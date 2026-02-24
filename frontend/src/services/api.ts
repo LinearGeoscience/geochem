@@ -79,7 +79,12 @@ export const dataApi = {
             outlier_count: number;
             method: string;
         };
-    }
+    },
+
+    syncData: async (data: any[]) => {
+        const response = await api.post('/data/sync', { data });
+        return response.data;
+    },
 };
 
 export const analysisApi = {

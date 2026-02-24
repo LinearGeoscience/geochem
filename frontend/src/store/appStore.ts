@@ -16,14 +16,16 @@ interface ColumnInfo {
     alias: string | null;
     priority?: number; // Lower = higher priority in dropdowns (1-10)
     transformationType?: 'raw' | 'clr' | 'alr' | 'ilr' | 'plr' | 'slr' | 'chipower' | 'log-additive' | 'anhydrous' | 'recalculated' | null; // Which transformation created this column
+    transformationGroupId?: string; // Group ID for named transformation batches
 }
 
 // Column filter options
-export type ColumnFilterType = 'all' | 'raw' | 'clr' | 'alr' | 'ilr' | 'plr' | 'slr' | 'chipower' | 'log-additive' | 'anhydrous' | 'recalculated';
+export type ColumnFilterType = 'all' | 'raw' | 'raw-elements' | 'clr' | 'alr' | 'ilr' | 'plr' | 'slr' | 'chipower' | 'log-additive' | 'anhydrous' | 'recalculated' | `group:${string}`;
 
-export const COLUMN_FILTER_LABELS: Record<ColumnFilterType, string> = {
+export const COLUMN_FILTER_LABELS: Record<string, string> = {
     all: 'All Columns',
     raw: 'Raw Data',
+    'raw-elements': 'Raw Elements',
     clr: 'CLR Transformed',
     alr: 'ALR Transformed',
     ilr: 'ILR Transformed',
@@ -34,6 +36,13 @@ export const COLUMN_FILTER_LABELS: Record<ColumnFilterType, string> = {
     anhydrous: 'Anhydrous (Volatile-Free)',
     recalculated: 'Recalculated (Sulfide-Free)',
 };
+
+export interface TransformationGroup {
+    id: string;
+    name: string;
+    transformationType: string;
+    columnNames: string[];
+}
 
 type PlotType = 'scatter' | 'ternary' | 'spider' | 'map' | 'map3d' | 'downhole' | 'histogram' | 'clr' | 'classification' | 'pathfinder';
 
@@ -82,6 +91,10 @@ interface AppState {
     setColumnFilter: (filter: ColumnFilterType) => void;
     getFilteredColumns: () => ColumnInfo[];
 
+    // Named transformation groups
+    transformationGroups: TransformationGroup[];
+    addTransformationGroup: (group: Omit<TransformationGroup, 'id'>) => string;
+
     // Multi-plot state
     plots: PlotInstance[];
     activePlotId: string | null;
@@ -118,13 +131,14 @@ interface AppState {
     updatePlotSettings: (plotId: string, settings: Partial<PlotSettings>) => void;
 
     // Data actions
-    addColumn: (name: string, values: any[], colType?: string, role?: string, transformationType?: ColumnInfo['transformationType']) => void;
+    addColumn: (name: string, values: any[], colType?: string, role?: string, transformationType?: ColumnInfo['transformationType'], transformationGroupId?: string) => void;
 
     // Sampling
     samplingConfig: SamplingConfig;
     samplingResult: SamplingResult | null;
     sampleIndices: Set<number> | null;
     isSampling: boolean;
+    samplingError: string | null;
     setSamplingEnabled: (enabled: boolean) => void;
     updateSamplingConfig: (partial: Partial<SamplingConfig>) => void;
     computeSample: () => Promise<void>;
@@ -201,14 +215,35 @@ export const useAppStore = create<CombinedState>()((set, get, api) => ({
     // Column filtering
     columnFilter: 'all' as ColumnFilterType,
     availableFilters: ['all', 'raw'] as ColumnFilterType[],
+    transformationGroups: [],
 
     setColumnFilter: (filter) => set({ columnFilter: filter }),
 
     getFilteredColumns: () => {
-        const { columns, columnFilter } = get();
+        const { columns, columnFilter, geochemMappings } = get();
         if (columnFilter === 'all') return columns;
         if (columnFilter === 'raw') {
             return columns.filter(c => !c.transformationType || c.transformationType === 'raw');
+        }
+        if (columnFilter === 'raw-elements') {
+            const geochemNames = new Set(
+                geochemMappings
+                    .filter(m => m.category === 'majorOxide' || m.category === 'traceElement' || m.category === 'ree')
+                    .map(m => m.originalName)
+            );
+            return columns.filter(c =>
+                (!c.transformationType || c.transformationType === 'raw') &&
+                geochemNames.has(c.name)
+            );
+        }
+        if (columnFilter.startsWith('group:')) {
+            const groupId = columnFilter.slice(6);
+            const group = get().transformationGroups.find(g => g.id === groupId);
+            if (group) {
+                const nameSet = new Set(group.columnNames);
+                return columns.filter(c => nameSet.has(c.name));
+            }
+            return [];
         }
         return columns.filter(c => c.transformationType === columnFilter);
     },
@@ -232,6 +267,7 @@ export const useAppStore = create<CombinedState>()((set, get, api) => ({
     samplingResult: null,
     sampleIndices: null,
     isSampling: false,
+    samplingError: null,
 
     // Geochem mappings
     geochemMappings: [],
@@ -319,7 +355,7 @@ export const useAppStore = create<CombinedState>()((set, get, api) => ({
     setStatsSelectedColumns: (columns) => set({ statsSelectedColumns: columns }),
     setCorrelationSelectedColumns: (columns) => set({ correlationSelectedColumns: columns }),
 
-    addColumn: (name, values, colType = 'categorical', role = 'Classification', transformationType = null) => {
+    addColumn: (name, values, colType = 'categorical', role = 'Classification', transformationType = null, transformationGroupId) => {
         set((state) => {
             const newData = state.data.map((row, i) => ({
                 ...row,
@@ -332,7 +368,8 @@ export const useAppStore = create<CombinedState>()((set, get, api) => ({
                 role: role,
                 alias: null,
                 priority: 5,
-                transformationType: transformationType
+                transformationType: transformationType,
+                ...(transformationGroupId ? { transformationGroupId } : {})
             };
 
             const columnExists = state.columns.some(c => c.name === name);
@@ -340,9 +377,9 @@ export const useAppStore = create<CombinedState>()((set, get, api) => ({
                 ? state.columns.map(c => c.name === name ? { ...c, ...newColumn } : c)
                 : [...state.columns, newColumn];
 
-            // Update available filters if this is a new transformation type
+            // Update available filters if this is a new transformation type (skip if in a named group)
             let newAvailableFilters = [...state.availableFilters];
-            if (transformationType && !newAvailableFilters.includes(transformationType)) {
+            if (transformationType && !transformationGroupId && !newAvailableFilters.includes(transformationType)) {
                 newAvailableFilters.push(transformationType);
             }
 
@@ -352,6 +389,15 @@ export const useAppStore = create<CombinedState>()((set, get, api) => ({
                 availableFilters: newAvailableFilters
             };
         });
+    },
+
+    addTransformationGroup: (group) => {
+        const id = Math.random().toString(36).substr(2, 9);
+        set((state) => ({
+            transformationGroups: [...state.transformationGroups, { ...group, id }],
+            availableFilters: [...state.availableFilters, `group:${id}` as ColumnFilterType],
+        }));
+        return id;
     },
 
     fetchColumns: async () => {
@@ -552,7 +598,8 @@ export const useAppStore = create<CombinedState>()((set, get, api) => ({
 
     setSamplingEnabled: (enabled) => {
         set((state) => ({
-            samplingConfig: { ...state.samplingConfig, enabled }
+            samplingConfig: { ...state.samplingConfig, enabled },
+            samplingError: null,
         }));
         if (enabled) {
             get().computeSample();
@@ -577,17 +624,31 @@ export const useAppStore = create<CombinedState>()((set, get, api) => ({
             return;
         }
 
-        set({ isSampling: true });
+        const sampleParams = {
+            sample_size: samplingConfig.sampleSize,
+            method: samplingConfig.method,
+            outlier_columns: samplingConfig.outlierColumns,
+            classification_column: samplingConfig.classificationColumn,
+            drillhole_column: samplingConfig.drillholeColumn,
+            iqr_multiplier: samplingConfig.iqrMultiplier,
+            seed: samplingConfig.seed,
+        };
+
+        set({ isSampling: true, samplingError: null });
         try {
-            const result = await dataApi.computeSample({
-                sample_size: samplingConfig.sampleSize,
-                method: samplingConfig.method,
-                outlier_columns: samplingConfig.outlierColumns,
-                classification_column: samplingConfig.classificationColumn,
-                drillhole_column: samplingConfig.drillholeColumn,
-                iqr_multiplier: samplingConfig.iqrMultiplier,
-                seed: samplingConfig.seed,
-            });
+            let result;
+            try {
+                result = await dataApi.computeSample(sampleParams);
+            } catch (err: any) {
+                // If backend lost data (e.g. restart), re-sync and retry once
+                if (err?.response?.status === 400 && err?.response?.data?.detail === 'No data loaded') {
+                    console.log('[computeSample] Backend has no data, syncing...');
+                    await dataApi.syncData(data);
+                    result = await dataApi.computeSample(sampleParams);
+                } else {
+                    throw err;
+                }
+            }
 
             set({
                 sampleIndices: new Set(result.indices),
@@ -598,11 +659,13 @@ export const useAppStore = create<CombinedState>()((set, get, api) => ({
                     method: result.method,
                 },
                 isSampling: false,
+                samplingError: null,
             });
             console.log(`[computeSample] Sample: ${result.sample_size}/${result.total_rows} rows (${result.outlier_count} outliers preserved)`);
         } catch (err: any) {
             console.error('[computeSample] Failed:', err);
-            set({ isSampling: false });
+            const detail = err?.response?.data?.detail || err?.message || 'Sampling failed';
+            set({ isSampling: false, samplingError: detail });
         }
     },
 
@@ -610,6 +673,7 @@ export const useAppStore = create<CombinedState>()((set, get, api) => ({
         set({
             sampleIndices: null,
             samplingResult: null,
+            samplingError: null,
             samplingConfig: { ...get().samplingConfig, enabled: false },
         });
     },
@@ -631,7 +695,18 @@ export const useAppStore = create<CombinedState>()((set, get, api) => ({
     },
 
     // Geochem mapping actions
-    setGeochemMappings: (mappings) => set({ geochemMappings: mappings }),
+    setGeochemMappings: (mappings) => {
+        const hasGeochem = mappings.some(
+            m => m.category === 'majorOxide' || m.category === 'traceElement' || m.category === 'ree'
+        );
+        set((state) => {
+            const newFilters = [...state.availableFilters];
+            if (hasGeochem && !newFilters.includes('raw-elements')) {
+                newFilters.splice(2, 0, 'raw-elements');
+            }
+            return { geochemMappings: mappings, availableFilters: newFilters };
+        });
+    },
 
     updateGeochemMapping: (columnName, updates) => {
         set((state) => ({
@@ -656,10 +731,20 @@ export const useAppStore = create<CombinedState>()((set, get, api) => ({
     setShowGeochemDialog: (show) => set({ showGeochemDialog: show }),
 
     confirmAllMappings: () => {
-        set((state) => ({
-            geochemMappings: state.geochemMappings.map(m => ({ ...m, isConfirmed: true })),
-            showGeochemDialog: false,
-        }));
+        set((state) => {
+            const hasGeochem = state.geochemMappings.some(
+                m => m.category === 'majorOxide' || m.category === 'traceElement' || m.category === 'ree'
+            );
+            const newFilters = [...state.availableFilters];
+            if (hasGeochem && !newFilters.includes('raw-elements')) {
+                newFilters.splice(2, 0, 'raw-elements'); // Insert after 'all' and 'raw'
+            }
+            return {
+                geochemMappings: state.geochemMappings.map(m => ({ ...m, isConfirmed: true })),
+                showGeochemDialog: false,
+                availableFilters: newFilters,
+            };
+        });
     },
 
     getColumnForOxide: (oxideFormula) => {

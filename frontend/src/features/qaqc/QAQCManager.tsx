@@ -40,6 +40,7 @@ import {
 } from '@mui/icons-material';
 import { useAppStore } from '../../store/appStore';
 import { useQAQCStore } from '../../store/qaqcStore';
+import { sortColumnsByPriority } from '../../utils/attributeUtils';
 import { MultiColumnSelector } from '../../components/MultiColumnSelector';
 import { QCSampleType, DEFAULT_QAQC_THRESHOLDS } from '../../types/qaqc';
 
@@ -88,6 +89,10 @@ export const QAQCManager: React.FC<QAQCManagerProps> = ({ onNavigate }) => {
     ),
     [filteredColumns]
   );
+
+  const allNumericColumns = useMemo(() => sortColumnsByPriority(
+    columns.filter(c => c && c.name && (c.type === 'numeric' || c.type === 'float' || c.type === 'integer'))
+  ), [columns]);
 
   // Count QC samples by type
   const qcCounts = useMemo(() => {
@@ -360,6 +365,7 @@ export const QAQCManager: React.FC<QAQCManagerProps> = ({ onNavigate }) => {
         <Box sx={{ mb: 2 }}>
           <MultiColumnSelector
             columns={numericColumns}
+            allColumns={allNumericColumns}
             selectedColumns={selectedElements}
             onChange={setSelectedElements}
             label="Elements to Analyze"

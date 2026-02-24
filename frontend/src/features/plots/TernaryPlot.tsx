@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import Plot from 'react-plotly.js';
 import { useAppStore } from '../../store/appStore';
-import { Box, Paper, Typography, FormControl, InputLabel, Select, MenuItem, Checkbox, FormControlLabel, Slider } from '@mui/material';
+import { Box, Paper, Typography, FormControl, InputLabel, Select, MenuItem, Checkbox, FormControlLabel, Slider, Tooltip } from '@mui/material';
 import { useAttributeStore } from '../../store/attributeStore';
 import { getStyleArrays, shapeToPlotlySymbol, applyOpacityToColor, getSortedIndices, sortColumnsByPriority, getColumnDisplayName } from '../../utils/attributeUtils';
 import { buildCustomData, buildTernaryHoverTemplate } from '../../utils/tooltipUtils';
@@ -37,6 +37,7 @@ export const TernaryPlot: React.FC<TernaryPlotProps> = ({ plotId }) => {
     const [showDensity, setShowDensityLocal] = useState<boolean>(storedSettings.showDensity || false);
     const [densitySmoothing, setDensitySmoothingLocal] = useState<number>(storedSettings.densitySmoothing ?? 2.0);
     const [densityOpacity, setDensityOpacityLocal] = useState<number>(storedSettings.densityOpacity ?? 0.7);
+    const [densitySqrtNorm, setDensitySqrtNormLocal] = useState<boolean>(storedSettings.densitySqrtNorm || false);
 
     // Wrapper functions to persist settings
     const setAAxis = (axis: string) => {
@@ -63,6 +64,10 @@ export const TernaryPlot: React.FC<TernaryPlotProps> = ({ plotId }) => {
         setDensityOpacityLocal(opacity);
         updatePlotSettings(plotId, { densityOpacity: opacity });
     };
+    const setDensitySqrtNorm = (sqrt: boolean) => {
+        setDensitySqrtNormLocal(sqrt);
+        updatePlotSettings(plotId, { densitySqrtNorm: sqrt });
+    };
 
     const rangesRef = useRef<TernaryRanges>({});
 
@@ -84,6 +89,19 @@ export const TernaryPlot: React.FC<TernaryPlotProps> = ({ plotId }) => {
         [columns]
     );
 
+    const allNumericColumns = useMemo(() => sortColumnsByPriority(
+        columns.filter(c => c && c.name && (c.type === 'numeric' || c.type === 'float' || c.type === 'integer'))
+    ), [columns]);
+
+    // Ensure currently-selected axes remain visible even when filter changes
+    const axisOptionsFor = useCallback((current: string) => {
+        if (current && !numericColumns.find(c => c.name === current)) {
+            const full = allNumericColumns.find(c => c.name === current);
+            if (full) return [...numericColumns, full];
+        }
+        return numericColumns;
+    }, [numericColumns, allNumericColumns]);
+
     useEffect(() => {
         if (columns.length > 0 && !aAxis && !bAxis && !cAxis && !storedSettings.aAxis && !storedSettings.bAxis && !storedSettings.cAxis) {
             if (numericColumns.length >= 3) {
@@ -100,7 +118,7 @@ export const TernaryPlot: React.FC<TernaryPlotProps> = ({ plotId }) => {
             <FormControl sx={{ minWidth: 150 }}>
                 <InputLabel>A-Axis (Top)</InputLabel>
                 <Select value={aAxis} onChange={(e) => setAAxis(e.target.value)} label="A-Axis (Top)">
-                    {numericColumns.map(col => (
+                    {axisOptionsFor(aAxis).map(col => (
                         <MenuItem key={col.name} value={col.name}>{col.alias || col.name}</MenuItem>
                     ))}
                 </Select>
@@ -109,7 +127,7 @@ export const TernaryPlot: React.FC<TernaryPlotProps> = ({ plotId }) => {
             <FormControl sx={{ minWidth: 150 }}>
                 <InputLabel>B-Axis (Bottom Left)</InputLabel>
                 <Select value={bAxis} onChange={(e) => setBAxis(e.target.value)} label="B-Axis (Bottom Left)">
-                    {numericColumns.map(col => (
+                    {axisOptionsFor(bAxis).map(col => (
                         <MenuItem key={col.name} value={col.name}>{col.alias || col.name}</MenuItem>
                     ))}
                 </Select>
@@ -118,7 +136,7 @@ export const TernaryPlot: React.FC<TernaryPlotProps> = ({ plotId }) => {
             <FormControl sx={{ minWidth: 150 }}>
                 <InputLabel>C-Axis (Bottom Right)</InputLabel>
                 <Select value={cAxis} onChange={(e) => setCAxis(e.target.value)} label="C-Axis (Bottom Right)">
-                    {numericColumns.map(col => (
+                    {axisOptionsFor(cAxis).map(col => (
                         <MenuItem key={col.name} value={col.name}>{col.alias || col.name}</MenuItem>
                     ))}
                 </Select>
@@ -145,14 +163,14 @@ export const TernaryPlot: React.FC<TernaryPlotProps> = ({ plotId }) => {
                             size="small"
                         />
                     </Box>
-                    <Box sx={{ minWidth: 120, px: 1 }}>
+                    <Box sx={{ minWidth: 200, px: 1 }}>
                         <Typography variant="caption" gutterBottom>
                             Opacity: {Math.round(densityOpacity * 100)}%
                         </Typography>
                         <Slider
                             value={densityOpacity}
                             onChange={(_, value) => setDensityOpacity(value as number)}
-                            min={0.1}
+                            min={0}
                             max={1}
                             step={0.05}
                             valueLabelDisplay="auto"
@@ -160,6 +178,12 @@ export const TernaryPlot: React.FC<TernaryPlotProps> = ({ plotId }) => {
                             size="small"
                         />
                     </Box>
+                    <Tooltip title="Spread color gradient across medium-density regions">
+                        <FormControlLabel
+                            control={<Checkbox checked={densitySqrtNorm} onChange={(e) => setDensitySqrtNorm(e.target.checked)} size="small" />}
+                            label={<Typography variant="body2">Sqrt Scale</Typography>}
+                        />
+                    </Tooltip>
                 </>
             )}
         </Box>
@@ -209,29 +233,41 @@ export const TernaryPlot: React.FC<TernaryPlotProps> = ({ plotId }) => {
         normalizedData.map(d => d.a),
         normalizedData.map(d => d.b),
         normalizedData.map(d => d.c),
-        { smoothingSigma: densitySmoothing }
+        { smoothingSigma: densitySmoothing, sqrtNorm: densitySqrtNorm }
     ) : null;
+
+    // Prepare trace data, applying density z-ordering if active
+    let traceData = normalizedData;
+    let traceCustomData = customData;
+    let traceDensities = densityResult?.densities ?? null;
+
+    if (traceDensities) {
+        const order = traceDensities.map((_, i) => i).sort((a, b) => traceDensities![a] - traceDensities![b]);
+        traceData = order.map(i => normalizedData[i]);
+        traceCustomData = order.map(i => customData[i]);
+        traceDensities = order.map(i => traceDensities![i]);
+    }
 
     const trace: any = {
         type: 'scatterternary',
         mode: 'markers',
-        a: normalizedData.map(d => d.a),
-        b: normalizedData.map(d => d.b),
-        c: normalizedData.map(d => d.c),
-        customdata: customData,
+        a: traceData.map(d => d.a),
+        b: traceData.map(d => d.b),
+        c: traceData.map(d => d.c),
+        customdata: traceCustomData,
         hovertemplate: buildTernaryHoverTemplate(d(aAxis), d(bAxis), d(cAxis)),
-        marker: densityResult ? {
-            size: normalizedData.map(d => styleArrays.sizes[d.idx]),
-            color: densityResult.densities,
+        marker: traceDensities ? {
+            size: traceData.map(d => styleArrays.sizes[d.idx]),
+            color: traceDensities,
             colorscale: DENSITY_JET_POINT_COLORSCALE,
             showscale: false,
             opacity: densityOpacity,
-            symbol: normalizedData.map(d => shapeToPlotlySymbol(styleArrays.shapes[d.idx])),
+            symbol: traceData.map(d => shapeToPlotlySymbol(styleArrays.shapes[d.idx])),
             line: { width: 0 }
         } : {
-            size: normalizedData.map(d => styleArrays.sizes[d.idx]),
-            color: normalizedData.map(d => applyOpacityToColor(styleArrays.colors[d.idx], styleArrays.opacity[d.idx])),
-            symbol: normalizedData.map(d => shapeToPlotlySymbol(styleArrays.shapes[d.idx])),
+            size: traceData.map(d => styleArrays.sizes[d.idx]),
+            color: traceData.map(d => applyOpacityToColor(styleArrays.colors[d.idx], styleArrays.opacity[d.idx])),
+            symbol: traceData.map(d => shapeToPlotlySymbol(styleArrays.shapes[d.idx])),
             line: { width: 0 }
         }
     };

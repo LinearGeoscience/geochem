@@ -47,6 +47,7 @@ export const ScatterPlot: React.FC<ScatterPlotProps> = ({ plotId }) => {
     const [showDensity, setShowDensityLocal] = useState<boolean>(storedSettings.showContours || false);
     const [densitySmoothing, setDensitySmoothingLocal] = useState<number>(storedSettings.contourResolution != null ? Math.min(8, Math.max(0.5, storedSettings.contourResolution / 25)) : 2.0);
     const [densityOpacity, setDensityOpacityLocal] = useState<number>(storedSettings.densityOpacity ?? 0.7);
+    const [densitySqrtNorm, setDensitySqrtNormLocal] = useState<boolean>(storedSettings.densitySqrtNorm || false);
     const [logScaleX, setLogScaleXLocal] = useState<boolean>(storedSettings.logScaleX || false);
     const [logScaleY, setLogScaleYLocal] = useState<boolean>(storedSettings.logScaleY || false);
     const [presentationMode, setPresentationModeLocal] = useState<boolean>(storedSettings.presentationMode || false);
@@ -84,6 +85,10 @@ export const ScatterPlot: React.FC<ScatterPlotProps> = ({ plotId }) => {
     const setDensityOpacity = (opacity: number) => {
         setDensityOpacityLocal(opacity);
         updatePlotSettings(plotId, { densityOpacity: opacity });
+    };
+    const setDensitySqrtNorm = (sqrt: boolean) => {
+        setDensitySqrtNormLocal(sqrt);
+        updatePlotSettings(plotId, { densitySqrtNorm: sqrt });
     };
     const setLogScaleX = (log: boolean) => {
         setLogScaleXLocal(log);
@@ -135,6 +140,10 @@ export const ScatterPlot: React.FC<ScatterPlotProps> = ({ plotId }) => {
     const numericColumns = sortColumnsByPriority(
         filteredColumns.filter(c => c && c.name && (c.type === 'numeric' || c.type === 'float' || c.type === 'integer'))
     );
+
+    const allNumericColumns = useMemo(() => sortColumnsByPriority(
+        columns.filter(c => c && c.name && (c.type === 'numeric' || c.type === 'float' || c.type === 'integer'))
+    ), [columns]);
 
     // Check if axes match TAS for any Y-axis (use geochem mappings if available, fallback to string match)
     const isTASForAxis = (yAxisName: string) => {
@@ -226,7 +235,7 @@ export const ScatterPlot: React.FC<ScatterPlotProps> = ({ plotId }) => {
             }
 
             if (xValid.length >= 10) {
-                const result = computePointDensities(xValid, yValid, { smoothingSigma: densitySmoothing });
+                const result = computePointDensities(xValid, yValid, { smoothingSigma: densitySmoothing, sqrtNorm: densitySqrtNorm });
                 if (result) {
                     // Map densities back to full array (0 for invalid points)
                     densityColors = new Array(sortedData.length).fill(0);
@@ -237,25 +246,43 @@ export const ScatterPlot: React.FC<ScatterPlotProps> = ({ plotId }) => {
             }
         }
 
+        // Build trace arrays
+        let traceX = sortedData.map(d => d[xAxis]);
+        let traceY = sortedData.map(d => d[yAxisName]);
+        let traceCustomData = customData;
+        let traceShapes = sortedShapes;
+        let traceSizes = sortedSizes;
+
+        // Density z-ordering: sort by ascending density so high-density (red) points draw on top
+        if (densityColors) {
+            const order = densityColors.map((_, i) => i).sort((a, b) => densityColors![a] - densityColors![b]);
+            traceX = order.map(i => traceX[i]);
+            traceY = order.map(i => traceY[i]);
+            traceCustomData = order.map(i => traceCustomData[i]);
+            traceShapes = order.map(i => traceShapes[i]);
+            traceSizes = order.map(i => traceSizes[i]);
+            densityColors = order.map(i => densityColors![i]);
+        }
+
         const trace: any = {
-            x: sortedData.map(d => d[xAxis]),
-            y: sortedData.map(d => d[yAxisName]),
+            x: traceX,
+            y: traceY,
             mode: 'markers',
             type: plotType,
-            customdata: customData,
+            customdata: traceCustomData,
             hovertemplate: buildScatterHoverTemplate(d(xAxis), d(yAxisName)),
             marker: densityColors ? {
                 color: densityColors,
                 colorscale: DENSITY_JET_POINT_COLORSCALE,
                 showscale: false,
-                symbol: sortedShapes.map(s => shapeToPlotlySymbol(s)),
-                size: sortedSizes,
+                symbol: traceShapes.map(s => shapeToPlotlySymbol(s)),
+                size: traceSizes,
                 opacity: densityOpacity,
                 line: { width: 0 }
             } : {
                 color: sortedColors,
-                symbol: sortedShapes.map(s => shapeToPlotlySymbol(s)),
-                size: sortedSizes,
+                symbol: traceShapes.map(s => shapeToPlotlySymbol(s)),
+                size: traceSizes,
                 line: { width: 0 }
             }
         };
@@ -367,7 +394,7 @@ export const ScatterPlot: React.FC<ScatterPlotProps> = ({ plotId }) => {
                 <FormControl sx={{ minWidth: 200 }}>
                     <InputLabel>X-Axis</InputLabel>
                     <Select value={xAxis} onChange={(e) => setXAxis(e.target.value)} label="X-Axis">
-                        {numericColumns.map(col => (
+                        {(xAxis && !numericColumns.find(c => c.name === xAxis) ? [...numericColumns, ...allNumericColumns.filter(c => c.name === xAxis)] : numericColumns).map(col => (
                             <MenuItem key={col.name} value={col.name}>{col.alias || col.name}</MenuItem>
                         ))}
                     </Select>
@@ -378,6 +405,7 @@ export const ScatterPlot: React.FC<ScatterPlotProps> = ({ plotId }) => {
                     selectedColumns={yAxes}
                     onChange={setYAxes}
                     label="Y-Axes"
+                    allColumns={allNumericColumns}
                 />
 
                 {yAxes.some(y => isTASForAxis(y)) && (
@@ -423,14 +451,14 @@ export const ScatterPlot: React.FC<ScatterPlotProps> = ({ plotId }) => {
                                 size="small"
                             />
                         </Box>
-                        <Box sx={{ minWidth: 140, px: 1 }}>
+                        <Box sx={{ minWidth: 200, px: 1 }}>
                             <Typography variant="caption" gutterBottom>
                                 Opacity: {Math.round(densityOpacity * 100)}%
                             </Typography>
                             <Slider
                                 value={densityOpacity}
                                 onChange={(_, value) => setDensityOpacity(value as number)}
-                                min={0.1}
+                                min={0}
                                 max={1}
                                 step={0.05}
                                 valueLabelDisplay="auto"
@@ -438,6 +466,12 @@ export const ScatterPlot: React.FC<ScatterPlotProps> = ({ plotId }) => {
                                 size="small"
                             />
                         </Box>
+                        <Tooltip title="Spread color gradient across medium-density regions (reduces all-blue effect)">
+                            <FormControlLabel
+                                control={<Checkbox checked={densitySqrtNorm} onChange={(e) => setDensitySqrtNorm(e.target.checked)} size="small" />}
+                                label={<Typography variant="body2">Sqrt Scale</Typography>}
+                            />
+                        </Tooltip>
                     </>
                 )}
 

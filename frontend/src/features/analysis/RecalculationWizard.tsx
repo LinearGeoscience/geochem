@@ -828,7 +828,7 @@ const StepExecute: React.FC = () => {
 // ============================================================================
 
 const StepOutput: React.FC = () => {
-    const { data, addColumn } = useAppStore();
+    const { data, addColumn, addTransformationGroup, setColumnFilter } = useAppStore();
     const { config, results } = useRecalculationStore();
     const [addAnhydrous, setAddAnhydrous] = React.useState(true);
     const [addRecalculated, setAddRecalculated] = React.useState(true);
@@ -836,6 +836,10 @@ const StepOutput: React.FC = () => {
     const [addCLR, setAddCLR] = React.useState(config.generateCLR);
     const [isAdding, setIsAdding] = React.useState(false);
     const [isAdded, setIsAdded] = React.useState(false);
+    // Group naming
+    const [anhydrousName, setAnhydrousName] = React.useState('Anhydrous');
+    const [recalcName, setRecalcName] = React.useState('Recalculated');
+    const [clrName, setClrName] = React.useState('Recalc CLR');
 
     if (!results) {
         return (
@@ -848,32 +852,57 @@ const StepOutput: React.FC = () => {
 
     const handleAddToDataset = () => {
         setIsAdding(true);
+        let lastGroupId: string | null = null;
 
         try {
-            // Add anhydrous columns
+            // Add anhydrous columns with named group
             if (addAnhydrous) {
+                const colNames = Object.keys(results.anhydrousColumns);
+                const groupId = addTransformationGroup({
+                    name: anhydrousName.trim() || 'Anhydrous',
+                    transformationType: 'anhydrous',
+                    columnNames: colNames,
+                });
+                lastGroupId = groupId;
                 for (const [colName, values] of Object.entries(results.anhydrousColumns)) {
-                    addColumn(colName, values, 'numeric', 'Anhydrous', 'anhydrous');
+                    addColumn(colName, values, 'numeric', 'Anhydrous', 'anhydrous', groupId);
                 }
             }
 
-            // Add recalculated columns
-            if (addRecalculated) {
-                for (const [colName, values] of Object.entries(results.recalculatedColumns)) {
-                    addColumn(colName, values, 'numeric', 'Recalculated', 'recalculated');
+            // Add recalculated + diagnostic columns with named group
+            if (addRecalculated || addDiagnostics) {
+                const colNames: string[] = [];
+                if (addRecalculated) colNames.push(...Object.keys(results.recalculatedColumns));
+                if (addDiagnostics) colNames.push(...Object.keys(results.diagnosticColumns));
+                const groupId = addTransformationGroup({
+                    name: recalcName.trim() || 'Recalculated',
+                    transformationType: 'recalculated',
+                    columnNames: colNames,
+                });
+                lastGroupId = groupId;
+                if (addRecalculated) {
+                    for (const [colName, values] of Object.entries(results.recalculatedColumns)) {
+                        addColumn(colName, values, 'numeric', 'Recalculated', 'recalculated', groupId);
+                    }
+                }
+                if (addDiagnostics) {
+                    for (const [colName, values] of Object.entries(results.diagnosticColumns)) {
+                        addColumn(colName, values, 'numeric', 'Recalculated', 'recalculated', groupId);
+                    }
                 }
             }
 
-            // Add diagnostic columns
-            if (addDiagnostics) {
-                for (const [colName, values] of Object.entries(results.diagnosticColumns)) {
-                    addColumn(colName, values, 'numeric', 'Recalculated', 'recalculated');
-                }
-            }
-
-            // Add CLR columns on recalculated data
+            // Add CLR columns on recalculated data with named group
             if (addCLR) {
                 const recalcColNames = Object.keys(results.recalculatedColumns);
+                const clrColNames = recalcColNames.map(n => `${n}_CLR`);
+                const clrGroupId = addTransformationGroup({
+                    name: clrName.trim() || 'Recalc CLR',
+                    transformationType: 'clr',
+                    columnNames: clrColNames,
+                });
+                lastGroupId = clrGroupId;
+
                 // Build row-based data for CLR transform, tracking which rows have valid data
                 const recalcData: Record<string, any>[] = [];
                 const nRows = data.length;
@@ -895,10 +924,14 @@ const StepOutput: React.FC = () => {
                     const clrValues = clrResult.values.map((row, i) =>
                         validRows[i] ? row[j] : null
                     );
-                    addColumn(`${recalcColNames[j]}_CLR`, clrValues, 'numeric', 'CLR', 'clr');
+                    addColumn(`${recalcColNames[j]}_CLR`, clrValues, 'numeric', 'CLR', 'clr', clrGroupId);
                 }
             }
 
+            // Auto-switch filter to the last created group
+            if (lastGroupId) {
+                setColumnFilter(`group:${lastGroupId}`);
+            }
             setIsAdded(true);
         } finally {
             setIsAdding(false);
@@ -918,20 +951,32 @@ const StepOutput: React.FC = () => {
             </Alert>
 
             <Box sx={{ mb: 3 }}>
-                <FormControlLabel
-                    control={<Checkbox checked={addAnhydrous} onChange={(e) => setAddAnhydrous(e.target.checked)} />}
-                    label={`Anhydrous columns (${anhydrousCols.length} columns)`}
-                />
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 0.5 }}>
+                    <FormControlLabel
+                        control={<Checkbox checked={addAnhydrous} onChange={(e) => setAddAnhydrous(e.target.checked)} />}
+                        label={`Anhydrous columns (${anhydrousCols.length})`}
+                    />
+                    {addAnhydrous && (
+                        <TextField size="small" label="Group Name" value={anhydrousName}
+                            onChange={(e) => setAnhydrousName(e.target.value)} sx={{ width: 200 }} />
+                    )}
+                </Box>
                 <Box sx={{ ml: 4, mb: 1 }}>
                     <Typography variant="caption" color="text.secondary">
                         {anhydrousCols.join(', ')}
                     </Typography>
                 </Box>
 
-                <FormControlLabel
-                    control={<Checkbox checked={addRecalculated} onChange={(e) => setAddRecalculated(e.target.checked)} />}
-                    label={`Recalculated columns (${recalcCols.length} columns)`}
-                />
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 0.5 }}>
+                    <FormControlLabel
+                        control={<Checkbox checked={addRecalculated} onChange={(e) => setAddRecalculated(e.target.checked)} />}
+                        label={`Recalculated columns (${recalcCols.length})`}
+                    />
+                    {(addRecalculated || addDiagnostics) && (
+                        <TextField size="small" label="Group Name" value={recalcName}
+                            onChange={(e) => setRecalcName(e.target.value)} sx={{ width: 200 }} />
+                    )}
+                </Box>
                 <Box sx={{ ml: 4, mb: 1 }}>
                     <Typography variant="caption" color="text.secondary">
                         {recalcCols.join(', ')}
@@ -948,10 +993,16 @@ const StepOutput: React.FC = () => {
                     </Typography>
                 </Box>
 
-                <FormControlLabel
-                    control={<Checkbox checked={addCLR} onChange={(e) => setAddCLR(e.target.checked)} />}
-                    label={`CLR transform of recalculated oxides (${recalcCols.length} columns)`}
-                />
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 0.5 }}>
+                    <FormControlLabel
+                        control={<Checkbox checked={addCLR} onChange={(e) => setAddCLR(e.target.checked)} />}
+                        label={`CLR transform of recalculated oxides (${recalcCols.length})`}
+                    />
+                    {addCLR && (
+                        <TextField size="small" label="Group Name" value={clrName}
+                            onChange={(e) => setClrName(e.target.value)} sx={{ width: 200 }} />
+                    )}
+                </Box>
             </Box>
 
             <Button

@@ -89,6 +89,10 @@ export const HistogramPlot: React.FC<HistogramPlotProps> = ({ plotId }) => {
         filteredColumns.filter(c => c && c.name && (c.type === 'numeric' || c.type === 'float' || c.type === 'integer'))
     );
 
+    const allNumericColumns = useMemo(() => sortColumnsByPriority(
+        columns.filter(c => c && c.name && (c.type === 'numeric' || c.type === 'float' || c.type === 'integer'))
+    ), [columns]);
+
     // Include all non-numeric columns as potential category options
     const categoricalColumns = useMemo(() =>
         filteredColumns.filter(c =>
@@ -290,6 +294,7 @@ export const HistogramPlot: React.FC<HistogramPlotProps> = ({ plotId }) => {
                     selectedColumns={selectedColumns}
                     onChange={setSelectedColumns}
                     label="Numeric Variables"
+                    allColumns={allNumericColumns}
                 />
 
                 <FormControl sx={{ minWidth: 180 }}>
