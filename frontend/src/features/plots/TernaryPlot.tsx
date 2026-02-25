@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import Plot from 'react-plotly.js';
 import { useAppStore } from '../../store/appStore';
+import { useShallow } from 'zustand/react/shallow';
 import { Box, Paper, Typography, FormControl, InputLabel, Select, MenuItem, Checkbox, FormControlLabel, Slider, Tooltip } from '@mui/material';
 import { useAttributeStore } from '../../store/attributeStore';
 import { getStyleArrays, shapeToPlotlySymbol, applyOpacityToColor, getSortedIndices, sortColumnsByPriority, getColumnDisplayName } from '../../utils/attributeUtils';
@@ -20,7 +21,12 @@ interface TernaryPlotProps {
 }
 
 export const TernaryPlot: React.FC<TernaryPlotProps> = ({ plotId }) => {
-    const { data, columns, lockAxes, getPlotSettings, updatePlotSettings, getFilteredColumns, getDisplayData, getDisplayIndices, sampleIndices } = useAppStore();
+    const { data, columns, lockAxes, sampleIndices } = useAppStore(useShallow(s => ({ data: s.data, columns: s.columns, lockAxes: s.lockAxes, sampleIndices: s.sampleIndices })));
+    const getPlotSettings = useAppStore(s => s.getPlotSettings);
+    const updatePlotSettings = useAppStore(s => s.updatePlotSettings);
+    const getFilteredColumns = useAppStore(s => s.getFilteredColumns);
+    const getDisplayData = useAppStore(s => s.getDisplayData);
+    const getDisplayIndices = useAppStore(s => s.getDisplayIndices);
     useAppStore(s => s.tooltipMode); // Subscribe to trigger re-render on toggle
     const filteredColumns = getFilteredColumns();
     const d = (name: string) => getColumnDisplayName(columns, name);

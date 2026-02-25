@@ -1,6 +1,7 @@
 import React, { useMemo, useState, useRef, useCallback, useEffect } from 'react';
 import Plot from 'react-plotly.js';
 import { useAppStore } from '../../store/appStore';
+import { useShallow } from 'zustand/react/shallow';
 import {
     Box,
     Paper,
@@ -36,7 +37,12 @@ interface SpiderPlotProps {
 }
 
 export const SpiderPlot: React.FC<SpiderPlotProps> = ({ plotId }) => {
-    const { data, columns, lockAxes, getPlotSettings, updatePlotSettings, getFilteredColumns, getDisplayData, getDisplayIndices, sampleIndices, geochemMappings } = useAppStore();
+    const { data, columns, lockAxes, sampleIndices, geochemMappings } = useAppStore(useShallow(s => ({ data: s.data, columns: s.columns, lockAxes: s.lockAxes, sampleIndices: s.sampleIndices, geochemMappings: s.geochemMappings })));
+    const getPlotSettings = useAppStore(s => s.getPlotSettings);
+    const updatePlotSettings = useAppStore(s => s.updatePlotSettings);
+    const getFilteredColumns = useAppStore(s => s.getFilteredColumns);
+    const getDisplayData = useAppStore(s => s.getDisplayData);
+    const getDisplayIndices = useAppStore(s => s.getDisplayIndices);
     useAppStore(s => s.tooltipMode); // Subscribe to trigger re-render on toggle
     const filteredColumns = getFilteredColumns();
     const d = (name: string) => getColumnDisplayName(columns, name);

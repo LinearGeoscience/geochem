@@ -26,6 +26,7 @@ import Snackbar from '@mui/material/Snackbar';
 import Alert from '@mui/material/Alert';
 import { ALL_EPSG_CODES, MapViewStyle, transformCoordinates, createMapboxLayout } from '../../utils/basemapUtils';
 import { useAppStore } from '../../store/appStore';
+import { useShallow } from 'zustand/react/shallow';
 import { useAttributeStore, EmphasisConfig } from '../../store/attributeStore';
 import { applyOpacityToColor } from '../../utils/emphasisUtils';
 import Plot from 'react-plotly.js';
@@ -113,7 +114,13 @@ const pathfinderIndexExtractor = (point: any): number | null => {
 };
 
 export const PathfinderMap: React.FC<PathfinderMapProps> = ({ plotId }) => {
-    const { data, columns, getPlotSettings, updatePlotSettings, getFilteredColumns, addColumn, getDisplayData, getDisplayIndices, sampleIndices, geochemMappings } = useAppStore();
+    const { data, columns, sampleIndices, geochemMappings } = useAppStore(useShallow(s => ({ data: s.data, columns: s.columns, sampleIndices: s.sampleIndices, geochemMappings: s.geochemMappings })));
+    const getPlotSettings = useAppStore(s => s.getPlotSettings);
+    const updatePlotSettings = useAppStore(s => s.updatePlotSettings);
+    const getFilteredColumns = useAppStore(s => s.getFilteredColumns);
+    const addColumn = useAppStore(s => s.addColumn);
+    const getDisplayData = useAppStore(s => s.getDisplayData);
+    const getDisplayIndices = useAppStore(s => s.getDisplayIndices);
     const { handleSelected: handleSelectionHook, handleDeselect: handleDeselectionHook, selectedIndices } = useSelectionHandler(pathfinderIndexExtractor);
     const filteredColumns = getFilteredColumns();
     const d = (name: string) => getColumnDisplayName(columns, name);

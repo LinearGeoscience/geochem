@@ -13,6 +13,7 @@ import {
     CheckCircle, Warning, AutoAwesome, Edit as EditIcon
 } from '@mui/icons-material';
 import { useAppStore } from '../../store/appStore';
+import { useShallow } from 'zustand/react/shallow';
 import { useClassificationStore, TOTAL_DIAGRAMS } from '../../store/classificationStore';
 import { resolveDiagram, computeAxisValues, DiagramResolution } from '../../utils/classificationAxisResolver';
 import { getPlotConfig, EXPORT_FONT_SIZES } from '../../utils/plotConfig';
@@ -97,7 +98,12 @@ function getFontSize(name: string, area: number, baseSize: number = 7): number {
 const COMPUTED_AXIS = '__computed__';
 
 export const ClassificationPlot: React.FC<ClassificationPlotProps> = ({ plotId }) => {
-    const { data, columns, getPlotSettings, updatePlotSettings, getFilteredColumns, getDisplayData, getDisplayIndices, sampleIndices, geochemMappings } = useAppStore();
+    const { data, columns, sampleIndices, geochemMappings } = useAppStore(useShallow(s => ({ data: s.data, columns: s.columns, sampleIndices: s.sampleIndices, geochemMappings: s.geochemMappings })));
+    const getPlotSettings = useAppStore(s => s.getPlotSettings);
+    const updatePlotSettings = useAppStore(s => s.updatePlotSettings);
+    const getFilteredColumns = useAppStore(s => s.getFilteredColumns);
+    const getDisplayData = useAppStore(s => s.getDisplayData);
+    const getDisplayIndices = useAppStore(s => s.getDisplayIndices);
     useAppStore(s => s.tooltipMode); // Subscribe to trigger re-render on toggle
     const { handleSelected, handleDeselect, selectedIndices } = useSelectionHandler();
     const filteredColumns = getFilteredColumns();

@@ -4,7 +4,16 @@ const API_URL = '/api';
 
 const api = axios.create({
     baseURL: API_URL,
-    timeout: 60000, // 60s — generous enough for large file uploads
+    timeout: 60000,
+    headers: {
+        'Content-Type': 'application/json',
+    },
+});
+
+// Separate instance for uploads with longer timeout (5 min for large files)
+const uploadApi = axios.create({
+    baseURL: API_URL,
+    timeout: 300000, // 5 min for large file uploads
     headers: {
         'Content-Type': 'application/json',
     },
@@ -14,7 +23,7 @@ export const dataApi = {
     uploadFile: async (file: File, onProgress?: (progress: number) => void) => {
         const formData = new FormData();
         formData.append('file', file);
-        const response = await api.post('/data/upload', formData, {
+        const response = await uploadApi.post('/data/upload', formData, {
             headers: {
                 'Content-Type': 'multipart/form-data',
             },
@@ -33,7 +42,7 @@ export const dataApi = {
         formData.append('collar', collar);
         formData.append('survey', survey);
         formData.append('assay', assay);
-        const response = await api.post('/data/upload/drillhole', formData, {
+        const response = await uploadApi.post('/data/upload/drillhole', formData, {
             headers: {
                 'Content-Type': 'multipart/form-data',
             },
@@ -45,6 +54,63 @@ export const dataApi = {
             },
         });
         return response.data;
+    },
+
+    /**
+     * Stream dataset as NDJSON from the backend.
+     * Builds data[] progressively, reporting progress via callback.
+     */
+    streamData: async (
+        onProgress?: (loadedRows: number, totalRows: number) => void
+    ): Promise<any[]> => {
+        const response = await fetch(`${API_URL}/data/stream`);
+        if (!response.ok) {
+            throw new Error(`Stream failed: ${response.status} ${response.statusText}`);
+        }
+
+        const reader = response.body!.getReader();
+        const decoder = new TextDecoder();
+        const data: any[] = [];
+        let totalRows = 0;
+        let buffer = '';
+
+        while (true) {
+            const { done, value } = await reader.read();
+            if (done) break;
+
+            buffer += decoder.decode(value, { stream: true });
+            const lines = buffer.split('\n');
+            // Keep the last (possibly incomplete) line in the buffer
+            buffer = lines.pop() || '';
+
+            for (const line of lines) {
+                if (!line.trim()) continue;
+                const obj = JSON.parse(line);
+                if (obj.__meta__) {
+                    totalRows = obj.totalRows;
+                    continue;
+                }
+                data.push(obj);
+            }
+
+            if (onProgress && totalRows > 0) {
+                onProgress(data.length, totalRows);
+            }
+        }
+
+        // Process any remaining buffer
+        if (buffer.trim()) {
+            const obj = JSON.parse(buffer);
+            if (!obj.__meta__) {
+                data.push(obj);
+            }
+        }
+
+        if (onProgress && totalRows > 0) {
+            onProgress(data.length, totalRows);
+        }
+
+        return data;
     },
 
     getColumns: async () => {

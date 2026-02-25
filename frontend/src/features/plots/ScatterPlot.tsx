@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import Plot from 'react-plotly.js';
 import { useAppStore } from '../../store/appStore';
+import { useShallow } from 'zustand/react/shallow';
 import { Box, Paper, FormControl, InputLabel, Select, MenuItem, Checkbox, FormControlLabel, Grid, Typography, Slider, ToggleButton, ToggleButtonGroup, Tooltip } from '@mui/material';
 import { MultiColumnSelector } from '../../components/MultiColumnSelector';
 import { TAS_DIAGRAM } from './classifications';
@@ -10,7 +11,8 @@ import { getStyleArrays, shapeToPlotlySymbol, applyOpacityToColor, getSortedIndi
 import { calculateLinearRegression } from '../../utils/regressionUtils';
 import { buildCustomData, buildScatterHoverTemplate } from '../../utils/tooltipUtils';
 import { getPlotConfig, EXPORT_FONT_SIZES, PRESENTATION_FONT_SIZES } from '../../utils/plotConfig';
-import { computePointDensities, DENSITY_JET_POINT_COLORSCALE } from '../../utils/densityGrid';
+import { DENSITY_JET_POINT_COLORSCALE } from '../../utils/densityGrid';
+import { useDensityWorker } from '../../hooks/useDensityWorker';
 import { useSelectionHandler } from '../../hooks/useSelectionHandler';
 
 // Store axis ranges per plot when locked
@@ -28,7 +30,12 @@ interface ScatterPlotProps {
 }
 
 export const ScatterPlot: React.FC<ScatterPlotProps> = ({ plotId }) => {
-    const { data, columns, lockAxes, getPlotSettings, updatePlotSettings, getFilteredColumns, getDisplayData, getDisplayIndices, sampleIndices, geochemMappings } = useAppStore();
+    const { data, columns, lockAxes, sampleIndices, geochemMappings } = useAppStore(useShallow(s => ({ data: s.data, columns: s.columns, lockAxes: s.lockAxes, sampleIndices: s.sampleIndices, geochemMappings: s.geochemMappings })));
+    const getPlotSettings = useAppStore(s => s.getPlotSettings);
+    const updatePlotSettings = useAppStore(s => s.updatePlotSettings);
+    const getFilteredColumns = useAppStore(s => s.getFilteredColumns);
+    const getDisplayData = useAppStore(s => s.getDisplayData);
+    const getDisplayIndices = useAppStore(s => s.getDisplayIndices);
     useAppStore(s => s.tooltipMode); // Subscribe to trigger re-render on toggle
     const { handleSelected, handleDeselect, selectedIndices } = useSelectionHandler();
     const filteredColumns = getFilteredColumns();
@@ -49,12 +56,84 @@ export const ScatterPlot: React.FC<ScatterPlotProps> = ({ plotId }) => {
     const [regressionMode, setRegressionModeLocal] = useState<'global' | 'per-category'>(storedSettings.regressionMode || 'global');
     const [showDensity, setShowDensityLocal] = useState<boolean>(storedSettings.showContours || false);
     const [densitySmoothing, setDensitySmoothingLocal] = useState<number>(storedSettings.contourResolution != null ? Math.min(8, Math.max(0.5, storedSettings.contourResolution / 25)) : 2.0);
+    const [debouncedSmoothing, setDebouncedSmoothing] = useState(densitySmoothing);
     const [densityOpacity, setDensityOpacityLocal] = useState<number>(storedSettings.densityOpacity ?? 0.7);
+
+    const { computePointDensities: computePointDensitiesWorker } = useDensityWorker();
+
+    // Debounce density smoothing slider (150ms) to avoid recomputing KDE on every pixel
+    useEffect(() => {
+        const timer = setTimeout(() => setDebouncedSmoothing(densitySmoothing), 150);
+        return () => clearTimeout(timer);
+    }, [densitySmoothing]);
     const [densitySqrtNorm, setDensitySqrtNormLocal] = useState<boolean>(storedSettings.densitySqrtNorm || false);
     const [logScaleX, setLogScaleXLocal] = useState<boolean>(storedSettings.logScaleX || false);
     const [logScaleY, setLogScaleYLocal] = useState<boolean>(storedSettings.logScaleY || false);
     const [presentationMode, setPresentationModeLocal] = useState<boolean>(storedSettings.presentationMode || false);
     const [sortOrder, setSortOrderLocal] = useState<string>(storedSettings.sortOrder || 'default');
+
+    // Pre-computed density results per yAxis (keyed by displayData index)
+    const [densityResults, setDensityResults] = useState<Record<string, number[] | null>>({});
+
+    // Compute density via worker when params change
+    useEffect(() => {
+        if (!showDensity || !xAxis || yAxes.length === 0 || displayData.length < 10) {
+            setDensityResults({});
+            return;
+        }
+
+        let cancelled = false;
+
+        const computeAll = async () => {
+            const results: Record<string, number[] | null> = {};
+
+            for (const yAxisName of yAxes) {
+                const xRaw = displayData.map(row => Number(row[xAxis]));
+                const yRaw = displayData.map(row => Number(row[yAxisName]));
+
+                const xValid: number[] = [];
+                const yValid: number[] = [];
+                const validIndices: number[] = [];
+                for (let i = 0; i < xRaw.length; i++) {
+                    const xv = xRaw[i], yv = yRaw[i];
+                    if (isNaN(xv) || !isFinite(xv) || isNaN(yv) || !isFinite(yv)) continue;
+                    if (logScaleX && xv <= 0) continue;
+                    if (logScaleY && yv <= 0) continue;
+                    xValid.push(logScaleX ? Math.log10(xv) : xv);
+                    yValid.push(logScaleY ? Math.log10(yv) : yv);
+                    validIndices.push(i);
+                }
+
+                if (xValid.length < 10) {
+                    results[yAxisName] = null;
+                    continue;
+                }
+
+                const result = await computePointDensitiesWorker(xValid, yValid, {
+                    smoothingSigma: debouncedSmoothing,
+                    sqrtNorm: densitySqrtNorm
+                });
+                if (cancelled) return;
+
+                if (result) {
+                    const fullDensities = new Array(displayData.length).fill(0);
+                    for (let j = 0; j < validIndices.length; j++) {
+                        fullDensities[validIndices[j]] = result.densities[j];
+                    }
+                    results[yAxisName] = fullDensities;
+                } else {
+                    results[yAxisName] = null;
+                }
+            }
+
+            if (!cancelled) {
+                setDensityResults(results);
+            }
+        };
+
+        computeAll();
+        return () => { cancelled = true; };
+    }, [showDensity, debouncedSmoothing, densitySqrtNorm, xAxis, yAxes, displayData, logScaleX, logScaleY, computePointDensitiesWorker]);
 
     // Wrapper functions to persist settings
     const setXAxis = (axis: string) => {
@@ -209,44 +288,11 @@ export const ScatterPlot: React.FC<ScatterPlotProps> = ({ plotId }) => {
         // Build rich customdata for hover tooltips
         const customData = buildCustomData(displayData, sortedIndices, displayIndices ?? undefined);
 
-        // Compute per-point density coloring if enabled
+        // Use pre-computed density from worker (mapped through sort indices)
         let densityColors: number[] | null = null;
-        if (showDensity && sortedData.length >= 10) {
-            // Build valid x/y arrays for density; skip non-positive on log axes
-            const xRaw = sortedData.map(d => Number(d[xAxis]));
-            const yRaw = sortedData.map(d => Number(d[yAxisName]));
-            const validMask = xRaw.map((xv, i) => {
-                const yv = yRaw[i];
-                if (isNaN(xv) || !isFinite(xv) || isNaN(yv) || !isFinite(yv)) return false;
-                if (logScaleX && xv <= 0) return false;
-                if (logScaleY && yv <= 0) return false;
-                return true;
-            });
-            const xVals = xRaw.map((v, i) => validMask[i] ? (logScaleX ? Math.log10(v) : v) : 0);
-            const yVals = yRaw.map((v, i) => validMask[i] ? (logScaleY ? Math.log10(v) : v) : 0);
-
-            // Only use valid points for density computation
-            const xValid: number[] = [];
-            const yValid: number[] = [];
-            const validIndices: number[] = [];
-            for (let i = 0; i < validMask.length; i++) {
-                if (validMask[i]) {
-                    xValid.push(xVals[i]);
-                    yValid.push(yVals[i]);
-                    validIndices.push(i);
-                }
-            }
-
-            if (xValid.length >= 10) {
-                const result = computePointDensities(xValid, yValid, { smoothingSigma: densitySmoothing, sqrtNorm: densitySqrtNorm });
-                if (result) {
-                    // Map densities back to full array (0 for invalid points)
-                    densityColors = new Array(sortedData.length).fill(0);
-                    for (let j = 0; j < validIndices.length; j++) {
-                        densityColors[validIndices[j]] = result.densities[j];
-                    }
-                }
-            }
+        if (showDensity && densityResults[yAxisName]) {
+            const rawDensities = densityResults[yAxisName]!;
+            densityColors = sortedIndices.map(i => rawDensities[i]);
         }
 
         // Build trace arrays

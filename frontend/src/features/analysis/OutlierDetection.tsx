@@ -1,6 +1,7 @@
 import React, { useState, useMemo, useCallback } from 'react';
 import { Box, Paper, Typography, Button, Select, MenuItem, FormControl, InputLabel, Slider, Checkbox, FormControlLabel, CircularProgress } from '@mui/material';
 import Plot from 'react-plotly.js';
+import { useShallow } from 'zustand/react/shallow';
 import { useAppStore } from '../../store/appStore';
 import { useAttributeStore } from '../../store/attributeStore';
 import { getStyleArrays, sortColumnsByPriority } from '../../utils/attributeUtils';
@@ -47,7 +48,8 @@ const METHOD_RANGES: Record<string, [number, number, number]> = {
 };
 
 export const OutlierDetection: React.FC = () => {
-    const { data, columns, getFilteredColumns } = useAppStore();
+    const { data, columns } = useAppStore(useShallow(s => ({ data: s.data, columns: s.columns })));
+    const getFilteredColumns = useAppStore(s => s.getFilteredColumns);
     const filteredColumns = getFilteredColumns();
     useAttributeStore();
 

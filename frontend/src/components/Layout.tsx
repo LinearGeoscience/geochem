@@ -3,13 +3,17 @@ import { Box, Drawer, List, ListItem, ListItemIcon, ListItemText, AppBar, Toolba
 import { CloudUpload, TableChart, ViewColumn, BarChart, Analytics, Settings, Menu as MenuIcon, ChevronLeft, Calculate, FilterList, Science, Biotech, Edit } from '@mui/icons-material';
 import Badge from '@mui/material/Badge';
 import { useAppStore, COLUMN_FILTER_LABELS, ColumnFilterType } from '../store/appStore';
+import { useShallow } from 'zustand/react/shallow';
 import { useCalculationStore } from '../store/calculationStore';
 import { ProjectManager } from './ProjectManager';
 
 const DRAWER_WIDTH = 200;
 
 export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-    const { currentView, setCurrentView, columns, columnFilter, setColumnFilter, availableFilters, geochemMappings, setShowGeochemDialog, transformationGroups } = useAppStore();
+    const { currentView, columns, columnFilter, availableFilters, geochemMappings, transformationGroups } = useAppStore(useShallow(s => ({ currentView: s.currentView, columns: s.columns, columnFilter: s.columnFilter, availableFilters: s.availableFilters, geochemMappings: s.geochemMappings, transformationGroups: s.transformationGroups })));
+    const setCurrentView = useAppStore(s => s.setCurrentView);
+    const setColumnFilter = useAppStore(s => s.setColumnFilter);
+    const setShowGeochemDialog = useAppStore(s => s.setShowGeochemDialog);
     const { openCalculationManager } = useCalculationStore();
     const [sidebarOpen, setSidebarOpen] = useState(true);
 

@@ -1,6 +1,7 @@
 import React, { useState, useCallback, useMemo } from 'react';
 import { Box, Paper, Typography, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, CircularProgress, Button, ToggleButtonGroup, ToggleButton, Checkbox, FormControlLabel, Tooltip } from '@mui/material';
 import Plot from 'react-plotly.js';
+import { useShallow } from 'zustand/react/shallow';
 import { useAppStore } from '../../store/appStore';
 import { useAttributeStore } from '../../store/attributeStore';
 import { getStyleArrays, sortColumnsByPriority } from '../../utils/attributeUtils';
@@ -168,7 +169,9 @@ const downloadCSV = (filename: string, content: string) => {
 };
 
 export const SummaryStats: React.FC = () => {
-    const { data, columns, statsSelectedColumns, setStatsSelectedColumns, getFilteredColumns } = useAppStore();
+    const { data, columns, statsSelectedColumns } = useAppStore(useShallow(s => ({ data: s.data, columns: s.columns, statsSelectedColumns: s.statsSelectedColumns })));
+    const setStatsSelectedColumns = useAppStore(s => s.setStatsSelectedColumns);
+    const getFilteredColumns = useAppStore(s => s.getFilteredColumns);
     const filteredColumns = getFilteredColumns();
     useAttributeStore(); // Subscribe to changes
     const [stats, setStats] = useState<Record<string, Stats>>({});

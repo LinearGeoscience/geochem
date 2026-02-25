@@ -69,6 +69,7 @@ interface QAQCState {
   selectedStandard: string | null;
   navigateToElement: string | null;
   isAnalysisRunning: boolean;
+  analysisProgress: number; // 0-1
   lastAnalysisTimestamp: number | null;
 
   // Actions
@@ -99,7 +100,7 @@ interface QAQCState {
   runAnalysis: (
     data: Record<string, any>[],
     elements: string[]
-  ) => void;
+  ) => Promise<void>;
   clearAnalysis: () => void;
 
   // Export
@@ -132,6 +133,7 @@ const initialState = {
   selectedStandard: null as string | null,
   navigateToElement: null as string | null,
   isAnalysisRunning: false,
+  analysisProgress: 0,
   lastAnalysisTimestamp: null as number | null,
 };
 
@@ -283,8 +285,8 @@ export const useQAQCStore = create<QAQCState>()(
         });
       },
 
-      // Analysis
-      runAnalysis: (data, elements) => {
+      // Analysis — async with batched element processing to yield to UI thread
+      runAnalysis: async (data, elements) => {
         const state = get();
 
         if (!state.sampleIdColumn || state.qcSamples.length === 0) {
@@ -292,7 +294,7 @@ export const useQAQCStore = create<QAQCState>()(
           return;
         }
 
-        set({ isAnalysisRunning: true });
+        set({ isAnalysisRunning: true, analysisProgress: 0 });
 
         try {
           // Separate samples by type
@@ -302,65 +304,57 @@ export const useQAQCStore = create<QAQCState>()(
           // Get unique standard names
           const standardNames = [...new Set(standards.map(s => s.standardName).filter(Boolean))] as string[];
 
-          // Build control charts for each standard and element
+          // Build results accumulators
           const controlCharts: Record<string, ControlChartData[]> = {};
-
-          standardNames.forEach((stdName) => {
-            // Fix 1.6: Case-insensitive matching for standard reference lookup
-            const reference = state.standardReferences.find(
-              r => r.name.toUpperCase() === stdName.toUpperCase() || r.id.toUpperCase() === stdName.toUpperCase()
-            );
-            const charts: ControlChartData[] = [];
-
-            elements.forEach((element) => {
-              const chart = buildControlChart(
-                data,
-                standards,
-                element,
-                stdName,
-                reference,
-                state.thresholds
-              );
-              if (chart) {
-                charts.push(chart);
-              }
-            });
-
-            if (charts.length > 0) {
-              controlCharts[stdName] = charts;
-            }
-          });
-
-          // Analyze duplicates by type
           const duplicateAnalyses: Record<string, DuplicateAnalysis[]> = {};
-
-          (['field_duplicate', 'pulp_duplicate', 'core_duplicate'] as const).forEach((dupType) => {
-            const pairs = state.duplicatePairs.filter(p => p.duplicateType === dupType);
-            if (pairs.length === 0) return;
-
-            const analyses: DuplicateAnalysis[] = [];
-            elements.forEach((element) => {
-              const dl = state.detectionLimits[element];
-              const analysis = analyzeDuplicates(data, pairs, element, dupType, state.thresholds, dl);
-              if (analysis) {
-                analyses.push(analysis);
-              }
-            });
-
-            if (analyses.length > 0) {
-              duplicateAnalyses[dupType] = analyses;
-            }
-          });
-
-          // Analyze blanks
           const blankAnalyses: BlankAnalysis[] = [];
-          elements.forEach((element) => {
-            const dl = state.detectionLimits[element];
-            const analysis = analyzeBlanks(data, blanks, element, dl, state.thresholds);
-            if (analysis) {
-              blankAnalyses.push(analysis);
+
+          // Process elements in batches of 5, yielding to UI between batches
+          const BATCH_SIZE = 5;
+          let processedElements = 0;
+
+          for (let bi = 0; bi < elements.length; bi += BATCH_SIZE) {
+            const batch = elements.slice(bi, bi + BATCH_SIZE);
+
+            for (const element of batch) {
+              // Control charts for each standard
+              standardNames.forEach((stdName) => {
+                const reference = state.standardReferences.find(
+                  r => r.name.toUpperCase() === stdName.toUpperCase() || r.id.toUpperCase() === stdName.toUpperCase()
+                );
+                const chart = buildControlChart(data, standards, element, stdName, reference, state.thresholds);
+                if (chart) {
+                  if (!controlCharts[stdName]) controlCharts[stdName] = [];
+                  controlCharts[stdName].push(chart);
+                }
+              });
+
+              // Duplicates
+              (['field_duplicate', 'pulp_duplicate', 'core_duplicate'] as const).forEach((dupType) => {
+                const pairs = state.duplicatePairs.filter(p => p.duplicateType === dupType);
+                if (pairs.length === 0) return;
+                const dl = state.detectionLimits[element];
+                const analysis = analyzeDuplicates(data, pairs, element, dupType, state.thresholds, dl);
+                if (analysis) {
+                  if (!duplicateAnalyses[dupType]) duplicateAnalyses[dupType] = [];
+                  duplicateAnalyses[dupType].push(analysis);
+                }
+              });
+
+              // Blanks
+              const dl = state.detectionLimits[element];
+              const blankAnalysis = analyzeBlanks(data, blanks, element, dl, state.thresholds);
+              if (blankAnalysis) blankAnalyses.push(blankAnalysis);
+
+              processedElements++;
             }
-          });
+
+            // Yield to UI thread between batches and report progress
+            if (bi + BATCH_SIZE < elements.length) {
+              set({ analysisProgress: processedElements / elements.length });
+              await new Promise(resolve => setTimeout(resolve, 0));
+            }
+          }
 
           // Calculate element summaries
           const elementSummaries: ElementQCSummary[] = elements.map((element) => {
@@ -442,11 +436,12 @@ export const useQAQCStore = create<QAQCState>()(
             recommendations,
             selectedElements: elements,
             isAnalysisRunning: false,
+            analysisProgress: 1,
             lastAnalysisTimestamp: Date.now(),
           });
         } catch (error) {
           console.error('Error running QA/QC analysis:', error);
-          set({ isAnalysisRunning: false });
+          set({ isAnalysisRunning: false, analysisProgress: 0 });
         }
       },
 

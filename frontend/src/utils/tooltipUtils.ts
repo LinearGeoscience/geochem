@@ -92,12 +92,18 @@ function findMatchingEntryName(
     value: any,
     entries: AttributeEntry[],
     customEntries: AttributeEntry[],
-    dataIndex: number
+    dataIndex: number,
+    paintGroupMap?: Map<number, string>
 ): string | null {
-    // First check custom entries that have this index assigned
-    for (const entry of customEntries) {
-        if (entry.assignedIndices.includes(dataIndex) && entry.visible) {
-            return entry.name;
+    // First check custom entries via pre-built map (O(1)) or fallback to scan
+    if (paintGroupMap) {
+        const group = paintGroupMap.get(dataIndex);
+        if (group) return group;
+    } else {
+        for (const entry of customEntries) {
+            if (entry.assignedIndices.includes(dataIndex) && entry.visible) {
+                return entry.name;
+            }
         }
     }
 
@@ -128,20 +134,24 @@ function findMatchingEntryName(
 export function getEntryNameForPoint(
     dataPoint: Record<string, any>,
     dataIndex: number,
-    tab: 'color' | 'shape' | 'size'
+    tab: 'color' | 'shape' | 'size',
+    paintGroupMap?: Map<number, string>
 ): string | null {
     const state = useAttributeStore.getState();
     const config = state[tab];
     const { customEntries } = state;
 
     if (!config.field) {
-        // Check if any custom entry claims this point
+        // Check via map (O(1)) or fallback
+        if (paintGroupMap) {
+            return paintGroupMap.get(dataIndex) || null;
+        }
         const customMatch = customEntries.find(e => e.assignedIndices.includes(dataIndex));
         return customMatch?.name || null;
     }
 
     const value = dataPoint[config.field];
-    return findMatchingEntryName(value, config.entries, customEntries, dataIndex);
+    return findMatchingEntryName(value, config.entries, customEntries, dataIndex, paintGroupMap);
 }
 
 /**
@@ -194,18 +204,18 @@ export function buildCustomData(
             holeId: holeIdCol ? (dataPoint[holeIdCol] ?? null) : null,
             depthFrom: fromCol ? (dataPoint[fromCol] ?? null) : null,
             depthTo: toCol ? (dataPoint[toCol] ?? null) : null,
-            // Attributes
+            // Attributes — pass paintGroupMap for O(1) lookups
             colorField: color.field,
             colorValue: colorVal,
-            colorCategory: getEntryNameForPoint(dataPoint, dataIndex, 'color'),
+            colorCategory: getEntryNameForPoint(dataPoint, dataIndex, 'color', paintGroupMap),
             colorRawDisplay: formatRawValueDisplay(color.field, colorVal),
             shapeField: shape.field,
             shapeValue: shapeVal,
-            shapeCategory: getEntryNameForPoint(dataPoint, dataIndex, 'shape'),
+            shapeCategory: getEntryNameForPoint(dataPoint, dataIndex, 'shape', paintGroupMap),
             shapeRawDisplay: formatRawValueDisplay(shape.field, shapeVal),
             sizeField: size.field,
             sizeValue: sizeVal,
-            sizeCategory: getEntryNameForPoint(dataPoint, dataIndex, 'size'),
+            sizeCategory: getEntryNameForPoint(dataPoint, dataIndex, 'size', paintGroupMap),
             sizeRawDisplay: formatRawValueDisplay(size.field, sizeVal),
             // Paint group
             paintGroup: paintGroupMap.get(dataIndex) || '',
@@ -477,11 +487,14 @@ export function buildSpiderHoverText(
         }
     }
 
-    // Paint group (detailed only)
+    // Paint group (detailed only) — build map for O(1) lookup
     if (mode === 'detailed' && customEntries.length > 0) {
-        const group = customEntries.find(e => e.assignedIndices.includes(dataIndex));
-        if (group) {
-            text += `\nGroup: ${group.name}`;
+        // For single-point calls, a quick Set lookup per entry is fine
+        for (const entry of customEntries) {
+            if (entry.assignedIndices.includes(dataIndex)) {
+                text += `\nGroup: ${entry.name}`;
+                break;
+            }
         }
     }
 

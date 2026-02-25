@@ -22,6 +22,19 @@ export interface FilterBounds {
  * Returns values from 0 to 1 (0 = lowest, 1 = highest)
  * When filterBounds is provided, only values within the bounds are used for ranking
  */
+/**
+ * Binary search: find first index in sorted[] where sorted[i] >= target.
+ * Returns sorted.length if no element qualifies.
+ */
+function binarySearchGE(sorted: number[], target: number): number {
+    let lo = 0, hi = sorted.length;
+    while (lo < hi) {
+        const mid = (lo + hi) >>> 1;
+        if (sorted[mid] < target) lo = mid + 1; else hi = mid;
+    }
+    return lo;
+}
+
 function calculatePercentileRanks(values: (number | null)[], filterBounds?: FilterBounds): (number | null)[] {
     let validValues = values.filter((v): v is number => v !== null);
     if (validValues.length === 0) return values.map(() => null);
@@ -37,13 +50,14 @@ function calculatePercentileRanks(values: (number | null)[], filterBounds?: Filt
     }
 
     const sorted = [...validValues].sort((a, b) => a - b);
+    const denom = Math.max(1, sorted.length - 1);
 
     return values.map(v => {
         if (v === null) return null;
-        // Find position in sorted array
-        let idx = sorted.findIndex(sv => sv >= v);
-        if (idx === -1) idx = sorted.length - 1;
-        return idx / Math.max(1, sorted.length - 1);
+        // O(log n) binary search instead of O(n) findIndex
+        let idx = binarySearchGE(sorted, v);
+        if (idx >= sorted.length) idx = sorted.length - 1;
+        return idx / denom;
     });
 }
 
@@ -56,8 +70,12 @@ function calculateLinearRanks(values: (number | null)[], filterBounds?: FilterBo
     const validValues = values.filter((v): v is number => v !== null);
     if (validValues.length === 0) return values.map(() => null);
 
-    const min = filterBounds?.min ?? Math.min(...validValues);
-    const max = filterBounds?.max ?? Math.max(...validValues);
+    // Use loop instead of Math.min/max(...) to avoid stack overflow on large arrays
+    let dataMin = Infinity, dataMax = -Infinity;
+    for (const v of validValues) { if (v < dataMin) dataMin = v; if (v > dataMax) dataMax = v; }
+
+    const min = filterBounds?.min ?? dataMin;
+    const max = filterBounds?.max ?? dataMax;
     const range = max - min;
 
     if (range === 0) {
@@ -266,16 +284,17 @@ export function sortByEmphasis(
  * Get the data range for a numeric field
  */
 export function getFieldRange(data: any[], field: string): { min: number; max: number } | null {
-    const values = data
-        .map(d => d[field])
-        .filter((v): v is number => typeof v === 'number' && !isNaN(v) && isFinite(v));
+    let min = Infinity, max = -Infinity;
+    let hasValue = false;
 
-    if (values.length === 0) {
-        return null;
+    for (const d of data) {
+        const v = d[field];
+        if (typeof v === 'number' && !isNaN(v) && isFinite(v)) {
+            if (v < min) min = v;
+            if (v > max) max = v;
+            hasValue = true;
+        }
     }
 
-    return {
-        min: Math.min(...values),
-        max: Math.max(...values)
-    };
+    return hasValue ? { min, max } : null;
 }

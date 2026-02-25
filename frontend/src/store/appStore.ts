@@ -83,6 +83,7 @@ interface AppState {
     data: any[];
     isLoading: boolean;
     uploadProgress: number; // 0-100
+    streamingStatus: string | null; // e.g. "Loading data... 50,000 / 200,000 rows"
     error: string | null;
     currentView: 'import' | 'data' | 'columns' | 'plots' | 'analysis' | 'qaqc' | 'statistics' | 'settings' | 'diagram-editor';
 
@@ -215,6 +216,7 @@ export const useAppStore = create<CombinedState>()((set, get, api) => ({
     data: [],
     isLoading: false,
     uploadProgress: 0,
+    streamingStatus: null,
     error: null,
     currentView: 'import',
 
@@ -337,20 +339,12 @@ export const useAppStore = create<CombinedState>()((set, get, api) => ({
             const { data, selectedIndices, columns } = state;
             if (selectedIndices.length === 0) return {};
 
-            // Get existing values or initialize with 'Unclassified'
-            const currentValues = data.map(row => row[columnName] || 'Unclassified');
-
-            // Update selected indices
-            selectedIndices.forEach(index => {
-                if (index >= 0 && index < currentValues.length) {
-                    currentValues[index] = className;
-                }
+            // Direct property set — avoids spreading all props per row
+            const selectedSet = new Set(selectedIndices);
+            const newData = data.map((row, i) => {
+                row[columnName] = selectedSet.has(i) ? className : (row[columnName] ?? 'Unclassified');
+                return row;
             });
-
-            const newData = data.map((row, i) => ({
-                ...row,
-                [columnName]: currentValues[i]
-            }));
 
             const columnExists = columns.some(c => c.name === columnName);
             const newColumns = columnExists
@@ -369,10 +363,11 @@ export const useAppStore = create<CombinedState>()((set, get, api) => ({
 
     addColumn: (name, values, colType = 'categorical', role = 'Classification', transformationType = null, transformationGroupId) => {
         set((state) => {
-            const newData = state.data.map((row, i) => ({
-                ...row,
-                [name]: values[i]
-            }));
+            // Direct property set — avoids spreading 200k objects × 50 props each
+            const newData = state.data.map((row, i) => {
+                row[name] = values[i];
+                return row;
+            });
 
             const newColumn: ColumnInfo = {
                 name: name,
@@ -454,106 +449,123 @@ export const useAppStore = create<CombinedState>()((set, get, api) => ({
     },
 
     uploadFile: async (file: File) => {
-        set({ isLoading: true, uploadProgress: 0, error: null });
+        set({ isLoading: true, uploadProgress: 0, error: null, streamingStatus: null });
         try {
+            // Phase 1: Upload file → get metadata (no data in response)
             const result = await dataApi.uploadFile(file, (progress) => {
-                set({ uploadProgress: progress });
+                set({ uploadProgress: Math.round(progress * 0.5) }); // 0-50% = upload
             });
-            set({ uploadProgress: 100 });
+            set({ uploadProgress: 50 });
 
-            // Use full data from upload response if available
-            if (result.data && result.data.length > 0) {
-                console.log(`[uploadFile] Using ${result.data.length} rows from upload response`);
-                const columnInfo = result.column_info || [];
+            const columnInfo = result.column_info || [];
+            const totalRows = result.rows || 0;
+
+            // Set columns immediately so UI can show structure
+            set({ columns: columnInfo });
+
+            // Generate geochem mappings early
+            const columnNames = columnInfo.map((c: ColumnInfo) => c.name);
+            const mappings = createGeochemMappings(columnNames, columnInfo);
+            set({ geochemMappings: mappings, showGeochemDialog: true });
+
+            // Phase 2: Stream data in progressively
+            set({ streamingStatus: `Loading data... 0 / ${totalRows.toLocaleString()} rows` });
+            const data = await dataApi.streamData((loaded, total) => {
+                const streamProgress = Math.round((loaded / total) * 50);
                 set({
-                    data: result.data,
-                    columns: columnInfo,
-                    isLoading: false,
-                    uploadProgress: 0
+                    uploadProgress: 50 + streamProgress, // 50-100% = streaming
+                    streamingStatus: `Loading data... ${loaded.toLocaleString()} / ${total.toLocaleString()} rows`
                 });
-                // Generate geochem mappings
-                const columnNames = columnInfo.map((c: ColumnInfo) => c.name);
-                const mappings = createGeochemMappings(columnNames, columnInfo);
-                set({ geochemMappings: mappings, showGeochemDialog: true });
-                // Auto-sync to QGIS
-                get().syncToQgis();
-                // Auto-enable sampling for large datasets
-                if (result.data.length > 20000) {
-                    const autoSize = Math.min(10000, Math.round(result.data.length * 0.25));
-                    set((state) => ({
-                        samplingConfig: { ...state.samplingConfig, enabled: true, sampleSize: autoSize }
-                    }));
-                    get().computeSample();
-                }
-            } else {
-                // Fallback to fetching data separately
-                console.log('[uploadFile] No data in response, fetching separately...');
-                await get().fetchColumns();
-                await get().fetchData();
-                set({ isLoading: false, uploadProgress: 0 });
-                // Generate geochem mappings from fetched columns
-                const cols = get().columns;
-                const columnNames = cols.map(c => c.name);
-                const mappings = createGeochemMappings(columnNames, cols);
-                set({ geochemMappings: mappings, showGeochemDialog: true });
-                // Auto-sync to QGIS
-                get().syncToQgis();
+            });
+
+            console.log(`[uploadFile] Streamed ${data.length} rows`);
+            set({
+                data,
+                isLoading: false,
+                uploadProgress: 0,
+                streamingStatus: null
+            });
+
+            // Auto-sync to QGIS
+            get().syncToQgis();
+
+            // Auto-enable sampling for large datasets
+            if (data.length > 20000) {
+                const autoSize = Math.min(10000, Math.round(data.length * 0.25));
+                // Auto-select first 5 major oxide / trace element columns for outlier preservation
+                const currentMappings = get().geochemMappings;
+                const outlierCols = currentMappings
+                    .filter(m => m.category === 'majorOxide' || m.category === 'traceElement')
+                    .slice(0, 5)
+                    .map(m => m.originalName);
+                set((state) => ({
+                    samplingConfig: { ...state.samplingConfig, enabled: true, sampleSize: autoSize, outlierColumns: outlierCols }
+                }));
+                get().computeSample();
             }
         } catch (err: any) {
             const message = err.response?.data?.detail || err.message;
-            set({ error: message, isLoading: false, uploadProgress: 0 });
+            set({ error: message, isLoading: false, uploadProgress: 0, streamingStatus: null });
         }
     },
 
     uploadDrillhole: async (collar: File, survey: File, assay: File) => {
-        set({ isLoading: true, uploadProgress: 0, error: null });
+        set({ isLoading: true, uploadProgress: 0, error: null, streamingStatus: null });
         try {
+            // Phase 1: Upload + desurvey → get metadata (no data in response)
             const result = await dataApi.uploadDrillhole(collar, survey, assay, (progress) => {
-                set({ uploadProgress: progress });
+                set({ uploadProgress: Math.round(progress * 0.5) }); // 0-50% = upload+desurvey
             });
-            set({ uploadProgress: 100 });
+            set({ uploadProgress: 50 });
 
-            // Use full data from upload response if available
-            if (result.data && result.data.length > 0) {
-                console.log(`[uploadDrillhole] Using ${result.data.length} rows from upload response`);
-                const columnInfo = result.column_info || [];
+            const columnInfo = result.column_info || [];
+            const totalRows = result.rows || 0;
+
+            // Set columns immediately so UI can show structure
+            set({ columns: columnInfo });
+
+            // Generate geochem mappings early
+            const columnNames = columnInfo.map((c: ColumnInfo) => c.name);
+            const mappings = createGeochemMappings(columnNames, columnInfo);
+            set({ geochemMappings: mappings, showGeochemDialog: true });
+
+            // Phase 2: Stream data in progressively
+            set({ streamingStatus: `Loading data... 0 / ${totalRows.toLocaleString()} rows` });
+            const data = await dataApi.streamData((loaded, total) => {
+                const streamProgress = Math.round((loaded / total) * 50);
                 set({
-                    data: result.data,
-                    columns: columnInfo,
-                    isLoading: false,
-                    uploadProgress: 0
+                    uploadProgress: 50 + streamProgress,
+                    streamingStatus: `Loading data... ${loaded.toLocaleString()} / ${total.toLocaleString()} rows`
                 });
-                // Generate geochem mappings
-                const columnNames = columnInfo.map((c: ColumnInfo) => c.name);
-                const mappings = createGeochemMappings(columnNames, columnInfo);
-                set({ geochemMappings: mappings, showGeochemDialog: true });
-                // Auto-sync to QGIS
-                get().syncToQgis();
-                // Auto-enable sampling for large datasets
-                if (result.data.length > 20000) {
-                    const autoSize = Math.min(10000, Math.round(result.data.length * 0.25));
-                    set((state) => ({
-                        samplingConfig: { ...state.samplingConfig, enabled: true, sampleSize: autoSize }
-                    }));
-                    get().computeSample();
-                }
-            } else {
-                // Fallback to fetching data separately
-                console.log('[uploadDrillhole] No data in response, fetching separately...');
-                await get().fetchColumns();
-                await get().fetchData();
-                set({ isLoading: false, uploadProgress: 0 });
-                // Generate geochem mappings from fetched columns
-                const cols = get().columns;
-                const columnNames = cols.map(c => c.name);
-                const mappings = createGeochemMappings(columnNames, cols);
-                set({ geochemMappings: mappings, showGeochemDialog: true });
-                // Auto-sync to QGIS
-                get().syncToQgis();
+            });
+
+            console.log(`[uploadDrillhole] Streamed ${data.length} rows`);
+            set({
+                data,
+                isLoading: false,
+                uploadProgress: 0,
+                streamingStatus: null
+            });
+
+            // Auto-sync to QGIS
+            get().syncToQgis();
+
+            // Auto-enable sampling for large datasets
+            if (data.length > 20000) {
+                const autoSize = Math.min(10000, Math.round(data.length * 0.25));
+                const currentMappings = get().geochemMappings;
+                const outlierCols = currentMappings
+                    .filter(m => m.category === 'majorOxide' || m.category === 'traceElement')
+                    .slice(0, 5)
+                    .map(m => m.originalName);
+                set((state) => ({
+                    samplingConfig: { ...state.samplingConfig, enabled: true, sampleSize: autoSize, outlierColumns: outlierCols }
+                }));
+                get().computeSample();
             }
         } catch (err: any) {
             const message = err.response?.data?.detail || err.message;
-            set({ error: message, isLoading: false, uploadProgress: 0 });
+            set({ error: message, isLoading: false, uploadProgress: 0, streamingStatus: null });
         }
     },
 
@@ -585,10 +597,11 @@ export const useAppStore = create<CombinedState>()((set, get, api) => ({
 
     updateColumnType: (column: string, newType: string, treatNegativeAsZero: boolean = true) => {
         set((state) => {
-            const newData = state.data.map(row => ({
-                ...row,
-                [column]: convertValueForType(row[column], newType, treatNegativeAsZero)
-            }));
+            // Direct property set — avoids spreading all props per row
+            const newData = state.data.map(row => {
+                row[column] = convertValueForType(row[column], newType, treatNegativeAsZero);
+                return row;
+            });
 
             const newColumns = state.columns.map(col =>
                 col.name === column
@@ -603,12 +616,12 @@ export const useAppStore = create<CombinedState>()((set, get, api) => ({
 
     updateColumnTypes: (columnNames: string[], newType: string, treatNegativeAsZero: boolean = true) => {
         set((state) => {
+            // Direct property set — avoids spreading all props per row
             const newData = state.data.map(row => {
-                const updatedRow = { ...row };
-                columnNames.forEach(colName => {
-                    updatedRow[colName] = convertValueForType(row[colName], newType, treatNegativeAsZero);
-                });
-                return updatedRow;
+                for (const colName of columnNames) {
+                    row[colName] = convertValueForType(row[colName], newType, treatNegativeAsZero);
+                }
+                return row;
             });
 
             const newColumns = state.columns.map(col =>

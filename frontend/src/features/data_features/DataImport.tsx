@@ -6,6 +6,7 @@ import {
 } from '@mui/material';
 import { CloudUpload, Layers, Settings, Close, Science, ExpandMore, ExpandLess, FolderOpen } from '@mui/icons-material';
 import { useAppStore } from '../../store/appStore';
+import { useShallow } from 'zustand/react/shallow';
 import { useAttributeStore } from '../../store/attributeStore';
 import { DrillholeColumnMapper } from '../../components/DrillholeColumnMapper';
 import { createGeochemMappings } from '../../utils/calculations/elementNameNormalizer';
@@ -25,7 +26,9 @@ interface ColumnMapping {
 }
 
 export const DataImport: React.FC = () => {
-    const { uploadFile, uploadDrillhole, isLoading, uploadProgress, error, columns } = useAppStore();
+    const { isLoading, uploadProgress, streamingStatus, error, columns } = useAppStore(useShallow(s => ({ isLoading: s.isLoading, uploadProgress: s.uploadProgress, streamingStatus: s.streamingStatus, error: s.error, columns: s.columns })));
+    const uploadFile = useAppStore(s => s.uploadFile);
+    const uploadDrillhole = useAppStore(s => s.uploadDrillhole);
     const [tab, setTab] = useState(0);
 
     // Drillhole state
@@ -585,11 +588,15 @@ export const DataImport: React.FC = () => {
                             </Box>
                         </Box>
                         <Typography variant="body2" color="text.secondary" align="center">
-                            {uploadProgress < 100
-                                ? 'Uploading files...'
-                                : tab === 1
-                                    ? 'Processing drillhole data (desurveying)...'
-                                    : 'Processing data...'}
+                            {streamingStatus
+                                ? streamingStatus
+                                : uploadProgress < 50
+                                    ? 'Uploading file...'
+                                    : uploadProgress < 100
+                                        ? 'Processing data...'
+                                        : tab === 1
+                                            ? 'Processing drillhole data (desurveying)...'
+                                            : 'Preparing display...'}
                         </Typography>
                     </Box>
                 )}

@@ -1,6 +1,8 @@
 import logging
+import json
 
 from fastapi import APIRouter, UploadFile, File, HTTPException
+from fastapi.responses import StreamingResponse
 # Try to use optimized version
 try:
     from app.core.data_manager_optimized import DataManagerOptimized as DataManager
@@ -89,16 +91,17 @@ async def upload_file(file: UploadFile = File(...)):
         data_manager._auto_detect_roles()
         data_manager._guess_aliases()
 
-        # Return ALL data for flat file upload
-        all_data = clean_for_json(df)
-        logger.info("Returning %d rows (full dataset)", len(all_data))
+        # Return metadata only — data is streamed separately via /api/data/stream
+        preview_df = df.head(20).replace({pd.NA: None, np.nan: None, float('inf'): None, float('-inf'): None})
+        preview = preview_df.to_dict(orient='records')
+        logger.info("Returning metadata for %d rows (data streamed separately)", len(df))
 
         return {
             "success": True,
             "rows": len(df),
             "columns": len(df.columns),
-            "data": all_data,
-            "preview": all_data[:5] if len(all_data) > 5 else all_data,
+            "data": [],
+            "preview": preview,
             "column_info": data_manager.get_column_info()
         }
     except HTTPException:
@@ -110,18 +113,18 @@ async def upload_file(file: UploadFile = File(...)):
 
 async def upload_iogas_file_internal(content: bytes, filename: str):
     """Internal handler for ioGAS .gas file uploads."""
-    from app.core.iogas_parser import parse_iogas_file
+    from app.core.iogas_parser import IoGasParser
 
     logger.info("Processing ioGAS file %s (%.1f MB)...", filename, len(content) / 1024 / 1024)
 
-    result = parse_iogas_file(content)
+    parser = IoGasParser()
+    result = parser.parse(content)
 
     if not result.get('success'):
         raise HTTPException(status_code=400, detail=result.get('error', 'Failed to parse ioGAS file'))
 
-    # Load into data manager for subsequent operations
-    df = pd.DataFrame(result['data'])
-    data_manager.df = df
+    # The parser keeps its DataFrame — use that directly (avoids re-creating from dicts)
+    data_manager.df = parser.df
     data_manager._detect_column_types()
     data_manager._auto_detect_roles()
     data_manager._guess_aliases()
@@ -278,15 +281,17 @@ async def upload_drillhole(
         logger.info("PERFORMANCE — Upload: %.2fs | Desurvey: %.2fs | Config: %.2fs | TOTAL: %.2fs | %d records (%.0f rec/s)",
                      upload_time, desurvey_time, config_time, total_time, len(result_df), len(result_df) / total_time)
 
-        all_data = clean_for_json(data_manager.df)
-        logger.info("Returning %d rows (full dataset)", len(all_data))
+        # Return metadata only — data is streamed separately via /api/data/stream
+        preview_df = data_manager.df.head(20).replace({pd.NA: None, np.nan: None, float('inf'): None, float('-inf'): None})
+        preview = preview_df.to_dict(orient='records')
+        logger.info("Returning metadata for %d rows (data streamed separately)", len(data_manager.df))
 
         return {
             "success": True,
             "rows": len(data_manager.df),
             "columns": len(data_manager.df.columns),
-            "data": all_data,
-            "preview": all_data[:5] if len(all_data) > 5 else all_data,
+            "data": [],
+            "preview": preview,
             "column_info": data_manager.get_column_info(),
             "performance": {
                 "upload_time": round(upload_time, 2),
@@ -326,6 +331,44 @@ async def get_data(limit: int = 100000):
         return []
     logger.debug("/data — returning %d rows from df with shape %s", min(limit, len(df)), df.shape)
     return clean_for_json(df.head(limit))
+
+
+@router.get("/stream")
+async def stream_data():
+    """Stream dataset as NDJSON (newline-delimited JSON).
+
+    First line: {"__meta__": true, "totalRows": N}
+    Subsequent lines: one JSON object per row.
+    Server never materializes the full JSON string — peak memory stays at DataFrame size only.
+    """
+    df = data_manager.get_data()
+    if df is None:
+        raise HTTPException(status_code=400, detail="No data loaded")
+
+    total_rows = len(df)
+    logger.info("[stream] Starting NDJSON stream of %d rows", total_rows)
+
+    CHUNK_SIZE = 1000  # rows per chunk
+
+    def generate_ndjson():
+        # First line: metadata
+        yield json.dumps({"__meta__": True, "totalRows": total_rows}) + "\n"
+
+        # Stream data in chunks to balance efficiency vs memory
+        for start in range(0, total_rows, CHUNK_SIZE):
+            end = min(start + CHUNK_SIZE, total_rows)
+            chunk_df = df.iloc[start:end].replace(
+                {pd.NA: None, np.nan: None, float('inf'): None, float('-inf'): None}
+            )
+            records = chunk_df.to_dict(orient='records')
+            for record in records:
+                yield json.dumps(record, default=str) + "\n"
+
+    return StreamingResponse(
+        generate_ndjson(),
+        media_type="application/x-ndjson",
+        headers={"X-Total-Rows": str(total_rows)},
+    )
 
 
 @router.post("/sync")

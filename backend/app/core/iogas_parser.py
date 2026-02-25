@@ -361,15 +361,16 @@ class IoGasParser:
         # Sort columns by priority
         column_info.sort(key=lambda x: (x['priority'], x['name']))
 
-        # Convert data to records
-        data = self.df.replace({pd.NA: None, np.nan: None, float('inf'): None, float('-inf'): None}).to_dict(orient='records')
+        # Build preview (first 20 rows) — avoid materializing full dataset as dicts
+        preview_df = self.df.head(20).replace({pd.NA: None, np.nan: None, float('inf'): None, float('-inf'): None})
+        preview = preview_df.to_dict(orient='records')
 
         return {
             'success': True,
             'rows': len(self.df),
             'columns': len(self.df.columns),
-            'data': data,
-            'preview': data[:5] if len(data) > 5 else data,
+            'data': [],  # Data is streamed separately via /api/data/stream
+            'preview': preview,
             'column_info': column_info,
             'iogas_metadata': {
                 'version': self.version,

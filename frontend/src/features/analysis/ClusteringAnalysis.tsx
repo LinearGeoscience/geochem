@@ -1,6 +1,7 @@
 import React, { useState, useMemo, useCallback } from 'react';
 import { Box, Paper, Typography, Button, Select, MenuItem, FormControl, InputLabel, Slider, ToggleButtonGroup, ToggleButton, CircularProgress, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, Checkbox, FormControlLabel } from '@mui/material';
 import Plot from 'react-plotly.js';
+import { useShallow } from 'zustand/react/shallow';
 import { useAppStore } from '../../store/appStore';
 import { useAttributeStore } from '../../store/attributeStore';
 import { getStyleArrays, sortColumnsByPriority } from '../../utils/attributeUtils';
@@ -91,7 +92,8 @@ function inlinePCA(matrix: number[][]): { pc1: number[]; pc2: number[]; explaine
 }
 
 export const ClusteringAnalysis: React.FC = () => {
-    const { data, columns, getFilteredColumns } = useAppStore();
+    const { data, columns } = useAppStore(useShallow(s => ({ data: s.data, columns: s.columns })));
+    const getFilteredColumns = useAppStore(s => s.getFilteredColumns);
     const filteredColumns = getFilteredColumns();
     useAttributeStore();
 

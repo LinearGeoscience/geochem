@@ -33,6 +33,7 @@ import { QAQCManager, ControlChart, DuplicateAnalysis, BlankAnalysis, QAQCDashbo
 import { Box, Typography, Paper, Tabs, Tab, IconButton } from '@mui/material';
 import { ChevronRight, ChevronLeft } from '@mui/icons-material';
 import { useAppStore } from './store/appStore';
+import { useShallow } from 'zustand/react/shallow';
 import { ErrorBoundary } from './components/ErrorBoundary';
 import { SamplingControls } from './components/SamplingControls';
 import { ColumnGeochemDialog } from './components/ColumnGeochemDialog';
@@ -45,7 +46,8 @@ const MAX_SIDEBAR_WIDTH = 600;
 const DEFAULT_SIDEBAR_WIDTH = 420;
 
 function App() {
-    const { columns, data, currentView, showGeochemDialog, setShowGeochemDialog } = useAppStore();
+    const { columns, data, currentView, showGeochemDialog } = useAppStore(useShallow(s => ({ columns: s.columns, data: s.data, currentView: s.currentView, showGeochemDialog: s.showGeochemDialog })));
+    const setShowGeochemDialog = useAppStore(s => s.setShowGeochemDialog);
     const [analysisTab, setAnalysisTab] = React.useState(0);
     const [qaqcTab, setQaqcTab] = React.useState(0);
     const [rightSidebarOpen, setRightSidebarOpen] = useState(true);

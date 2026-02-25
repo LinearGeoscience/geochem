@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Box, Paper, Typography, Button, Tabs, Tab, Select, MenuItem } from '@mui/material';
 import { Add, Close } from '@mui/icons-material';
 import { useAppStore } from '../../store/appStore';
+import { useShallow } from 'zustand/react/shallow';
 
 const PLOT_TYPES = [
     { value: 'scatter', label: 'Scatter' },
@@ -19,7 +20,10 @@ const PLOT_TYPES = [
 type PlotTypeValue = typeof PLOT_TYPES[number]['value'];
 
 export const PlotManager: React.FC = () => {
-    const { plots, activePlotId, addPlot, removePlot, setActivePlotId } = useAppStore();
+    const { plots, activePlotId } = useAppStore(useShallow(s => ({ plots: s.plots, activePlotId: s.activePlotId })));
+    const addPlot = useAppStore(s => s.addPlot);
+    const removePlot = useAppStore(s => s.removePlot);
+    const setActivePlotId = useAppStore(s => s.setActivePlotId);
     const [selectedType, setSelectedType] = useState<PlotTypeValue>('scatter');
 
     return (

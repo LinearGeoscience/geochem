@@ -1,12 +1,14 @@
 import React, { useState, useCallback, useMemo } from 'react';
-import { Box, Paper, Typography, ToggleButtonGroup, ToggleButton, CircularProgress, Button, Alert, Checkbox, FormControlLabel, Select, MenuItem, FormControl, InputLabel } from '@mui/material';
+import { Box, Paper, Typography, ToggleButtonGroup, ToggleButton, CircularProgress, Button, Alert, Checkbox, FormControlLabel, Select, MenuItem, FormControl, InputLabel, LinearProgress } from '@mui/material';
 import Plot from 'react-plotly.js';
+import { useShallow } from 'zustand/react/shallow';
 import { useAppStore, COLUMN_FILTER_LABELS } from '../../store/appStore';
 import { useAttributeStore } from '../../store/attributeStore';
 import { getStyleArrays, sortColumnsByPriority } from '../../utils/attributeUtils';
 import { getPlotConfig, SCREEN_FONT_SIZES } from '../../utils/plotConfig';
 import { ExpandablePlotWrapper } from '../../components/ExpandablePlotWrapper';
 import { MultiColumnSelector } from '../../components/MultiColumnSelector';
+import { useCorrelationWorker } from '../../hooks/useCorrelationWorker';
 
 // Helper function to calculate Pearson correlation
 const pearsonCorrelation = (x: number[], y: number[]): number => {
@@ -62,10 +64,12 @@ const tDistPValue = (t: number, df: number): number => {
     // Regularized incomplete beta function approximation
     // For large df, use normal approximation
     if (df > 100) {
-        // Normal approximation
+        // Normal approximation (Abramowitz & Stegun 26.2.17)
         const z = Math.abs(t);
-        const p = Math.exp(-0.5 * z * z) / Math.sqrt(2 * Math.PI);
-        const twoTailP = 2 * (0.5 - p * (0.31938153 / (1 + 0.2316419 * z) - 0.356563782 / Math.pow(1 + 0.2316419 * z, 2) + 1.781477937 / Math.pow(1 + 0.2316419 * z, 3) - 1.821255978 / Math.pow(1 + 0.2316419 * z, 4) + 1.330274429 / Math.pow(1 + 0.2316419 * z, 5)));
+        const phi = Math.exp(-0.5 * z * z) / Math.sqrt(2 * Math.PI);
+        const k = 1 / (1 + 0.2316419 * z);
+        const poly = k * (0.31938153 + k * (-0.356563782 + k * (1.781477937 + k * (-1.821255978 + k * 1.330274429))));
+        const twoTailP = 2 * phi * poly;
         return Math.max(0, Math.min(1, twoTailP));
     }
     // Beta function based approximation for smaller df
@@ -152,14 +156,18 @@ const sigMarker = (p: number): string => {
 };
 
 export const CorrelationMatrix: React.FC = () => {
-    const { data, columns, correlationSelectedColumns, setCorrelationSelectedColumns, getFilteredColumns, columnFilter } = useAppStore();
+    const { data, columns, correlationSelectedColumns, columnFilter } = useAppStore(useShallow(s => ({ data: s.data, columns: s.columns, correlationSelectedColumns: s.correlationSelectedColumns, columnFilter: s.columnFilter })));
+    const setCorrelationSelectedColumns = useAppStore(s => s.setCorrelationSelectedColumns);
+    const getFilteredColumns = useAppStore(s => s.getFilteredColumns);
     const filteredColumns = getFilteredColumns();
     useAttributeStore(); // Subscribe to changes
     const [method, setMethod] = useState<'pearson' | 'spearman'>('pearson');
     const [correlationData, setCorrelationData] = useState<{ columns: string[], matrix: number[][], pValues: number[][], nPairs: number[][] } | null>(null);
     const [loading, setLoading] = useState(false);
+    const [computeProgress, setComputeProgress] = useState(0);
     const [showSignificance, setShowSignificance] = useState(false);
     const [sigThreshold, setSigThreshold] = useState<number>(0.05);
+    const { computeCorrelation } = useCorrelationWorker();
 
     // Dynamic layout config based on column count
     const layoutConfig = useMemo(() => {
@@ -200,25 +208,50 @@ export const CorrelationMatrix: React.FC = () => {
         };
     }, [correlationData]);
 
-    // Calculate correlation matrix client-side
-    const calculateCorrelation = useCallback(() => {
+    // Calculate correlation matrix via Web Worker (falls back to sync)
+    const calculateCorrelation = useCallback(async () => {
         if (correlationSelectedColumns.length < 2) return;
         setLoading(true);
+        setComputeProgress(0);
 
         // Get current visibility
         const currentStyleArrays = getStyleArrays(data);
+        const cols = correlationSelectedColumns;
 
-        // Use setTimeout to allow UI to update before heavy computation
-        setTimeout(() => {
-            try {
-                const cols = correlationSelectedColumns;
+        // Pre-compute valid numeric arrays per column (only visible rows, aligned by row index)
+        const columnData: Record<string, number[]> = {};
+        const visibleIndices: number[] = [];
+        for (let i = 0; i < data.length; i++) {
+            if (currentStyleArrays.visible[i]) visibleIndices.push(i);
+        }
+        for (const col of cols) {
+            columnData[col] = visibleIndices.map(i => {
+                const val = data[i][col];
+                return (val != null && !isNaN(Number(val))) ? Number(val) : NaN;
+            });
+        }
 
-                // Pre-compute valid numeric values per column (only visible rows)
+        try {
+            // Try Web Worker first
+            const workerResult = await computeCorrelation(
+                cols, columnData, method,
+                (progress) => setComputeProgress(Math.round(progress * 100))
+            );
+
+            if (workerResult) {
+                setCorrelationData({
+                    columns: cols,
+                    matrix: workerResult.matrix,
+                    pValues: workerResult.pValues,
+                    nPairs: workerResult.sampleCounts
+                });
+            } else {
+                // Fallback: synchronous computation (worker unavailable or cancelled)
+                const correlationFn = method === 'pearson' ? pearsonCorrelation : spearmanCorrelation;
                 const columnValues: Map<string, Map<number, number>> = new Map();
                 for (const col of cols) {
                     const valMap = new Map<number, number>();
-                    for (let i = 0; i < data.length; i++) {
-                        if (!currentStyleArrays.visible[i]) continue;
+                    for (const i of visibleIndices) {
                         const val = data[i][col];
                         if (val != null && !isNaN(Number(val))) {
                             valMap.set(i, Number(val));
@@ -227,12 +260,9 @@ export const CorrelationMatrix: React.FC = () => {
                     columnValues.set(col, valMap);
                 }
 
-                // Calculate correlation matrix using pairwise complete observations
                 const matrix: number[][] = [];
                 const pValues: number[][] = [];
                 const nPairs: number[][] = [];
-                const correlationFn = method === 'pearson' ? pearsonCorrelation : spearmanCorrelation;
-
                 for (let i = 0; i < cols.length; i++) {
                     const row: number[] = [];
                     const pRow: number[] = [];
@@ -240,41 +270,30 @@ export const CorrelationMatrix: React.FC = () => {
                     const valsI = columnValues.get(cols[i])!;
                     for (let j = 0; j < cols.length; j++) {
                         if (i === j) {
-                            row.push(1);
-                            pRow.push(0);
-                            nRow.push(valsI.size);
+                            row.push(1); pRow.push(0); nRow.push(valsI.size);
                         } else {
                             const valsJ = columnValues.get(cols[j])!;
-                            // Find rows where both columns have valid values
-                            const xArr: number[] = [];
-                            const yArr: number[] = [];
+                            const xArr: number[] = [], yArr: number[] = [];
                             for (const [idx, xVal] of valsI) {
                                 const yVal = valsJ.get(idx);
-                                if (yVal !== undefined) {
-                                    xArr.push(xVal);
-                                    yArr.push(yVal);
-                                }
+                                if (yVal !== undefined) { xArr.push(xVal); yArr.push(yVal); }
                             }
                             const corr = correlationFn(xArr, yArr);
-                            const roundedCorr = Math.round(corr * 1000) / 1000;
-                            row.push(roundedCorr);
+                            row.push(Math.round(corr * 1000) / 1000);
                             pRow.push(correlationPValue(corr, xArr.length));
                             nRow.push(xArr.length);
                         }
                     }
-                    matrix.push(row);
-                    pValues.push(pRow);
-                    nPairs.push(nRow);
+                    matrix.push(row); pValues.push(pRow); nPairs.push(nRow);
                 }
-
                 setCorrelationData({ columns: cols, matrix, pValues, nPairs });
-            } catch (error) {
-                console.error('Failed to calculate correlation matrix:', error);
-            } finally {
-                setLoading(false);
             }
-        }, 10);
-    }, [correlationSelectedColumns, data, method]);
+        } catch (error) {
+            console.error('Failed to calculate correlation matrix:', error);
+        } finally {
+            setLoading(false);
+        }
+    }, [correlationSelectedColumns, data, method, computeCorrelation]);
 
     const handleMethodChange = (_: React.MouseEvent<HTMLElement>, newMethod: 'pearson' | 'spearman' | null) => {
         if (newMethod !== null) {
@@ -380,8 +399,17 @@ export const CorrelationMatrix: React.FC = () => {
             </Box>
 
             {loading ? (
-                <Box sx={{ display: 'flex', justifyContent: 'center', p: 4 }}>
-                    <CircularProgress />
+                <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2, p: 4 }}>
+                    {computeProgress > 0 ? (
+                        <>
+                            <LinearProgress variant="determinate" value={computeProgress} sx={{ width: '50%' }} />
+                            <Typography variant="body2" color="text.secondary">
+                                Computing correlations... {computeProgress}%
+                            </Typography>
+                        </>
+                    ) : (
+                        <CircularProgress />
+                    )}
                 </Box>
             ) : correlationData ? (
                 <Paper sx={{ p: 2, maxWidth: '100%', overflowX: 'auto' }}>

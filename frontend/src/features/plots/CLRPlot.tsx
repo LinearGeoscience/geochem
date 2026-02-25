@@ -1,6 +1,7 @@
 import React, { useState, useMemo } from 'react';
 import Plot from 'react-plotly.js';
 import { useAppStore } from '../../store/appStore';
+import { useShallow } from 'zustand/react/shallow';
 import { useAttributeStore } from '../../store/attributeStore';
 import { getStyleArrays, applyOpacityToColor, getSortedIndices, sortColumnsByPriority, getColumnDisplayName } from '../../utils/attributeUtils';
 import {
@@ -53,7 +54,12 @@ interface CLRPlotProps {
 }
 
 export const CLRPlot: React.FC<CLRPlotProps> = ({ plotId }) => {
-    const { data, columns, getPlotSettings, updatePlotSettings, getFilteredColumns, getDisplayData, getDisplayIndices, sampleIndices } = useAppStore();
+    const { data, columns, sampleIndices } = useAppStore(useShallow(s => ({ data: s.data, columns: s.columns, sampleIndices: s.sampleIndices })));
+    const getPlotSettings = useAppStore(s => s.getPlotSettings);
+    const updatePlotSettings = useAppStore(s => s.updatePlotSettings);
+    const getFilteredColumns = useAppStore(s => s.getFilteredColumns);
+    const getDisplayData = useAppStore(s => s.getDisplayData);
+    const getDisplayIndices = useAppStore(s => s.getDisplayIndices);
     const filteredColumns = getFilteredColumns();
     const d = (name: string) => getColumnDisplayName(columns, name);
     const displayData = useMemo(() => getDisplayData(), [data, sampleIndices]);
