@@ -126,7 +126,8 @@ const EXCLUDED_NAMES = new Set([
   'Date', 'DATE', 'Time', 'TIME', 'LITH', 'Lith', 'Lithology',
   'Description', 'DESC', 'Notes', 'NOTES', 'Comment', 'COMMENT',
   'Unit', 'UNIT', 'Zone', 'ZONE', 'Block', 'BLOCK',
-  'Hole', 'HOLE', 'HoleID', 'Hole_ID', 'HOLEID',
+  'Hole', 'HOLE', 'HoleID', 'Hole_ID', 'HOLEID', 'Hole ID', 'HOLE ID',
+  'Sample ID', 'SAMPLE ID', 'Sample No', 'SAMPLE NO',
   'From', 'FROM', 'To', 'TO', 'Interval', 'INTERVAL',
   'Recovery', 'RECOVERY', 'RQD', 'Moisture', 'MOISTURE',
 ]);
@@ -470,8 +471,13 @@ const NON_ELEMENT_PATTERNS = [
  * These should be excluded from bulk PCA selection but can still be manually selected.
  */
 export function isNonElementColumn(columnName: string, role: string | null): boolean {
-  // 1. Column has a backend-assigned role (East, North, Elevation, From, To, ID, HoleID, etc.)
-  if (role) return true;
+  // 1. Column has a backend-assigned structural role (East, North, Elevation, From, To, ID, HoleID, etc.)
+  const STRUCTURAL_ROLES = new Set([
+    'id', 'ID', 'easting', 'East', 'northing', 'North',
+    'elevation', 'Elevation', 'from', 'to', 'group',
+    'hole_id', 'HoleID', 'sample_id', 'Latitude', 'Longitude'
+  ]);
+  if (role && STRUCTURAL_ROLES.has(role)) return true;
 
   const trimmed = columnName.trim();
 

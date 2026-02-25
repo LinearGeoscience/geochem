@@ -164,6 +164,16 @@ export interface ControlChartData {
   failCount: number;
   biasDetected: boolean;
   driftDetected: boolean;
+  westgardViolations: WestgardViolation[];
+}
+
+// Westgard/Nelson control rules
+export type WestgardRule = 'R-4s' | '4-1s' | '10-x' | '7T';
+
+export interface WestgardViolation {
+  rule: WestgardRule;
+  pointIndices: number[];
+  description: string;
 }
 
 // ============================================================================
@@ -181,6 +191,7 @@ export interface DuplicateResult {
   mean: number;
   status: 'pass' | 'fail';
   duplicateType: 'field_duplicate' | 'pulp_duplicate' | 'core_duplicate';
+  belowDetection?: boolean;
 }
 
 export interface DuplicateAnalysis {
@@ -193,7 +204,24 @@ export interface DuplicateAnalysis {
   passRate: number;
   meanRPD: number;
   medianRPD: number;
-  precision: number;     // Overall precision estimate
+  precision: number;     // Overall precision estimate (legacy, kept for compat)
+  absolutePrecision: number;  // 1-sigma absolute precision: sqrt(Sum(d^2)/2n)
+  relativePrecision: number;  // Relative precision as % of mean
+}
+
+// Thompson-Howarth precision analysis
+export interface ThompsonHowarthBin {
+  concentrationRange: [number, number];
+  meanConcentration: number;
+  precision: number;
+  pairCount: number;
+}
+
+export interface ThompsonHowarthResult {
+  bins: ThompsonHowarthBin[];
+  slope: number;
+  intercept: number;
+  r2: number;
 }
 
 // ============================================================================
@@ -208,6 +236,7 @@ export interface BlankResult {
   detectionLimit?: number;
   status: 'clean' | 'elevated' | 'contaminated';
   multipleOfDL?: number;
+  adjustedValue?: number;  // DL/2 substituted value for negative values
   precedingSampleId?: string;
   precedingSampleValue?: number;
 }
@@ -241,6 +270,9 @@ export interface ElementQCSummary {
   duplicatesPassRate: number;
   overallScore: number;  // 0-100
   grade: 'A' | 'B' | 'C' | 'D' | 'F';
+  hasStandards: boolean;
+  hasBlanks: boolean;
+  hasDuplicates: boolean;
 }
 
 export interface BatchQCSummary {

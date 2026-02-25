@@ -17,6 +17,9 @@ import {
   QAQCThresholds,
   DEFAULT_QAQC_THRESHOLDS,
   ElementQCSummary,
+  WestgardViolation,
+  ThompsonHowarthBin,
+  ThompsonHowarthResult,
 } from '../types/qaqc';
 
 // ============================================================================
@@ -185,6 +188,93 @@ export function detectDrift(points: ControlChartPoint[]): boolean {
   return relativeSlope > 2;
 }
 
+// ============================================================================
+// WESTGARD / NELSON CONTROL RULES (Feature 2.1)
+// ============================================================================
+
+/**
+ * Detect Westgard/Nelson control rule violations on a series of control chart points.
+ */
+export function detectWestgardViolations(
+  points: ControlChartPoint[],
+  limits: ControlLimits
+): WestgardViolation[] {
+  const violations: WestgardViolation[] = [];
+  const centerLine = limits.certifiedValue ?? limits.mean;
+  const sigma = (limits.upperControlLimit - centerLine) / 3;
+
+  if (points.length < 2 || sigma === 0) return violations;
+
+  // R-4s: Range of two consecutive points exceeds 4 sigma
+  for (let i = 1; i < points.length; i++) {
+    const range = Math.abs(points[i].value - points[i - 1].value);
+    if (range > 4 * sigma) {
+      violations.push({
+        rule: 'R-4s',
+        pointIndices: [i - 1, i],
+        description: `Range of ${range.toFixed(3)} between points ${i} and ${i + 1} exceeds 4σ (${(4 * sigma).toFixed(3)})`,
+      });
+    }
+  }
+
+  // 4-1s: 4 consecutive points beyond ±1 sigma on the same side
+  if (points.length >= 4) {
+    for (let i = 0; i <= points.length - 4; i++) {
+      const window = points.slice(i, i + 4);
+      const allAbove = window.every(p => p.value > centerLine + sigma);
+      const allBelow = window.every(p => p.value < centerLine - sigma);
+      if (allAbove || allBelow) {
+        violations.push({
+          rule: '4-1s',
+          pointIndices: [i, i + 1, i + 2, i + 3],
+          description: `4 consecutive points beyond ±1σ on the ${allAbove ? 'high' : 'low'} side (points ${i + 1}–${i + 4})`,
+        });
+        break; // Report once
+      }
+    }
+  }
+
+  // 10-x: 10 consecutive points on the same side of the center line
+  if (points.length >= 10) {
+    for (let i = 0; i <= points.length - 10; i++) {
+      const window = points.slice(i, i + 10);
+      const allAbove = window.every(p => p.value > centerLine);
+      const allBelow = window.every(p => p.value < centerLine);
+      if (allAbove || allBelow) {
+        violations.push({
+          rule: '10-x',
+          pointIndices: Array.from({ length: 10 }, (_, j) => i + j),
+          description: `10 consecutive points on the ${allAbove ? 'high' : 'low'} side of center (points ${i + 1}–${i + 10})`,
+        });
+        break;
+      }
+    }
+  }
+
+  // 7T: 7 consecutive points trending in the same direction
+  if (points.length >= 7) {
+    for (let i = 0; i <= points.length - 7; i++) {
+      const window = points.slice(i, i + 7);
+      let allIncreasing = true;
+      let allDecreasing = true;
+      for (let j = 1; j < window.length; j++) {
+        if (window[j].value <= window[j - 1].value) allIncreasing = false;
+        if (window[j].value >= window[j - 1].value) allDecreasing = false;
+      }
+      if (allIncreasing || allDecreasing) {
+        violations.push({
+          rule: '7T',
+          pointIndices: Array.from({ length: 7 }, (_, j) => i + j),
+          description: `7 consecutive points ${allIncreasing ? 'increasing' : 'decreasing'} (points ${i + 1}–${i + 7})`,
+        });
+        break;
+      }
+    }
+  }
+
+  return violations;
+}
+
 /**
  * Build complete control chart data for a standard and element
  */
@@ -253,6 +343,7 @@ export function buildControlChart(
     failCount,
     biasDetected: detectBias(points, limits),
     driftDetected: detectDrift(points),
+    westgardViolations: detectWestgardViolations(points, limits),
   };
 }
 
@@ -290,14 +381,18 @@ export function calculateHARD(valueA: number, valueB: number): number {
 }
 
 /**
- * Analyze duplicates for a specific element
+ * Analyze duplicates for a specific element.
+ *
+ * Fix 1.10: Correct 1-sigma precision estimate: s = sqrt(Sum(d^2)/2n)
+ * Feature 2.2: Flag below-detection-limit pairs (both values < 5× DL)
  */
 export function analyzeDuplicates(
   data: Record<string, any>[],
   pairs: DuplicatePair[],
   element: string,
   duplicateType: 'field_duplicate' | 'pulp_duplicate' | 'core_duplicate',
-  thresholds: QAQCThresholds = DEFAULT_QAQC_THRESHOLDS
+  thresholds: QAQCThresholds = DEFAULT_QAQC_THRESHOLDS,
+  detectionLimit?: number
 ): DuplicateAnalysis | null {
   const results: DuplicateResult[] = [];
 
@@ -334,6 +429,11 @@ export function analyzeDuplicates(
     const ard = calculateARD(originalValue, duplicateValue);
     const avg = (originalValue + duplicateValue) / 2;
 
+    // Feature 2.2: Flag below-detection-limit pairs
+    const belowDetection = detectionLimit
+      ? (originalValue < 5 * detectionLimit && duplicateValue < 5 * detectionLimit)
+      : undefined;
+
     results.push({
       pairIndex: idx,
       originalId: pair.originalId,
@@ -345,6 +445,7 @@ export function analyzeDuplicates(
       mean: avg,
       status: rpd <= threshold ? 'pass' : 'fail',
       duplicateType,
+      belowDetection,
     });
   });
 
@@ -353,10 +454,20 @@ export function analyzeDuplicates(
   const passCount = results.filter(r => r.status === 'pass').length;
   const failCount = results.filter(r => r.status === 'fail').length;
   const rpdValues = results.map(r => r.rpd);
-
-  // Calculate precision estimate (half of mean RPD as 1-sigma)
   const meanRPD = mean(rpdValues);
-  const precision = meanRPD / 2;
+
+  // Fix 1.10: Correct 1-sigma precision: s = sqrt(Sum(d^2)/2n)
+  // Exclude BDL pairs from precision calculation
+  const precisionResults = results.filter(r => !r.belowDetection);
+  let absolutePrecision = 0;
+  let relativePrecision = 0;
+  if (precisionResults.length > 0) {
+    const differences = precisionResults.map(r => r.originalValue - r.duplicateValue);
+    const sumSquaredDiffs = differences.reduce((sum, d) => sum + d * d, 0);
+    absolutePrecision = Math.sqrt(sumSquaredDiffs / (2 * precisionResults.length));
+    const overallMean = mean(precisionResults.map(r => r.mean));
+    relativePrecision = overallMean !== 0 ? (absolutePrecision / overallMean) * 100 : 0;
+  }
 
   return {
     element,
@@ -368,7 +479,9 @@ export function analyzeDuplicates(
     passRate: (passCount / results.length) * 100,
     meanRPD,
     medianRPD: median(rpdValues),
-    precision,
+    precision: meanRPD / 2, // Legacy field
+    absolutePrecision,
+    relativePrecision,
   };
 }
 
@@ -395,11 +508,19 @@ export function analyzeBlanks(
       return;
     }
 
+    // Feature 2.6: DL/2 substitution for negative values
+    let adjustedValue: number | undefined;
+    if (value < 0 && detectionLimit && detectionLimit > 0) {
+      adjustedValue = detectionLimit / 2;
+    }
+
+    const evalValue = adjustedValue ?? value;
+
     let status: 'clean' | 'elevated' | 'contaminated' = 'clean';
     let multipleOfDL: number | undefined;
 
     if (detectionLimit && detectionLimit > 0) {
-      multipleOfDL = value / detectionLimit;
+      multipleOfDL = evalValue / detectionLimit;
       if (multipleOfDL > thresholds.blankContaminatedMultiple) {
         status = 'contaminated';
       } else if (multipleOfDL > thresholds.blankElevatedMultiple) {
@@ -435,6 +556,7 @@ export function analyzeBlanks(
       detectionLimit,
       status,
       multipleOfDL,
+      adjustedValue,
       precedingSampleId,
       precedingSampleValue,
     });
@@ -444,15 +566,16 @@ export function analyzeBlanks(
 
   // If no DL provided, evaluate statistically
   if (!detectionLimit) {
-    const values = results.map(r => r.value);
-    const meanVal = mean(values);
-    const sdVal = standardDeviation(values);
-    const threshold = meanVal + 3 * sdVal;
+    const statValues = results.map(r => r.adjustedValue ?? r.value);
+    const meanVal = mean(statValues);
+    const sdVal = standardDeviation(statValues);
+    const statThreshold = meanVal + 3 * sdVal;
 
     results.forEach(r => {
-      if (r.value > threshold) {
+      const v = r.adjustedValue ?? r.value;
+      if (v > statThreshold) {
         r.status = 'contaminated';
-      } else if (r.value > meanVal + 2 * sdVal) {
+      } else if (v > meanVal + 2 * sdVal) {
         r.status = 'elevated';
       }
     });
@@ -472,7 +595,8 @@ export function analyzeBlanks(
   const cleanCount = results.filter(r => r.status === 'clean').length;
   const elevatedCount = results.filter(r => r.status === 'elevated').length;
   const contaminatedCount = results.filter(r => r.status === 'contaminated').length;
-  const values = results.map(r => r.value);
+  // Use adjusted values for stats where available
+  const values = results.map(r => r.adjustedValue ?? r.value);
 
   return {
     element,
@@ -488,36 +612,149 @@ export function analyzeBlanks(
 }
 
 // ============================================================================
+// THOMPSON-HOWARTH PRECISION ANALYSIS (Feature 2.3)
+// ============================================================================
+
+/**
+ * Thompson-Howarth precision analysis.
+ * Bins duplicate pairs by concentration, calculates precision per bin,
+ * and fits a log-log regression. Industry standard for JORC/NI 43-101.
+ */
+export function thompsonHowarthAnalysis(
+  results: DuplicateResult[],
+  numBins: number = 6
+): ThompsonHowarthResult | null {
+  // Filter out BDL pairs
+  const validResults = results.filter(r => !r.belowDetection && r.mean > 0);
+  if (validResults.length < 6) return null;
+
+  // Sort by mean concentration
+  const sorted = [...validResults].sort((a, b) => a.mean - b.mean);
+
+  // Divide into approximately equal bins
+  const binSize = Math.max(3, Math.floor(sorted.length / numBins));
+  const bins: ThompsonHowarthBin[] = [];
+
+  for (let i = 0; i < sorted.length; i += binSize) {
+    const binResults = sorted.slice(i, Math.min(i + binSize, sorted.length));
+    if (binResults.length < 2) continue;
+
+    const concentrations = binResults.map(r => r.mean);
+    const meanConcentration = mean(concentrations);
+
+    // Calculate precision for this bin: s = sqrt(Sum(d^2) / 2n)
+    const differences = binResults.map(r => r.originalValue - r.duplicateValue);
+    const sumSquaredDiffs = differences.reduce((sum, d) => sum + d * d, 0);
+    const binPrecision = Math.sqrt(sumSquaredDiffs / (2 * binResults.length));
+
+    bins.push({
+      concentrationRange: [Math.min(...concentrations), Math.max(...concentrations)],
+      meanConcentration,
+      precision: binPrecision,
+      pairCount: binResults.length,
+    });
+  }
+
+  if (bins.length < 3) return null;
+
+  // Fit log-log regression: log(precision) = slope * log(concentration) + intercept
+  const logConc = bins.filter(b => b.meanConcentration > 0 && b.precision > 0)
+    .map(b => Math.log10(b.meanConcentration));
+  const logPrec = bins.filter(b => b.meanConcentration > 0 && b.precision > 0)
+    .map(b => Math.log10(b.precision));
+
+  if (logConc.length < 3) return { bins, slope: 0, intercept: 0, r2: 0 };
+
+  // Simple linear regression on log-log
+  const n = logConc.length;
+  const sumX = logConc.reduce((a, b) => a + b, 0);
+  const sumY = logPrec.reduce((a, b) => a + b, 0);
+  const sumXY = logConc.reduce((acc, x, i) => acc + x * logPrec[i], 0);
+  const sumX2 = logConc.reduce((acc, x) => acc + x * x, 0);
+  const slope = (n * sumXY - sumX * sumY) / (n * sumX2 - sumX * sumX);
+  const intercept = (sumY - slope * sumX) / n;
+
+  // R-squared
+  const ssRes = logConc.reduce((acc, x, i) => {
+    const predicted = slope * x + intercept;
+    return acc + Math.pow(logPrec[i] - predicted, 2);
+  }, 0);
+  const ssTot = logPrec.reduce((acc, y) => {
+    return acc + Math.pow(y - sumY / n, 2);
+  }, 0);
+  const r2 = ssTot > 0 ? 1 - ssRes / ssTot : 0;
+
+  return { bins, slope, intercept, r2 };
+}
+
+// ============================================================================
 // SUMMARY CALCULATIONS
 // ============================================================================
 
 /**
- * Calculate overall QC grade for an element
+ * Calculate overall QC grade for an element.
+ * Fix 1.5: Only weight QC types that have data. Apply coverage penalty for missing types.
  */
 export function calculateElementGrade(
   standardPassRate: number,
   blankPassRate: number,
-  duplicatePassRate: number
+  duplicatePassRate: number,
+  hasStandards: boolean = true,
+  hasBlanks: boolean = true,
+  hasDuplicates: boolean = true
 ): 'A' | 'B' | 'C' | 'D' | 'F' {
-  const avgRate = (standardPassRate + blankPassRate + duplicatePassRate) / 3;
+  const score = calculateOverallScore(
+    standardPassRate, blankPassRate, duplicatePassRate,
+    hasStandards, hasBlanks, hasDuplicates
+  );
 
-  if (avgRate >= 95) return 'A';
-  if (avgRate >= 85) return 'B';
-  if (avgRate >= 75) return 'C';
-  if (avgRate >= 60) return 'D';
+  if (score >= 95) return 'A';
+  if (score >= 85) return 'B';
+  if (score >= 75) return 'C';
+  if (score >= 60) return 'D';
   return 'F';
 }
 
 /**
- * Calculate overall score (0-100)
+ * Calculate overall score (0-100).
+ * Fix 1.5: Only weight QC types that have data. Elements with no data for a type
+ * get a coverage penalty rather than a free 100%.
  */
 export function calculateOverallScore(
   standardPassRate: number,
   blankPassRate: number,
-  duplicatePassRate: number
+  duplicatePassRate: number,
+  hasStandards: boolean = true,
+  hasBlanks: boolean = true,
+  hasDuplicates: boolean = true
 ): number {
-  // Weighted average: standards most important, then duplicates, then blanks
-  return (standardPassRate * 0.4 + duplicatePassRate * 0.35 + blankPassRate * 0.25);
+  // Standard weights: standards 0.4, duplicates 0.35, blanks 0.25
+  let totalWeight = 0;
+  let weightedSum = 0;
+
+  if (hasStandards) {
+    weightedSum += standardPassRate * 0.4;
+    totalWeight += 0.4;
+  }
+  if (hasDuplicates) {
+    weightedSum += duplicatePassRate * 0.35;
+    totalWeight += 0.35;
+  }
+  if (hasBlanks) {
+    weightedSum += blankPassRate * 0.25;
+    totalWeight += 0.25;
+  }
+
+  if (totalWeight === 0) return 0; // No data at all
+
+  // Base score from available types
+  let score = weightedSum / totalWeight;
+
+  // Coverage penalty: deduct 5 points for each missing QC type
+  const missingTypes = [hasStandards, hasBlanks, hasDuplicates].filter(h => !h).length;
+  score = Math.max(0, score - missingTypes * 5);
+
+  return score;
 }
 
 /**
@@ -529,7 +766,7 @@ export function generateRecommendations(
   const recommendations: string[] = [];
 
   // Check for elements with low standard pass rates
-  const lowStandardElements = elementSummaries.filter(e => e.standardsPassRate < 85);
+  const lowStandardElements = elementSummaries.filter(e => e.hasStandards && e.standardsPassRate < 85);
   if (lowStandardElements.length > 0) {
     recommendations.push(
       `Standards for ${lowStandardElements.map(e => e.element).join(', ')} show poor accuracy. Consider recalibration or method review.`
@@ -537,7 +774,7 @@ export function generateRecommendations(
   }
 
   // Check for elements with high blank contamination
-  const contaminatedElements = elementSummaries.filter(e => e.blanksPassRate < 90);
+  const contaminatedElements = elementSummaries.filter(e => e.hasBlanks && e.blanksPassRate < 90);
   if (contaminatedElements.length > 0) {
     recommendations.push(
       `Blank contamination detected for ${contaminatedElements.map(e => e.element).join(', ')}. Review sample preparation procedures.`
@@ -545,7 +782,7 @@ export function generateRecommendations(
   }
 
   // Check for elements with poor duplicate precision
-  const poorPrecisionElements = elementSummaries.filter(e => e.duplicatesPassRate < 80);
+  const poorPrecisionElements = elementSummaries.filter(e => e.hasDuplicates && e.duplicatesPassRate < 80);
   if (poorPrecisionElements.length > 0) {
     recommendations.push(
       `Poor duplicate precision for ${poorPrecisionElements.map(e => e.element).join(', ')}. Check for nugget effect or sampling heterogeneity.`

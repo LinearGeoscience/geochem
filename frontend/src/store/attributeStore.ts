@@ -10,6 +10,24 @@ export type ClassificationMethod = 'equal' | 'quantile' | 'jenks' | 'categorical
 export type AttributeType = 'color' | 'shape' | 'size' | 'filter';
 export type EmphasisMode = 'linear' | 'percentile' | 'category';
 
+// Paint mode types
+export interface PaintHistoryEntry {
+    entryId: string;
+    addedIndices: number[];
+    removedFromEntries: { entryId: string; indices: number[] }[];
+    timestamp: number;
+}
+
+// Value Filter configuration
+export interface ValueFilterConfig {
+    enabled: boolean;
+    column: string | null;      // null = use color field
+    min: number | null;         // null = no lower bound
+    max: number | null;         // null = no upper bound
+    dataMin: number | null;     // Detected data range (for slider bounds)
+    dataMax: number | null;     // Detected data range (for slider bounds)
+}
+
 // High Grade Emphasis configuration
 export interface EmphasisConfig {
     enabled: boolean;
@@ -54,6 +72,7 @@ export interface AttributeEntry {
 
 export interface AttributeConfig {
     field: string | null;
+    additionalFields: string[];  // Extra columns for cross-product classification
     method: ClassificationMethod;
     numClasses: number;
     palette: string;
@@ -76,8 +95,16 @@ export interface AttributeState {
     // Active tab
     activeTab: AttributeType;
 
+    // Paint mode (session-only, not persisted)
+    paintMode: boolean;
+    activeEntryId: string | null;
+    paintHistory: PaintHistoryEntry[];
+
     // Global settings
     globalOpacity: number;
+
+    // Value Filter
+    valueFilter: ValueFilterConfig;
 
     // High Grade Emphasis
     emphasis: EmphasisConfig;
@@ -88,6 +115,8 @@ export interface AttributeState {
     // Actions
     setActiveTab: (tab: AttributeType) => void;
     setField: (tab: AttributeType, field: string | null) => void;
+    addAdditionalField: (tab: AttributeType, field: string) => void;
+    removeAdditionalField: (tab: AttributeType, index: number) => void;
     setMethod: (tab: AttributeType, method: ClassificationMethod) => void;
     setNumClasses: (tab: AttributeType, num: number) => void;
     setPalette: (tab: AttributeType, palette: string) => void;
@@ -115,6 +144,15 @@ export interface AttributeState {
     assignIndicesToEntry: (entryName: string, indices: number[]) => void;
     clearEntryAssignments: (entryName: string) => void;
 
+    // Paint mode actions
+    setPaintMode: (active: boolean) => void;
+    setActiveEntryId: (id: string | null) => void;
+    paintIndicesToActiveEntry: (indices: number[]) => void;
+    unpaintIndices: (indices: number[]) => void;
+    removeIndicesFromEntry: (entryId: string, indices: number[]) => void;
+    undoLastPaint: () => void;
+    createEntryAndSetActive: (tab: AttributeType) => void;
+
     // Batch operations
     batchUpdateEntries: (tab: AttributeType, entryNames: string[], updates: Partial<AttributeEntry>) => void;
     batchDeleteEntries: (tab: AttributeType, entryNames: string[]) => void;
@@ -133,6 +171,15 @@ export interface AttributeState {
 
     // Global
     setGlobalOpacity: (opacity: number) => void;
+
+    // Value Filter
+    setValueFilterEnabled: (enabled: boolean) => void;
+    setValueFilterColumn: (column: string | null) => void;
+    setValueFilterMin: (min: number | null) => void;
+    setValueFilterMax: (max: number | null) => void;
+    setValueFilterRange: (min: number | null, max: number | null) => void;
+    setValueFilterDataRange: (dataMin: number, dataMax: number) => void;
+    resetValueFilter: () => void;
 
     // Emphasis
     setEmphasisEnabled: (enabled: boolean) => void;
@@ -184,6 +231,7 @@ const createDefaultEntry = (type: AttributeType): AttributeEntry => ({
 
 const createDefaultConfig = (type: AttributeType): AttributeConfig => ({
     field: null,
+    additionalFields: [],
     method: 'categorical',
     numClasses: 5,
     palette: 'Jet',
@@ -205,8 +253,19 @@ export const useAttributeStore = create<AttributeState>()(
             customEntries: [],
             selectedEntryNames: [],
             activeTab: 'color',
+            paintMode: false,
+            activeEntryId: null,
+            paintHistory: [],
             globalOpacity: 1.0,
             recentColors: [],
+            valueFilter: {
+                enabled: false,
+                column: null,
+                min: null,
+                max: null,
+                dataMin: null,
+                dataMax: null,
+            },
             emphasis: {
                 enabled: false,
                 column: null,
@@ -222,8 +281,24 @@ export const useAttributeStore = create<AttributeState>()(
 
             // Config setters
             setField: (tab, field) => set((state) => ({
-                [tab]: { ...state[tab], field }
+                [tab]: { ...state[tab], field, additionalFields: [] }
             })),
+
+            addAdditionalField: (tab, field) => set((state) => {
+                const current = state[tab].additionalFields || [];
+                if (current.length >= 2) return state; // Max 2 additional (3 total)
+                return { [tab]: { ...state[tab], additionalFields: [...current, field] } };
+            }),
+
+            removeAdditionalField: (tab, index) => set((state) => {
+                const current = state[tab].additionalFields || [];
+                return {
+                    [tab]: {
+                        ...state[tab],
+                        additionalFields: current.filter((_, i) => i !== index),
+                    }
+                };
+            }),
 
             setMethod: (tab, method) => set((state) => ({
                 [tab]: { ...state[tab], method }
@@ -269,6 +344,7 @@ export const useAttributeStore = create<AttributeState>()(
                 [tab]: {
                     ...state[tab],
                     field: null,
+                    additionalFields: [],
                     entries: [createDefaultEntry(tab)]
                 }
             })),
@@ -351,6 +427,134 @@ export const useAttributeStore = create<AttributeState>()(
                     e.name === entryName ? { ...e, assignedIndices: [] } : e
                 )
             })),
+
+            // Paint mode actions
+            setPaintMode: (active) => set({ paintMode: active }),
+
+            setActiveEntryId: (id) => set({ activeEntryId: id }),
+
+            paintIndicesToActiveEntry: (indices) => set((state) => {
+                const { activeEntryId, customEntries, paintHistory } = state;
+                if (!activeEntryId || indices.length === 0) return state;
+
+                const activeEntry = customEntries.find(e => e.id === activeEntryId);
+                if (!activeEntry) return state;
+
+                const indexSet = new Set(indices);
+
+                // Track what gets removed from other entries (exclusive assignment)
+                const removedFromEntries: { entryId: string; indices: number[] }[] = [];
+
+                const updatedEntries = customEntries.map(entry => {
+                    if (entry.id === activeEntryId) {
+                        // Add indices to active entry
+                        const merged = [...new Set([...entry.assignedIndices, ...indices])];
+                        return { ...entry, assignedIndices: merged };
+                    } else {
+                        // Remove indices from all other entries
+                        const removed = entry.assignedIndices.filter(i => indexSet.has(i));
+                        if (removed.length > 0) {
+                            removedFromEntries.push({ entryId: entry.id, indices: removed });
+                            return { ...entry, assignedIndices: entry.assignedIndices.filter(i => !indexSet.has(i)) };
+                        }
+                        return entry;
+                    }
+                });
+
+                // Determine truly new indices (not already in active entry)
+                const existingSet = new Set(activeEntry.assignedIndices);
+                const addedIndices = indices.filter(i => !existingSet.has(i));
+
+                // Push to undo stack (max 20)
+                const historyEntry: PaintHistoryEntry = {
+                    entryId: activeEntryId,
+                    addedIndices,
+                    removedFromEntries,
+                    timestamp: Date.now(),
+                };
+                const newHistory = [...paintHistory, historyEntry].slice(-20);
+
+                return { customEntries: updatedEntries, paintHistory: newHistory };
+            }),
+
+            unpaintIndices: (indices) => set((state) => {
+                const indexSet = new Set(indices);
+                return {
+                    customEntries: state.customEntries.map(entry => {
+                        const filtered = entry.assignedIndices.filter(i => !indexSet.has(i));
+                        if (filtered.length !== entry.assignedIndices.length) {
+                            return { ...entry, assignedIndices: filtered };
+                        }
+                        return entry;
+                    }),
+                };
+            }),
+
+            removeIndicesFromEntry: (entryId, indices) => set((state) => {
+                const indexSet = new Set(indices);
+                return {
+                    customEntries: state.customEntries.map(entry =>
+                        entry.id === entryId
+                            ? { ...entry, assignedIndices: entry.assignedIndices.filter(i => !indexSet.has(i)) }
+                            : entry
+                    ),
+                };
+            }),
+
+            undoLastPaint: () => set((state) => {
+                const { paintHistory, customEntries } = state;
+                if (paintHistory.length === 0) return state;
+
+                const last = paintHistory[paintHistory.length - 1];
+                const addedSet = new Set(last.addedIndices);
+
+                let updatedEntries = customEntries.map(entry => {
+                    if (entry.id === last.entryId) {
+                        // Remove the indices that were added
+                        return { ...entry, assignedIndices: entry.assignedIndices.filter(i => !addedSet.has(i)) };
+                    }
+                    return entry;
+                });
+
+                // Restore indices that were removed from other entries
+                for (const removed of last.removedFromEntries) {
+                    updatedEntries = updatedEntries.map(entry =>
+                        entry.id === removed.entryId
+                            ? { ...entry, assignedIndices: [...new Set([...entry.assignedIndices, ...removed.indices])] }
+                            : entry
+                    );
+                }
+
+                return {
+                    customEntries: updatedEntries,
+                    paintHistory: paintHistory.slice(0, -1),
+                };
+            }),
+
+            createEntryAndSetActive: (tab) => set((state) => {
+                const baseName = 'Group';
+                let counter = 1;
+                while (state.customEntries.some(e => e.name === `${baseName} ${counter}`)) {
+                    counter++;
+                }
+                const name = `${baseName} ${counter}`;
+
+                // Auto-assign colors from a palette
+                const palette = ['#e41a1c', '#377eb8', '#4daf4a', '#984ea3', '#ff7f00', '#ffff33', '#a65628', '#f781bf'];
+                const colorIndex = state.customEntries.length % palette.length;
+
+                const newEntry = createCustomEntry(
+                    name,
+                    tab === 'color' || tab === 'filter' ? palette[colorIndex] : undefined,
+                    tab === 'shape' ? 'circle' : undefined,
+                    tab === 'size' ? 8 : undefined
+                );
+
+                return {
+                    customEntries: [...state.customEntries, { ...newEntry, isCustom: true }],
+                    activeEntryId: newEntry.id,
+                };
+            }),
 
             // Batch operations
             batchUpdateEntries: (tab, entryNames, updates) => set((state) => {
@@ -443,6 +647,39 @@ export const useAttributeStore = create<AttributeState>()(
                 globalOpacity: Math.max(0.1, Math.min(1.0, opacity))
             }),
 
+            // Value Filter actions
+            setValueFilterEnabled: (enabled) => set((state) => ({
+                valueFilter: { ...state.valueFilter, enabled }
+            })),
+
+            setValueFilterColumn: (column) => set((state) => ({
+                valueFilter: { ...state.valueFilter, column }
+            })),
+
+            setValueFilterMin: (min) => set((state) => ({
+                valueFilter: { ...state.valueFilter, min }
+            })),
+
+            setValueFilterMax: (max) => set((state) => ({
+                valueFilter: { ...state.valueFilter, max }
+            })),
+
+            setValueFilterRange: (min, max) => set((state) => ({
+                valueFilter: { ...state.valueFilter, min, max }
+            })),
+
+            setValueFilterDataRange: (dataMin, dataMax) => set((state) => ({
+                valueFilter: { ...state.valueFilter, dataMin, dataMax }
+            })),
+
+            resetValueFilter: () => set((state) => ({
+                valueFilter: {
+                    ...state.valueFilter,
+                    min: state.valueFilter.dataMin,
+                    max: state.valueFilter.dataMax,
+                }
+            })),
+
             // Emphasis actions
             setEmphasisEnabled: (enabled) => set((state) => ({
                 emphasis: { ...state.emphasis, enabled }
@@ -494,7 +731,8 @@ export const useAttributeStore = create<AttributeState>()(
                     customEntries: state.customEntries,
                     globalOpacity: state.globalOpacity,
                     emphasis: state.emphasis,
-                    version: 2,
+                    valueFilter: state.valueFilter,
+                    version: 3,
                 };
                 return JSON.stringify(exportData, null, 2);
             },
@@ -502,7 +740,7 @@ export const useAttributeStore = create<AttributeState>()(
             importState: (json) => {
                 try {
                     const data = JSON.parse(json);
-                    if (data.version !== 1 && data.version !== 2) {
+                    if (data.version !== 1 && data.version !== 2 && data.version !== 3) {
                         console.error('Unsupported attribute file version');
                         return false;
                     }
@@ -513,7 +751,11 @@ export const useAttributeStore = create<AttributeState>()(
 
                     const ensureConfig = (config: AttributeConfig | undefined, type: AttributeType) => {
                         if (!config) return createDefaultConfig(type);
-                        return { ...config, entries: ensureOpacity(config.entries) };
+                        return {
+                            ...config,
+                            additionalFields: config.additionalFields || [],
+                            entries: ensureOpacity(config.entries),
+                        };
                     };
 
                     set({
@@ -531,6 +773,14 @@ export const useAttributeStore = create<AttributeState>()(
                             minOpacity: 0.15,
                             boostSize: true,
                             sizeBoostFactor: 1.5,
+                        },
+                        valueFilter: data.valueFilter || {
+                            enabled: false,
+                            column: null,
+                            min: null,
+                            max: null,
+                            dataMin: null,
+                            dataMax: null,
                         },
                     });
                     return true;
@@ -589,7 +839,12 @@ export const useAttributeStore = create<AttributeState>()(
         }),
         {
             name: 'attribute-storage',
-            version: 3,
+            version: 6,
+            partialize: (state) => {
+                // Exclude session-only paint state from persistence
+                const { paintMode, activeEntryId, paintHistory, ...rest } = state;
+                return rest as any;
+            },
             migrate: (persistedState: any, version: number) => {
                 if (version < 2) {
                     // v1 -> v2: add opacity to all entries
@@ -617,6 +872,28 @@ export const useAttributeStore = create<AttributeState>()(
                     }
                     if (!persistedState.recentColors) {
                         persistedState.recentColors = [];
+                    }
+                }
+                // v3 -> v4: paintMode/activeEntryId/paintHistory are session-only (not persisted)
+                if (version < 5) {
+                    // v4 -> v5: add additionalFields to each tab config
+                    for (const tab of ['color', 'shape', 'size', 'filter']) {
+                        if (persistedState[tab]) {
+                            persistedState[tab].additionalFields = persistedState[tab].additionalFields || [];
+                        }
+                    }
+                }
+                if (version < 6) {
+                    // v5 -> v6: add valueFilter
+                    if (!persistedState.valueFilter) {
+                        persistedState.valueFilter = {
+                            enabled: false,
+                            column: null,
+                            min: null,
+                            max: null,
+                            dataMin: null,
+                            dataMax: null,
+                        };
                     }
                 }
                 return persistedState;

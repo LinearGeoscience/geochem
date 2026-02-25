@@ -113,32 +113,57 @@ export function detectQCSamples(
 // ============================================================================
 
 /**
- * Find the base sample ID by removing duplicate suffixes
- * e.g., "SAMPLE-001-DUP" -> "SAMPLE-001"
- * e.g., "SAMPLE-001A" -> "SAMPLE-001" (if -001B exists)
+ * Find the base sample ID by removing duplicate suffixes.
+ * Suffix stripping is scoped to the requested duplicate type to prevent
+ * a single sample from being triple-counted across field/pulp/core.
+ *
+ * Fix 1.1: Type-aware suffix stripping
+ * Fix 1.2: Bare A/B patterns removed - require separator or digit before A/B
  */
-export function getBaseSampleId(sampleId: string): string {
+export function getBaseSampleId(
+  sampleId: string,
+  duplicateType?: 'field_duplicate' | 'pulp_duplicate' | 'core_duplicate'
+): string {
   if (!sampleId) return '';
 
   let base = sampleId.trim();
 
-  // Remove common duplicate suffixes
-  const suffixPatterns = [
-    /[-_]DUP$/i,
-    /[-_]FD$/i,
-    /[-_]PD$/i,
-    /[-_]CD$/i,
-    /[-_]RPT$/i,
-    /[-_]REP$/i,
-    /[-_]A$/i,
-    /[-_]B$/i,
-    /A$/,  // Just 'A' at end
-    /B$/,  // Just 'B' at end
+  // Suffix patterns mapped to duplicate types
+  // Each entry: [search pattern, replacement string]
+  const fieldSuffixes: [RegExp, string][] = [
+    [/[-_]DUP$/i, ''],
+    [/[-_]FD$/i, ''],
+    [/[-_]A$/i, ''],
+    [/[-_]B$/i, ''],
+    [/(\d)[AB]$/i, '$1'],  // Strip just the A/B letter, keep the digit
   ];
 
-  for (const pattern of suffixPatterns) {
+  const pulpSuffixes: [RegExp, string][] = [
+    [/[-_]PD$/i, ''],
+    [/[-_]RPT$/i, ''],
+    [/[-_]REP$/i, ''],
+  ];
+
+  const coreSuffixes: [RegExp, string][] = [
+    [/[-_]CD$/i, ''],
+    [/[-_]QC$/i, ''],
+  ];
+
+  let suffixes: [RegExp, string][];
+  if (!duplicateType) {
+    // When no type specified, try all (used by general sample detection)
+    suffixes = [...fieldSuffixes, ...pulpSuffixes, ...coreSuffixes];
+  } else {
+    switch (duplicateType) {
+      case 'field_duplicate': suffixes = fieldSuffixes; break;
+      case 'pulp_duplicate': suffixes = pulpSuffixes; break;
+      case 'core_duplicate': suffixes = coreSuffixes; break;
+    }
+  }
+
+  for (const [pattern, replacement] of suffixes) {
     if (pattern.test(base)) {
-      base = base.replace(pattern, '');
+      base = base.replace(pattern, replacement);
       break;
     }
   }
@@ -150,26 +175,35 @@ export function getBaseSampleId(sampleId: string): string {
  * Detect duplicate pairs in dataset
  * Handles multiple naming conventions:
  * - Suffix pairs: SAMPLE-001 / SAMPLE-001-DUP
- * - Letter pairs: SAMPLE-001A / SAMPLE-001B
- * - Explicit duplicate IDs in separate column
+ * - Letter pairs: SAMPLE-001A / SAMPLE-001B (field duplicates only)
+ * - Explicit duplicate IDs via a dedicated pair column
+ *
+ * Fix 1.1: Suffix stripping now scoped to the requested duplicate type
+ * Feature 2.5: Support linking via a dedicated pair column
  */
 export function detectDuplicatePairs(
   data: Record<string, any>[],
   sampleIdColumn: string,
-  duplicateType: 'field_duplicate' | 'pulp_duplicate' | 'core_duplicate' = 'field_duplicate'
+  duplicateType: 'field_duplicate' | 'pulp_duplicate' | 'core_duplicate' = 'field_duplicate',
+  pairColumn?: string
 ): DuplicatePair[] {
+  // If a dedicated pair column is provided, use column-based pairing
+  if (pairColumn) {
+    return detectDuplicatePairsByColumn(data, sampleIdColumn, pairColumn, duplicateType);
+  }
+
   const pairs: DuplicatePair[] = [];
   const sampleMap = new Map<string, { index: number; id: string }>();
 
-  // Build map of base IDs to samples
+  // Build map of base IDs to samples (type-aware suffix stripping)
   data.forEach((row, index) => {
     const sampleId = row[sampleIdColumn];
     if (!sampleId) return;
 
     const id = String(sampleId).trim();
-    const baseId = getBaseSampleId(id);
+    const baseId = getBaseSampleId(id, duplicateType);
 
-    // Store if this is the original (no suffix) or if not yet stored
+    // Store if this is the original (no suffix stripped) or if not yet stored
     if (id === baseId || !sampleMap.has(baseId)) {
       sampleMap.set(baseId, { index, id });
     }
@@ -181,7 +215,7 @@ export function detectDuplicatePairs(
     if (!sampleId) return;
 
     const id = String(sampleId).trim();
-    const baseId = getBaseSampleId(id);
+    const baseId = getBaseSampleId(id, duplicateType);
 
     // Check if this is a duplicate (has suffix and different from stored)
     if (id !== baseId) {
@@ -198,9 +232,11 @@ export function detectDuplicatePairs(
     }
   });
 
-  // Also check for A/B pairs
-  const letterPairs = detectLetterPairs(data, sampleIdColumn, duplicateType);
-  pairs.push(...letterPairs);
+  // A/B letter pairs only for field duplicates
+  if (duplicateType === 'field_duplicate') {
+    const letterPairs = detectLetterPairs(data, sampleIdColumn, duplicateType);
+    pairs.push(...letterPairs);
+  }
 
   // Remove duplicates (in case both methods found same pair)
   const uniquePairs = pairs.filter((pair, idx, arr) =>
@@ -214,7 +250,9 @@ export function detectDuplicatePairs(
 }
 
 /**
- * Detect A/B letter pairs specifically
+ * Detect A/B letter pairs specifically.
+ * Fix 1.2: Require separator or digit before A/B to avoid matching
+ * legitimate samples like "HZBA" or "RC12B".
  */
 function detectLetterPairs(
   data: Record<string, any>[],
@@ -222,8 +260,9 @@ function detectLetterPairs(
   duplicateType: 'field_duplicate' | 'pulp_duplicate' | 'core_duplicate'
 ): DuplicatePair[] {
   const pairs: DuplicatePair[] = [];
-  const aPattern = /(.+)[-_]?A$/i;
-  const bPattern = /(.+)[-_]?B$/i;
+  // Require separator or digit immediately before A/B
+  const aPattern = /(.+(?:[-_]|\d))A$/i;
+  const bPattern = /(.+(?:[-_]|\d))B$/i;
 
   // Find all samples ending in A
   const aSamples = new Map<string, { index: number; id: string }>();
@@ -259,6 +298,54 @@ function detectLetterPairs(
           duplicateType,
         });
       }
+    }
+  });
+
+  return pairs;
+}
+
+// ============================================================================
+// COLUMN-BASED DUPLICATE DETECTION (Feature 2.5)
+// ============================================================================
+
+/**
+ * Detect duplicate pairs using a dedicated pair column (e.g., "QC_PAIR", "DUP_OF").
+ * The column contains the original sample ID that each duplicate is linked to.
+ */
+function detectDuplicatePairsByColumn(
+  data: Record<string, any>[],
+  sampleIdColumn: string,
+  pairColumn: string,
+  duplicateType: 'field_duplicate' | 'pulp_duplicate' | 'core_duplicate'
+): DuplicatePair[] {
+  const pairs: DuplicatePair[] = [];
+
+  // Build index: sampleId -> rowIndex
+  const sampleIndex = new Map<string, number>();
+  data.forEach((row, index) => {
+    const sampleId = row[sampleIdColumn];
+    if (sampleId) {
+      sampleIndex.set(String(sampleId).trim().toUpperCase(), index);
+    }
+  });
+
+  // Find pairs via pair column
+  data.forEach((row, index) => {
+    const pairValue = row[pairColumn];
+    if (!pairValue) return;
+
+    const originalId = String(pairValue).trim().toUpperCase();
+    const originalIndex = sampleIndex.get(originalId);
+
+    if (originalIndex !== undefined && originalIndex !== index) {
+      const sampleId = row[sampleIdColumn];
+      pairs.push({
+        originalIndex,
+        duplicateIndex: index,
+        originalId: String(data[originalIndex][sampleIdColumn]).trim(),
+        duplicateId: String(sampleId).trim(),
+        duplicateType,
+      });
     }
   });
 

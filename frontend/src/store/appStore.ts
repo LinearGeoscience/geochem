@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import { dataApi, qgisApi } from '../services/api';
 import { AttributeState, createAttributeSlice } from './attributeSlice';
+import { useAttributeStore } from './attributeStore';
 import { ColumnGeochemMapping } from '../types/associations';
 import {
     createGeochemMappings,
@@ -132,6 +133,7 @@ interface AppState {
 
     // Data actions
     addColumn: (name: string, values: any[], colType?: string, role?: string, transformationType?: ColumnInfo['transformationType'], transformationGroupId?: string) => void;
+    savePaintGroupsToColumn: (columnName: string) => void;
 
     // Sampling
     samplingConfig: SamplingConfig;
@@ -163,6 +165,10 @@ interface AppState {
     // Logging merge dialog
     showLoggingMergeDialog: boolean;
     setShowLoggingMergeDialog: (show: boolean) => void;
+
+    // Tooltip mode
+    tooltipMode: 'compact' | 'detailed';
+    setTooltipMode: (mode: 'compact' | 'detailed') => void;
 
     // QGIS sync
     syncToQgis: () => Promise<void>;
@@ -217,7 +223,9 @@ export const useAppStore = create<CombinedState>()((set, get, api) => ({
     availableFilters: ['all', 'raw'] as ColumnFilterType[],
     transformationGroups: [],
 
-    setColumnFilter: (filter) => set({ columnFilter: filter }),
+    setColumnFilter: (filter) => set((state) => ({
+        columnFilter: state.availableFilters.includes(filter) ? filter : 'all'
+    })),
 
     getFilteredColumns: () => {
         const { columns, columnFilter, geochemMappings } = get();
@@ -276,6 +284,10 @@ export const useAppStore = create<CombinedState>()((set, get, api) => ({
     // Logging merge dialog
     showLoggingMergeDialog: false,
     setShowLoggingMergeDialog: (show) => set({ showLoggingMergeDialog: show }),
+
+    // Tooltip mode
+    tooltipMode: 'compact',
+    setTooltipMode: (mode) => set({ tooltipMode: mode }),
 
     statsSelectedColumns: [],
     correlationSelectedColumns: [],
@@ -389,6 +401,20 @@ export const useAppStore = create<CombinedState>()((set, get, api) => ({
                 availableFilters: newAvailableFilters
             };
         });
+    },
+
+    savePaintGroupsToColumn: (columnName) => {
+        const { data, addColumn } = get();
+        const { customEntries } = useAttributeStore.getState();
+        const values: string[] = new Array(data.length).fill('Unclassified');
+        for (const entry of customEntries) {
+            for (const idx of entry.assignedIndices) {
+                if (idx >= 0 && idx < data.length) {
+                    values[idx] = entry.name;
+                }
+            }
+        }
+        addColumn(columnName, values, 'categorical', 'Classification');
     },
 
     addTransformationGroup: (group) => {

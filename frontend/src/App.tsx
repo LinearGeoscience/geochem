@@ -24,9 +24,12 @@ import { TransformationManager } from './features/analysis/TransformationManager
 import { PCAWorkflow } from './features/analysis/PCAWorkflow';
 import { VectoringManager } from './features/vectoring/VectoringManager';
 import { RecalculationWizard } from './features/analysis/RecalculationWizard';
+import { OutlierDetection } from './features/analysis/OutlierDetection';
+import { PopulationSeparation } from './features/analysis/PopulationSeparation';
+import { RobustRegressionView } from './features/analysis/RobustRegression';
+import { ClusteringAnalysis } from './features/analysis/ClusteringAnalysis';
 import { CalculationManager } from './features/calculations/CalculationManager';
 import { QAQCManager, ControlChart, DuplicateAnalysis, BlankAnalysis, QAQCDashboard } from './features/qaqc';
-import { StatisticsManager } from './features/statistics';
 import { Box, Typography, Paper, Tabs, Tab, IconButton } from '@mui/material';
 import { ChevronRight, ChevronLeft } from '@mui/icons-material';
 import { useAppStore } from './store/appStore';
@@ -206,24 +209,38 @@ function App() {
                         {/* Main content area */}
                         <Box sx={{ flex: 1, minWidth: 0 }}>
                             <Tabs value={analysisTab} onChange={(_, newValue) => setAnalysisTab(newValue)} sx={{ borderBottom: 1, borderColor: 'divider', mb: 2 }} variant="scrollable" scrollButtons="auto">
+                                {/* Exploratory group */}
                                 <Tab label="Summary Statistics" />
                                 <Tab label="Box Plots" />
                                 <Tab label="Correlation Matrix" />
                                 <Tab label="Probability Plot" />
-                                <Tab label="Transformations" />
+                                {/* Advanced Statistics group */}
+                                <Tab label="Outlier Detection" sx={{ borderLeft: 2, borderColor: 'divider', ml: 1 }} />
+                                <Tab label="Population Separation" />
+                                <Tab label="Robust Regression" />
+                                <Tab label="Clustering" />
+                                {/* Processing group */}
+                                <Tab label="Transformations" sx={{ borderLeft: 2, borderColor: 'divider', ml: 1 }} />
                                 <Tab label="PCA Analysis" />
                                 <Tab label="Deposit Vectoring" />
                                 <Tab label="Recalculation" />
                             </Tabs>
                             {/* Keep all tabs mounted for state persistence, hide inactive with display:none */}
+                            {/* Exploratory */}
                             <Box sx={{ display: analysisTab === 0 ? 'block' : 'none' }}><SummaryStats /></Box>
                             <Box sx={{ display: analysisTab === 1 ? 'block' : 'none' }}><BoxPlot /></Box>
                             <Box sx={{ display: analysisTab === 2 ? 'block' : 'none' }}><CorrelationMatrix /></Box>
                             <Box sx={{ display: analysisTab === 3 ? 'block' : 'none' }}><ProbabilityPlot /></Box>
-                            <Box sx={{ display: analysisTab === 4 ? 'block' : 'none' }}><TransformationManager /></Box>
-                            <Box sx={{ display: analysisTab === 5 ? 'block' : 'none' }}><PCAWorkflow /></Box>
-                            <Box sx={{ display: analysisTab === 6 ? 'block' : 'none' }}><VectoringManager /></Box>
-                            <Box sx={{ display: analysisTab === 7 ? 'block' : 'none' }}><RecalculationWizard /></Box>
+                            {/* Advanced Statistics */}
+                            <Box sx={{ display: analysisTab === 4 ? 'block' : 'none' }}><OutlierDetection /></Box>
+                            <Box sx={{ display: analysisTab === 5 ? 'block' : 'none' }}><PopulationSeparation /></Box>
+                            <Box sx={{ display: analysisTab === 6 ? 'block' : 'none' }}><RobustRegressionView /></Box>
+                            <Box sx={{ display: analysisTab === 7 ? 'block' : 'none' }}><ClusteringAnalysis /></Box>
+                            {/* Processing */}
+                            <Box sx={{ display: analysisTab === 8 ? 'block' : 'none' }}><TransformationManager /></Box>
+                            <Box sx={{ display: analysisTab === 9 ? 'block' : 'none' }}><PCAWorkflow /></Box>
+                            <Box sx={{ display: analysisTab === 10 ? 'block' : 'none' }}><VectoringManager /></Box>
+                            <Box sx={{ display: analysisTab === 11 ? 'block' : 'none' }}><RecalculationWizard /></Box>
                         </Box>
                         {/* Right sidebar */}
                         <Box sx={{ position: 'relative', width: rightSidebarOpen ? sidebarWidth : 40, flexShrink: 0, display: 'flex' }}>
@@ -380,8 +397,6 @@ function App() {
                         </Box>
                     </Box>
                 );
-            case 'statistics':
-                return <StatisticsManager />;
             case 'settings':
                 return <Typography variant="h5">Settings (Coming Soon)</Typography>;
             default:

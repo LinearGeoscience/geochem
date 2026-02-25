@@ -43,6 +43,7 @@ interface QAQCState {
   // Configuration
   sampleIdColumn: string | null;
   batchColumn: string | null;
+  duplicatePairColumn: string | null; // Feature 2.5
   thresholds: QAQCThresholds;
   customPatterns: QCDetectionPattern[];
   standardReferences: StandardReference[];
@@ -66,18 +67,21 @@ interface QAQCState {
   // UI state
   selectedElements: string[];
   selectedStandard: string | null;
+  navigateToElement: string | null;
   isAnalysisRunning: boolean;
   lastAnalysisTimestamp: number | null;
 
   // Actions
   setSampleIdColumn: (column: string | null) => void;
   setBatchColumn: (column: string | null) => void;
+  setDuplicatePairColumn: (column: string | null) => void;
   setThresholds: (thresholds: Partial<QAQCThresholds>) => void;
   addStandardReference: (reference: StandardReference) => void;
   removeStandardReference: (id: string) => void;
   setDetectionLimit: (element: string, dl: number) => void;
   setSelectedElements: (elements: string[]) => void;
   setSelectedStandard: (standard: string | null) => void;
+  setNavigateToElement: (element: string | null) => void;
 
   // Detection actions
   detectSamples: (
@@ -110,6 +114,7 @@ interface QAQCState {
 const initialState = {
   sampleIdColumn: null as string | null,
   batchColumn: null as string | null,
+  duplicatePairColumn: null as string | null,
   thresholds: DEFAULT_QAQC_THRESHOLDS,
   customPatterns: [] as QCDetectionPattern[],
   standardReferences: [] as StandardReference[],
@@ -125,6 +130,7 @@ const initialState = {
   recommendations: [] as string[],
   selectedElements: [] as string[],
   selectedStandard: null as string | null,
+  navigateToElement: null as string | null,
   isAnalysisRunning: false,
   lastAnalysisTimestamp: null as number | null,
 };
@@ -141,6 +147,7 @@ export const useQAQCStore = create<QAQCState>()(
       // Configuration setters
       setSampleIdColumn: (column) => set({ sampleIdColumn: column }),
       setBatchColumn: (column) => set({ batchColumn: column }),
+      setDuplicatePairColumn: (column) => set({ duplicatePairColumn: column }),
 
       setThresholds: (newThresholds) =>
         set((state) => ({
@@ -164,6 +171,7 @@ export const useQAQCStore = create<QAQCState>()(
 
       setSelectedElements: (elements) => set({ selectedElements: elements }),
       setSelectedStandard: (standard) => set({ selectedStandard: standard }),
+      setNavigateToElement: (element) => set({ navigateToElement: element }),
 
       // Detection
       detectSamples: (data, columns) => {
@@ -185,10 +193,11 @@ export const useQAQCStore = create<QAQCState>()(
         // Detect QC samples
         const qcSamples = detectQCSamples(data, sampleIdCol, patterns);
 
-        // Detect duplicate pairs for each type
-        const fieldDuplicates = detectDuplicatePairs(data, sampleIdCol, 'field_duplicate');
-        const pulpDuplicates = detectDuplicatePairs(data, sampleIdCol, 'pulp_duplicate');
-        const coreDuplicates = detectDuplicatePairs(data, sampleIdCol, 'core_duplicate');
+        // Detect duplicate pairs for each type (Feature 2.5: pass pair column if set)
+        const pairCol = state.duplicatePairColumn || undefined;
+        const fieldDuplicates = detectDuplicatePairs(data, sampleIdCol, 'field_duplicate', pairCol);
+        const pulpDuplicates = detectDuplicatePairs(data, sampleIdCol, 'pulp_duplicate', pairCol);
+        const coreDuplicates = detectDuplicatePairs(data, sampleIdCol, 'core_duplicate', pairCol);
         const allPairs = [...fieldDuplicates, ...pulpDuplicates, ...coreDuplicates];
 
         // Assign batches
@@ -297,7 +306,10 @@ export const useQAQCStore = create<QAQCState>()(
           const controlCharts: Record<string, ControlChartData[]> = {};
 
           standardNames.forEach((stdName) => {
-            const reference = state.standardReferences.find(r => r.name === stdName || r.id === stdName);
+            // Fix 1.6: Case-insensitive matching for standard reference lookup
+            const reference = state.standardReferences.find(
+              r => r.name.toUpperCase() === stdName.toUpperCase() || r.id.toUpperCase() === stdName.toUpperCase()
+            );
             const charts: ControlChartData[] = [];
 
             elements.forEach((element) => {
@@ -328,7 +340,8 @@ export const useQAQCStore = create<QAQCState>()(
 
             const analyses: DuplicateAnalysis[] = [];
             elements.forEach((element) => {
-              const analysis = analyzeDuplicates(data, pairs, element, dupType, state.thresholds);
+              const dl = state.detectionLimits[element];
+              const analysis = analyzeDuplicates(data, pairs, element, dupType, state.thresholds, dl);
               if (analysis) {
                 analyses.push(analysis);
               }
@@ -378,9 +391,13 @@ export const useQAQCStore = create<QAQCState>()(
               }
             });
 
-            const standardsPassRate = standardsAnalyzed > 0 ? (standardsPass / standardsAnalyzed) * 100 : 100;
-            const blanksPassRate = blanksAnalyzed > 0 ? (blanksClean / blanksAnalyzed) * 100 : 100;
-            const duplicatesPassRate = duplicatesAnalyzed > 0 ? (duplicatesPass / duplicatesAnalyzed) * 100 : 100;
+            // Fix 1.5: Don't default to 100% for types with no data
+            const hasStandards = standardsAnalyzed > 0;
+            const hasBlanks = blanksAnalyzed > 0;
+            const hasDuplicates = duplicatesAnalyzed > 0;
+            const standardsPassRate = hasStandards ? (standardsPass / standardsAnalyzed) * 100 : 0;
+            const blanksPassRate = hasBlanks ? (blanksClean / blanksAnalyzed) * 100 : 0;
+            const duplicatesPassRate = hasDuplicates ? (duplicatesPass / duplicatesAnalyzed) * 100 : 0;
 
             return {
               element,
@@ -393,8 +410,11 @@ export const useQAQCStore = create<QAQCState>()(
               duplicatesAnalyzed,
               duplicatesPass,
               duplicatesPassRate,
-              overallScore: calculateOverallScore(standardsPassRate, blanksPassRate, duplicatesPassRate),
-              grade: calculateElementGrade(standardsPassRate, blanksPassRate, duplicatesPassRate),
+              overallScore: calculateOverallScore(standardsPassRate, blanksPassRate, duplicatesPassRate, hasStandards, hasBlanks, hasDuplicates),
+              grade: calculateElementGrade(standardsPassRate, blanksPassRate, duplicatesPassRate, hasStandards, hasBlanks, hasDuplicates),
+              hasStandards,
+              hasBlanks,
+              hasDuplicates,
             };
           });
 
@@ -449,29 +469,84 @@ export const useQAQCStore = create<QAQCState>()(
           return null;
         }
 
-        // Calculate batch summaries
+        // Fix 1.9: Calculate batch summaries with actual pass rate
         const batchIds = [...new Set(state.batches.values())];
         const batchSummaries = batchIds.map((batchId) => {
           const batchSamples = state.qcSamples.filter(s => s.batchId === batchId);
-          const standards = batchSamples.filter(s => s.qcType === 'standard').length;
-          const blanks = batchSamples.filter(s => s.qcType === 'blank').length;
-          const duplicates = batchSamples.filter(s =>
+          const batchStandards = batchSamples.filter(s => s.qcType === 'standard');
+          const batchBlanks = batchSamples.filter(s => s.qcType === 'blank');
+          const batchDuplicateSamples = batchSamples.filter(s =>
             s.qcType === 'field_duplicate' ||
             s.qcType === 'pulp_duplicate' ||
             s.qcType === 'core_duplicate'
-          ).length;
+          );
 
           const sampleCount = [...state.batches.entries()].filter(([, b]) => b === batchId).length;
+          const issues: string[] = [];
+
+          // Calculate per-batch pass rate from control chart, duplicate, and blank results
+          let totalChecks = 0;
+          let totalPasses = 0;
+
+          // Standards in this batch: check control chart points
+          const batchStandardIndices = new Set(batchStandards.map(s => s.rowIndex));
+          Object.values(state.controlCharts).forEach((charts) => {
+            charts.forEach((chart) => {
+              chart.points.forEach((point) => {
+                if (batchStandardIndices.has(point.rowIndex)) {
+                  totalChecks++;
+                  if (point.status !== 'fail') totalPasses++;
+                }
+              });
+            });
+          });
+
+          // Blanks in this batch
+          const batchBlankIndices = new Set(batchBlanks.map(s => s.rowIndex));
+          state.blankAnalyses.forEach((analysis) => {
+            analysis.results.forEach((result) => {
+              if (batchBlankIndices.has(result.rowIndex)) {
+                totalChecks++;
+                if (result.status === 'clean') totalPasses++;
+              }
+            });
+          });
+
+          // Duplicates in this batch
+          const batchDupIndices = new Set(batchDuplicateSamples.map(s => s.rowIndex));
+          Object.values(state.duplicateAnalyses).forEach((analyses) => {
+            analyses.forEach((analysis) => {
+              analysis.results.forEach((result) => {
+                // Check if either the original or duplicate is in this batch
+                const pair = state.duplicatePairs[result.pairIndex];
+                if (pair && (batchDupIndices.has(pair.originalIndex) || batchDupIndices.has(pair.duplicateIndex))) {
+                  totalChecks++;
+                  if (result.status === 'pass') totalPasses++;
+                }
+              });
+            });
+          });
+
+          const passRate = totalChecks > 0 ? (totalPasses / totalChecks) * 100 : 0;
+
+          // Generate issues
+          if (passRate < 80 && totalChecks > 0) {
+            issues.push(`Low pass rate (${passRate.toFixed(0)}%)`);
+          }
+          const insertionRate = sampleCount > 0 ? ((batchStandards.length + batchBlanks.length + batchDuplicateSamples.length) / sampleCount) * 100 : 0;
+          if (insertionRate < state.thresholds.minInsertionRate) {
+            issues.push(`Low QC insertion rate (${insertionRate.toFixed(1)}%)`);
+          }
 
           return {
             batchId,
             sampleCount,
-            standardCount: standards,
-            blankCount: blanks,
-            duplicateCount: duplicates,
-            insertionRate: sampleCount > 0 ? ((standards + blanks + duplicates) / sampleCount) * 100 : 0,
-            passRate: 0, // Would need detailed per-batch analysis
-            issues: [] as string[],
+            standardCount: batchStandards.length,
+            blankCount: batchBlanks.length,
+            duplicateCount: batchDuplicateSamples.length,
+            insertionRate,
+            passRate,
+            issues,
           };
         });
 
@@ -501,6 +576,7 @@ export const useQAQCStore = create<QAQCState>()(
       partialize: (state) => ({
         sampleIdColumn: state.sampleIdColumn,
         batchColumn: state.batchColumn,
+        duplicatePairColumn: state.duplicatePairColumn,
         thresholds: state.thresholds,
         standardReferences: state.standardReferences,
         detectionLimits: state.detectionLimits,

@@ -3,7 +3,7 @@
  * Comprehensive overview of all QA/QC analysis results
  */
 
-import React, { useMemo } from 'react';
+import React, { useMemo, useState, useCallback } from 'react';
 import Plot from 'react-plotly.js';
 import {
   Box,
@@ -17,6 +17,16 @@ import {
   LinearProgress,
   Divider,
   Button,
+  Accordion,
+  AccordionSummary,
+  AccordionDetails,
+  Table,
+  TableBody,
+  TableCell,
+  TableContainer,
+  TableHead,
+  TableRow,
+  Tooltip,
 } from '@mui/material';
 import {
   CheckCircle as CheckIcon,
@@ -27,6 +37,9 @@ import {
   ContentCopy as DuplicateIcon,
   Opacity as BlankIcon,
   Download as DownloadIcon,
+  FileDownload as CSVIcon,
+  ExpandMore as ExpandMoreIcon,
+  Visibility as ViewIcon,
 } from '@mui/icons-material';
 import { useQAQCStore } from '../../store/qaqcStore';
 import { useAppStore } from '../../store/appStore';
@@ -50,7 +63,10 @@ export const QAQCDashboard: React.FC<QAQCDashboardProps> = ({ onNavigate }) => {
     blankAnalyses,
     lastAnalysisTimestamp,
     generateReport,
+    setNavigateToElement,
   } = useQAQCStore();
+
+  const [batchExpanded, setBatchExpanded] = useState(false);
 
   // Calculate summary statistics
   const stats = useMemo(() => {
@@ -165,6 +181,51 @@ export const QAQCDashboard: React.FC<QAQCDashboardProps> = ({ onNavigate }) => {
     };
   }, [elementSummaries]);
 
+  // Feature 3.1: CSV export for all analysis types
+  const downloadCSV = (filename: string, content: string) => {
+    const blob = new Blob([content], { type: 'text/csv' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = filename;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
+  const handleExportStandardsCSV = () => {
+    const rows: string[] = ['Standard,Element,Sequence,SampleID,Value,Status,Recovery'];
+    Object.entries(controlCharts).forEach(([stdName, charts]) => {
+      charts.forEach((chart) => {
+        chart.points.forEach((point) => {
+          rows.push(`${stdName},${chart.element},${point.index + 1},${point.sampleId},${point.value},${point.status},${point.recovery?.toFixed(1) ?? ''}`);
+        });
+      });
+    });
+    downloadCSV(`Standards_${new Date().toISOString().split('T')[0]}.csv`, rows.join('\n'));
+  };
+
+  const handleExportDuplicatesCSV = () => {
+    const rows: string[] = ['DuplicateType,Element,OriginalID,DuplicateID,OriginalValue,DuplicateValue,RPD,ARD,Mean,Status,BelowDL'];
+    Object.entries(duplicateAnalyses).forEach(([type, analyses]) => {
+      analyses.forEach((analysis) => {
+        analysis.results.forEach((r) => {
+          rows.push(`${type},${analysis.element},${r.originalId},${r.duplicateId},${r.originalValue},${r.duplicateValue},${r.rpd.toFixed(2)},${r.ard.toFixed(2)},${r.mean.toFixed(4)},${r.status},${r.belowDetection ?? ''}`);
+        });
+      });
+    });
+    downloadCSV(`Duplicates_${new Date().toISOString().split('T')[0]}.csv`, rows.join('\n'));
+  };
+
+  const handleExportBlanksCSV = () => {
+    const rows: string[] = ['Element,SampleID,Value,AdjustedValue,Status,MultipleOfDL,PrecedingSample,PrecedingValue'];
+    blankAnalyses.forEach((analysis) => {
+      analysis.results.forEach((r) => {
+        rows.push(`${analysis.element},${r.sampleId},${r.value},${r.adjustedValue ?? ''},${r.status},${r.multipleOfDL?.toFixed(1) ?? ''},${r.precedingSampleId ?? ''},${r.precedingSampleValue ?? ''}`);
+      });
+    });
+    downloadCSV(`Blanks_${new Date().toISOString().split('T')[0]}.csv`, rows.join('\n'));
+  };
+
   // Export report
   const handleExportReport = () => {
     const report = generateReport(currentProject?.name || 'Dataset');
@@ -211,6 +272,33 @@ export const QAQCDashboard: React.FC<QAQCDashboardProps> = ({ onNavigate }) => {
     return text;
   };
 
+  // Batch summaries from report
+  const batchSummaries = useMemo(() => {
+    const report = generateReport(currentProject?.name || 'Dataset');
+    return report?.batchSummaries ?? [];
+  }, [generateReport, currentProject]);
+
+  // Element drill-down: navigate to the best detail view for an element
+  const handleElementClick = useCallback((element: string, summary: { hasStandards: boolean; hasBlanks: boolean; hasDuplicates: boolean }) => {
+    if (!onNavigate) return;
+    setNavigateToElement(element);
+    if (summary.hasStandards) {
+      onNavigate('control-chart');
+    } else if (summary.hasDuplicates) {
+      onNavigate('duplicates');
+    } else if (summary.hasBlanks) {
+      onNavigate('blanks');
+    }
+  }, [onNavigate, setNavigateToElement]);
+
+  // Determine which view a recommendation relates to
+  const getRecommendationView = (rec: string): 'control-chart' | 'duplicates' | 'blanks' | null => {
+    if (rec.includes('Standards') || rec.includes('accuracy') || rec.includes('recalibration')) return 'control-chart';
+    if (rec.includes('Blank') || rec.includes('contamination') || rec.includes('preparation')) return 'blanks';
+    if (rec.includes('duplicate') || rec.includes('precision') || rec.includes('nugget')) return 'duplicates';
+    return null;
+  };
+
   // Get grade color
   const getGradeColor = (grade: string | null) => {
     switch (grade) {
@@ -244,14 +332,30 @@ export const QAQCDashboard: React.FC<QAQCDashboardProps> = ({ onNavigate }) => {
         <Typography variant="h5">
           QA/QC Dashboard
         </Typography>
-        <Box sx={{ display: 'flex', gap: 1 }}>
+        <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>
           <Button
             variant="outlined"
             startIcon={<DownloadIcon />}
             onClick={handleExportReport}
+            size="small"
           >
-            Export Report
+            Report
           </Button>
+          {Object.keys(controlCharts).length > 0 && (
+            <Button variant="outlined" startIcon={<CSVIcon />} onClick={handleExportStandardsCSV} size="small">
+              Standards CSV
+            </Button>
+          )}
+          {Object.keys(duplicateAnalyses).length > 0 && (
+            <Button variant="outlined" startIcon={<CSVIcon />} onClick={handleExportDuplicatesCSV} size="small">
+              Duplicates CSV
+            </Button>
+          )}
+          {blankAnalyses.length > 0 && (
+            <Button variant="outlined" startIcon={<CSVIcon />} onClick={handleExportBlanksCSV} size="small">
+              Blanks CSV
+            </Button>
+          )}
         </Box>
       </Box>
 
@@ -430,26 +534,127 @@ export const QAQCDashboard: React.FC<QAQCDashboardProps> = ({ onNavigate }) => {
               Recommendations
             </Typography>
             <Box sx={{ maxHeight: 200, overflow: 'auto' }}>
-              {recommendations.map((rec, idx) => (
-                <Alert
-                  key={idx}
-                  severity={
-                    rec.includes('satisfactory') ? 'success' :
-                    rec.includes('failing') ? 'error' : 'warning'
-                  }
-                  sx={{ mb: 1 }}
-                  icon={
-                    rec.includes('satisfactory') ? <CheckIcon /> :
-                    rec.includes('failing') ? <ErrorIcon /> : <WarningIcon />
-                  }
-                >
-                  <Typography variant="body2">{rec}</Typography>
-                </Alert>
-              ))}
+              {recommendations.map((rec, idx) => {
+                const recView = getRecommendationView(rec);
+                return (
+                  <Alert
+                    key={idx}
+                    severity={
+                      rec.includes('satisfactory') ? 'success' :
+                      rec.includes('failing') ? 'error' : 'warning'
+                    }
+                    sx={{ mb: 1 }}
+                    icon={
+                      rec.includes('satisfactory') ? <CheckIcon /> :
+                      rec.includes('failing') ? <ErrorIcon /> : <WarningIcon />
+                    }
+                    action={
+                      recView && onNavigate ? (
+                        <Tooltip title="View details">
+                          <Button
+                            size="small"
+                            startIcon={<ViewIcon />}
+                            onClick={() => onNavigate(recView)}
+                            sx={{ whiteSpace: 'nowrap' }}
+                          >
+                            View
+                          </Button>
+                        </Tooltip>
+                      ) : undefined
+                    }
+                  >
+                    <Typography variant="body2">{rec}</Typography>
+                  </Alert>
+                );
+              })}
             </Box>
           </Paper>
         </Grid>
       </Grid>
+
+      {/* Batch Summary Table */}
+      {batchSummaries.length > 0 && (
+        <Accordion
+          expanded={batchExpanded}
+          onChange={() => setBatchExpanded(!batchExpanded)}
+          sx={{ mt: 2 }}
+        >
+          <AccordionSummary expandIcon={<ExpandMoreIcon />}>
+            <Typography variant="h6">
+              Batch Summary ({batchSummaries.length} batches)
+            </Typography>
+          </AccordionSummary>
+          <AccordionDetails>
+            <TableContainer>
+              <Table size="small">
+                <TableHead>
+                  <TableRow>
+                    <TableCell>Batch ID</TableCell>
+                    <TableCell align="center">Samples</TableCell>
+                    <TableCell align="center">Stds</TableCell>
+                    <TableCell align="center">Blanks</TableCell>
+                    <TableCell align="center">Dups</TableCell>
+                    <TableCell align="center">Insertion %</TableCell>
+                    <TableCell align="center">Pass %</TableCell>
+                    <TableCell>Issues</TableCell>
+                  </TableRow>
+                </TableHead>
+                <TableBody>
+                  {batchSummaries.map((batch) => (
+                    <TableRow
+                      key={batch.batchId}
+                      sx={{
+                        backgroundColor: batch.issues.length > 0 ? 'rgba(255, 152, 0, 0.05)' : undefined,
+                      }}
+                    >
+                      <TableCell>
+                        <Typography variant="body2" fontWeight="medium">
+                          {batch.batchId}
+                        </Typography>
+                      </TableCell>
+                      <TableCell align="center">{batch.sampleCount}</TableCell>
+                      <TableCell align="center">{batch.standardCount}</TableCell>
+                      <TableCell align="center">{batch.blankCount}</TableCell>
+                      <TableCell align="center">{batch.duplicateCount}</TableCell>
+                      <TableCell align="center">
+                        <Typography
+                          variant="body2"
+                          color={batch.insertionRate >= 5 ? 'text.primary' : 'warning.main'}
+                        >
+                          {batch.insertionRate.toFixed(1)}%
+                        </Typography>
+                      </TableCell>
+                      <TableCell align="center">
+                        <Chip
+                          label={`${batch.passRate.toFixed(0)}%`}
+                          size="small"
+                          color={batch.passRate >= 90 ? 'success' : batch.passRate >= 70 ? 'warning' : 'error'}
+                          variant="outlined"
+                        />
+                      </TableCell>
+                      <TableCell>
+                        {batch.issues.length > 0
+                          ? batch.issues.map((issue, i) => (
+                              <Chip
+                                key={i}
+                                label={issue}
+                                size="small"
+                                color="warning"
+                                variant="outlined"
+                                sx={{ mr: 0.5, mb: 0.5 }}
+                              />
+                            ))
+                          : <Typography variant="caption" color="text.disabled">None</Typography>
+                        }
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </TableContainer>
+          </AccordionDetails>
+        </Accordion>
+      )}
 
       {/* Element Summary Table */}
       <Paper sx={{ p: 2, mt: 2 }}>
@@ -465,7 +670,11 @@ export const QAQCDashboard: React.FC<QAQCDashboardProps> = ({ onNavigate }) => {
                   p: 1,
                   borderColor: getGradeColor(summary.grade),
                   borderWidth: 2,
+                  cursor: onNavigate ? 'pointer' : 'default',
+                  '&:hover': onNavigate ? { boxShadow: 3, transform: 'translateY(-1px)' } : {},
+                  transition: 'box-shadow 0.2s, transform 0.2s',
                 }}
+                onClick={() => handleElementClick(summary.element, summary)}
               >
                 <Typography variant="subtitle2" fontWeight="bold">
                   {summary.element}
@@ -485,9 +694,17 @@ export const QAQCDashboard: React.FC<QAQCDashboardProps> = ({ onNavigate }) => {
                   />
                 </Box>
                 <Typography variant="caption" display="block" color="text.secondary">
-                  Std: {summary.standardsPassRate.toFixed(0)}% |
-                  Blk: {summary.blanksPassRate.toFixed(0)}% |
-                  Dup: {summary.duplicatesPassRate.toFixed(0)}%
+                  {summary.hasStandards
+                    ? `S:${summary.standardsPassRate.toFixed(0)}%`
+                    : <span style={{ color: '#bbb' }}>S:N/A</span>}
+                  {' | '}
+                  {summary.hasBlanks
+                    ? `B:${summary.blanksPassRate.toFixed(0)}%`
+                    : <span style={{ color: '#bbb' }}>B:N/A</span>}
+                  {' | '}
+                  {summary.hasDuplicates
+                    ? `D:${summary.duplicatesPassRate.toFixed(0)}%`
+                    : <span style={{ color: '#bbb' }}>D:N/A</span>}
                 </Typography>
               </Card>
             </Grid>

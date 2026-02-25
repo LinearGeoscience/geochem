@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react';
-import { Box, Paper, FormControl, InputLabel, Select, MenuItem, Typography, IconButton, Collapse, Button, Stack } from '@mui/material';
+import { Box, Paper, FormControl, InputLabel, Select, MenuItem, Typography, IconButton, Collapse, Button, Stack, Checkbox, FormControlLabel } from '@mui/material';
 import { ExpandMore, ExpandLess, Refresh } from '@mui/icons-material';
 import { useAppStore } from '../../store/appStore';
 import Plot from 'react-plotly.js';
@@ -28,6 +28,7 @@ interface AttributeMap3DProps {
 
 export const AttributeMap3D: React.FC<AttributeMap3DProps> = ({ plotId }) => {
     const { data, columns, lockAxes, getPlotSettings, updatePlotSettings, getFilteredColumns, getDisplayData, getDisplayIndices, sampleIndices } = useAppStore();
+    useAppStore(s => s.tooltipMode); // Subscribe to trigger re-render on toggle
     const filteredColumns = getFilteredColumns();
     const d = (name: string) => getColumnDisplayName(columns, name);
     const displayData = useMemo(() => getDisplayData(), [data, sampleIndices]);
@@ -44,6 +45,7 @@ export const AttributeMap3D: React.FC<AttributeMap3DProps> = ({ plotId }) => {
     const [controlsExpanded, setControlsExpandedLocal] = useState(storedSettings.controlsExpanded ?? true);
     const [rangeControlsExpanded, setRangeControlsExpandedLocal] = useState(storedSettings.rangeControlsExpanded ?? true);
     const [axisRanges, setAxisRangesLocal] = useState<AxisRanges | null>(storedSettings.axisRanges || null);
+    const [equalAxes, setEqualAxesLocal] = useState<boolean>(storedSettings.equalAxes ?? true);
 
     // Wrapper functions to persist settings
     const setXAxis = (axis: string) => {
@@ -69,6 +71,10 @@ export const AttributeMap3D: React.FC<AttributeMap3DProps> = ({ plotId }) => {
     const setRangeControlsExpanded = (expanded: boolean) => {
         setRangeControlsExpandedLocal(expanded);
         updatePlotSettings(plotId, { rangeControlsExpanded: expanded });
+    };
+    const setEqualAxes = (value: boolean) => {
+        setEqualAxesLocal(value);
+        updatePlotSettings(plotId, { equalAxes: value });
     };
     const setAxisRanges = (ranges: AxisRanges | null | ((prev: AxisRanges | null) => AxisRanges | null)) => {
         if (typeof ranges === 'function') {
@@ -290,6 +296,10 @@ export const AttributeMap3D: React.FC<AttributeMap3DProps> = ({ plotId }) => {
                             ))}
                         </Select>
                     </FormControl>
+                    <FormControlLabel
+                        control={<Checkbox checked={equalAxes} onChange={(e) => setEqualAxes(e.target.checked)} />}
+                        label="Equal Axes"
+                    />
                 </Box>
             </Collapse>
 
@@ -306,6 +316,7 @@ export const AttributeMap3D: React.FC<AttributeMap3DProps> = ({ plotId }) => {
                                     autosize: true,
                                     height: 600,
                                     scene: {
+                                        aspectmode: equalAxes ? 'data' : 'auto',
                                         xaxis: {
                                             title: { text: d(xAxis), font: { size: 11 } },
                                             range: axisRanges ? axisRanges.x : undefined,

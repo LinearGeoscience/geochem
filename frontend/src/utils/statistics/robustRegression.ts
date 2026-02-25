@@ -166,10 +166,10 @@ function ols(x: number[], y: number[]): OLSResult {
 function lts(
     x: number[],
     y: number[],
-    trimFraction: number = 0.75,
-    nSubsamples: number = 500
+    trimFraction: number = 0.75
 ): OLSResult {
     const n = x.length;
+    const nSubsamples = Math.min(500, Math.max(100, Math.floor(n * Math.log(n))));
     const h = Math.max(2, Math.floor(n * trimFraction));
 
     let bestSlope = 0;

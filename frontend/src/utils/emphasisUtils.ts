@@ -10,12 +10,31 @@ export interface EmphasisResult {
 }
 
 /**
+ * Filter bounds for value filter integration
+ */
+export interface FilterBounds {
+    min: number | null;
+    max: number | null;
+}
+
+/**
  * Calculate percentile ranks for an array of values
  * Returns values from 0 to 1 (0 = lowest, 1 = highest)
+ * When filterBounds is provided, only values within the bounds are used for ranking
  */
-function calculatePercentileRanks(values: (number | null)[]): (number | null)[] {
-    const validValues = values.filter((v): v is number => v !== null);
+function calculatePercentileRanks(values: (number | null)[], filterBounds?: FilterBounds): (number | null)[] {
+    let validValues = values.filter((v): v is number => v !== null);
     if (validValues.length === 0) return values.map(() => null);
+
+    // When filter bounds are active, exclude out-of-range values from the sorted reference
+    if (filterBounds) {
+        validValues = validValues.filter(v => {
+            if (filterBounds.min !== null && v < filterBounds.min) return false;
+            if (filterBounds.max !== null && v > filterBounds.max) return false;
+            return true;
+        });
+        if (validValues.length === 0) return values.map(() => null);
+    }
 
     const sorted = [...validValues].sort((a, b) => a - b);
 
@@ -31,23 +50,24 @@ function calculatePercentileRanks(values: (number | null)[]): (number | null)[] 
 /**
  * Calculate linear ranks for an array of values
  * Returns values from 0 to 1 based on min/max
+ * When filterBounds is provided, uses those bounds instead of data min/max
  */
-function calculateLinearRanks(values: (number | null)[]): (number | null)[] {
+function calculateLinearRanks(values: (number | null)[], filterBounds?: FilterBounds): (number | null)[] {
     const validValues = values.filter((v): v is number => v !== null);
     if (validValues.length === 0) return values.map(() => null);
 
-    const min = Math.min(...validValues);
-    const max = Math.max(...validValues);
+    const min = filterBounds?.min ?? Math.min(...validValues);
+    const max = filterBounds?.max ?? Math.max(...validValues);
     const range = max - min;
 
     if (range === 0) {
-        // All values are the same
         return values.map(v => v === null ? null : 0.5);
     }
 
     return values.map(v => {
         if (v === null) return null;
-        return (v - min) / range;
+        // Clamp to 0-1 range (values outside filter bounds get clamped)
+        return Math.max(0, Math.min(1, (v - min) / range));
     });
 }
 
@@ -126,7 +146,8 @@ export function calculateEmphasis(
     data: Record<string, any>[],
     config: EmphasisConfig,
     colorEntries: AttributeEntry[],
-    colorField: string | null
+    colorField: string | null,
+    filterBounds?: FilterBounds
 ): EmphasisResult[] {
     // If emphasis is disabled, return neutral values
     if (!config.enabled) {
@@ -153,10 +174,10 @@ export function calculateEmphasis(
             return v != null && !isNaN(Number(v)) ? Number(v) : null;
         });
 
-        // Calculate rankings based on mode
+        // Calculate rankings based on mode, passing filter bounds for scaling
         rankings = config.mode === 'percentile'
-            ? calculatePercentileRanks(values)
-            : calculateLinearRanks(values);
+            ? calculatePercentileRanks(values, filterBounds)
+            : calculateLinearRanks(values, filterBounds);
     }
 
     // Convert rankings to emphasis values

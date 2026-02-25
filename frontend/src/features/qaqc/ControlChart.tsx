@@ -39,12 +39,15 @@ export const ControlChart: React.FC = () => {
     selectedElements,
     selectedStandard,
     setSelectedStandard,
+    navigateToElement,
+    setNavigateToElement,
   } = useQAQCStore();
 
   const [selectedElement, setSelectedElement] = useState<string>(
     selectedElements[0] || ''
   );
-  const [chartMode, setChartMode] = useState<ChartMode>('values');
+  const [chartMode, setChartModeRaw] = useState<ChartMode>('values');
+  const setChartMode = (mode: ChartMode) => setChartModeRaw(mode);
 
   // Get available standards
   const availableStandards = useMemo(() =>
@@ -66,6 +69,30 @@ export const ControlChart: React.FC = () => {
     return charts.find(c => c.element === selectedElement) || null;
   }, [selectedStandard, selectedElement, controlCharts]);
 
+  // Fix 1.7: Auto-fallback to values mode when no certified value available
+  const hasCertifiedValue = useMemo(() => {
+    if (!chartData) return false;
+    return chartData.limits.certifiedValue !== undefined;
+  }, [chartData]);
+
+  const chartModeEffective = (!hasCertifiedValue && chartMode === 'recovery') ? 'values' : chartMode;
+
+  // Dashboard drill-down: pre-select element from navigation
+  React.useEffect(() => {
+    if (navigateToElement) {
+      // Find a standard that has this element
+      for (const std of Object.keys(controlCharts)) {
+        const charts = controlCharts[std];
+        if (charts.some(c => c.element === navigateToElement)) {
+          setSelectedStandard(std);
+          setSelectedElement(navigateToElement);
+          break;
+        }
+      }
+      setNavigateToElement(null);
+    }
+  }, [navigateToElement, controlCharts, setSelectedStandard, setNavigateToElement]);
+
   // Auto-select first standard
   React.useEffect(() => {
     if (!selectedStandard && availableStandards.length > 0) {
@@ -84,33 +111,38 @@ export const ControlChart: React.FC = () => {
   const { traces, layout } = useMemo(() => {
     if (!chartData) return { traces: [], layout: {} };
 
+    const mode = chartModeEffective;
     const xValues = chartData.points.map((_, i) => i + 1);
-    const yValues = chartMode === 'recovery' && chartData.points[0]?.recovery !== undefined
+    const yValues = mode === 'recovery' && chartData.points[0]?.recovery !== undefined
       ? chartData.points.map(p => p.recovery!)
       : chartData.points.map(p => p.value);
 
-    const centerLine = chartMode === 'recovery'
+    const centerLine = mode === 'recovery'
       ? 100
       : (chartData.limits.certifiedValue ?? chartData.limits.mean);
 
-    const ucl = chartMode === 'recovery'
+    const ucl = mode === 'recovery'
       ? 100 + (chartData.limits.upperControlLimit - centerLine) / centerLine * 100
       : chartData.limits.upperControlLimit;
 
-    const lcl = chartMode === 'recovery'
+    const lcl = mode === 'recovery'
       ? 100 - (centerLine - chartData.limits.lowerControlLimit) / centerLine * 100
       : chartData.limits.lowerControlLimit;
 
-    const uwl = chartMode === 'recovery'
+    const uwl = mode === 'recovery'
       ? 100 + (chartData.limits.upperWarningLimit - centerLine) / centerLine * 100
       : chartData.limits.upperWarningLimit;
 
-    const lwl = chartMode === 'recovery'
+    const lwl = mode === 'recovery'
       ? 100 - (centerLine - chartData.limits.lowerWarningLimit) / centerLine * 100
       : chartData.limits.lowerWarningLimit;
 
-    // Color points by status
-    const colors = chartData.points.map(p => {
+    // Color points by status, highlight Westgard violations
+    const violationIndices = new Set(
+      (chartData.westgardViolations || []).flatMap(v => v.pointIndices)
+    );
+    const colors = chartData.points.map((p, i) => {
+      if (violationIndices.has(i)) return '#9c27b0'; // Purple for Westgard violations
       switch (p.status) {
         case 'pass': return '#4caf50';
         case 'warning': return '#ff9800';
@@ -141,7 +173,7 @@ export const ControlChart: React.FC = () => {
       // Center line
       {
         x: [0, xValues.length + 1],
-        y: [chartMode === 'recovery' ? 100 : centerLine, chartMode === 'recovery' ? 100 : centerLine],
+        y: [mode === 'recovery' ? 100 : centerLine, mode === 'recovery' ? 100 : centerLine],
         type: 'scatter',
         mode: 'lines',
         name: chartData.limits.certifiedValue ? 'Certified Value' : 'Mean',
@@ -200,7 +232,7 @@ export const ControlChart: React.FC = () => {
         zeroline: false,
       },
       yaxis: {
-        title: chartMode === 'recovery' ? 'Recovery (%)' : chartData.element,
+        title: mode === 'recovery' ? 'Recovery (%)' : chartData.element,
         zeroline: false,
       },
       showlegend: true,
@@ -217,7 +249,7 @@ export const ControlChart: React.FC = () => {
     };
 
     return { traces, layout };
-  }, [chartData, chartMode]);
+  }, [chartData, chartModeEffective]);
 
   if (Object.keys(controlCharts).length === 0) {
     return (
@@ -274,14 +306,16 @@ export const ControlChart: React.FC = () => {
 
           <Grid item xs={12} sm={4}>
             <ToggleButtonGroup
-              value={chartMode}
+              value={chartModeEffective}
               exclusive
               onChange={(_, value) => value && setChartMode(value)}
               size="small"
               fullWidth
             >
               <ToggleButton value="values">Values</ToggleButton>
-              <ToggleButton value="recovery">Recovery %</ToggleButton>
+              <ToggleButton value="recovery" disabled={!hasCertifiedValue}>
+                Recovery %
+              </ToggleButton>
             </ToggleButtonGroup>
           </Grid>
         </Grid>
@@ -410,7 +444,18 @@ export const ControlChart: React.FC = () => {
                       Potential drift detected - systematic trend over time
                     </Alert>
                   )}
-                  {!chartData.biasDetected && !chartData.driftDetected && chartData.failCount === 0 && (
+                  {/* Feature 2.1: Westgard/Nelson rule violations */}
+                  {chartData.westgardViolations && chartData.westgardViolations.length > 0 && (
+                    chartData.westgardViolations.map((violation, idx) => (
+                      <Alert key={idx} severity="warning" sx={{ mt: 1 }}>
+                        <Typography variant="body2">
+                          <strong>{violation.rule}:</strong> {violation.description}
+                        </Typography>
+                      </Alert>
+                    ))
+                  )}
+                  {!chartData.biasDetected && !chartData.driftDetected && chartData.failCount === 0
+                    && (!chartData.westgardViolations || chartData.westgardViolations.length === 0) && (
                     <Alert severity="success" sx={{ mt: 1 }}>
                       Standard performance is acceptable
                     </Alert>

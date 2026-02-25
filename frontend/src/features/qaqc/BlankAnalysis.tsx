@@ -45,6 +45,8 @@ export const BlankAnalysis: React.FC = () => {
     detectionLimits,
     setDetectionLimit,
     thresholds,
+    navigateToElement,
+    setNavigateToElement,
   } = useQAQCStore();
 
   const [selectedElement, setSelectedElement] = useState<string>('');
@@ -55,6 +57,14 @@ export const BlankAnalysis: React.FC = () => {
     blankAnalyses.map(a => a.element).sort(),
     [blankAnalyses]
   );
+
+  // Dashboard drill-down: pre-select element from navigation
+  React.useEffect(() => {
+    if (navigateToElement && availableElements.includes(navigateToElement)) {
+      setSelectedElement(navigateToElement);
+      setNavigateToElement(null);
+    }
+  }, [navigateToElement, availableElements, setNavigateToElement]);
 
   // Auto-select first element
   React.useEffect(() => {
@@ -162,10 +172,13 @@ export const BlankAnalysis: React.FC = () => {
         );
       }
 
+      // Fix 1.3: Only use log scale if all values are positive
+      const allPositive = currentAnalysis.results.every(r => r.value > 0);
+
       layout = {
         title: { text: `${currentAnalysis.element} - Blank Values`, font: { size: 16 } },
         xaxis: { title: 'Blank Sequence' },
-        yaxis: { title: currentAnalysis.element, type: 'log' },
+        yaxis: { title: currentAnalysis.element, type: allPositive ? 'log' : 'linear' },
         showlegend: true,
         legend: { orientation: 'h', y: -0.2, x: 0.5, xanchor: 'center' },
         autosize: true,

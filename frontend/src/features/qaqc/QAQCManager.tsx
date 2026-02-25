@@ -42,7 +42,7 @@ import { useAppStore } from '../../store/appStore';
 import { useQAQCStore } from '../../store/qaqcStore';
 import { sortColumnsByPriority } from '../../utils/attributeUtils';
 import { MultiColumnSelector } from '../../components/MultiColumnSelector';
-import { QCSampleType, DEFAULT_QAQC_THRESHOLDS } from '../../types/qaqc';
+import { QCSampleType, DEFAULT_QAQC_THRESHOLDS, StandardReference, StandardReferenceValue } from '../../types/qaqc';
 
 interface QAQCManagerProps {
   onNavigate?: (view: 'control-chart' | 'duplicates' | 'blanks' | 'dashboard') => void;
@@ -57,6 +57,8 @@ export const QAQCManager: React.FC<QAQCManagerProps> = ({ onNavigate }) => {
     setSampleIdColumn,
     batchColumn,
     setBatchColumn,
+    duplicatePairColumn,
+    setDuplicatePairColumn,
     thresholds,
     setThresholds,
     qcSamples,
@@ -64,6 +66,8 @@ export const QAQCManager: React.FC<QAQCManagerProps> = ({ onNavigate }) => {
     detectSamples,
     runAnalysis,
     clearAnalysis,
+    addStandardReference,
+    standardReferences,
     elementSummaries,
     overallGrade,
     recommendations,
@@ -74,6 +78,74 @@ export const QAQCManager: React.FC<QAQCManagerProps> = ({ onNavigate }) => {
   } = useQAQCStore();
 
   const [showThresholds, setShowThresholds] = useState(false);
+
+  // Feature 3.2: CRM certified values import
+  const handleCRMImport = useCallback((event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      try {
+        const text = e.target?.result as string;
+        const lines = text.split('\n').filter(l => l.trim());
+        if (lines.length < 2) {
+          alert('CSV must have header row and at least one data row');
+          return;
+        }
+
+        // Parse header
+        const header = lines[0].split(',').map(h => h.trim().toLowerCase());
+        const nameIdx = header.findIndex(h => h === 'standardname' || h === 'standard' || h === 'name' || h === 'crm');
+        const elementIdx = header.findIndex(h => h === 'element' || h === 'analyte');
+        const valueIdx = header.findIndex(h => h === 'certifiedvalue' || h === 'certified' || h === 'value');
+        const uncIdx = header.findIndex(h => h === 'uncertainty' || h === '2sigma' || h === 'unc');
+
+        if (nameIdx === -1 || elementIdx === -1 || valueIdx === -1) {
+          alert('CSV must have columns: StandardName, Element, CertifiedValue (and optionally Uncertainty)');
+          return;
+        }
+
+        // Parse data and group by standard name
+        const refMap = new Map<string, StandardReferenceValue[]>();
+        for (let i = 1; i < lines.length; i++) {
+          const cols = lines[i].split(',').map(c => c.trim());
+          const name = cols[nameIdx];
+          const element = cols[elementIdx];
+          const value = parseFloat(cols[valueIdx]);
+          if (!name || !element || isNaN(value)) continue;
+
+          const unc = uncIdx >= 0 ? parseFloat(cols[uncIdx]) : undefined;
+          const key = name.toUpperCase();
+          if (!refMap.has(key)) refMap.set(key, []);
+          refMap.get(key)!.push({
+            element,
+            certifiedValue: value,
+            certifiedUncertainty: unc && !isNaN(unc) ? unc : undefined,
+          });
+        }
+
+        // Create StandardReference for each
+        let imported = 0;
+        refMap.forEach((values, name) => {
+          const ref: StandardReference = {
+            id: name,
+            name,
+            values,
+          };
+          addStandardReference(ref);
+          imported++;
+        });
+
+        alert(`Imported ${imported} standard reference(s) with ${[...refMap.values()].reduce((s, v) => s + v.length, 0)} certified values`);
+      } catch (err) {
+        alert('Error parsing CSV: ' + (err instanceof Error ? err.message : String(err)));
+      }
+    };
+    reader.readAsText(file);
+    // Reset input so same file can be re-selected
+    event.target.value = '';
+  }, [addStandardReference]);
 
   // Get column options
   const textColumns = useMemo(() =>
@@ -223,6 +295,27 @@ export const QAQCManager: React.FC<QAQCManagerProps> = ({ onNavigate }) => {
               Detect QC Samples
             </Button>
           </Grid>
+
+          {/* Feature 2.5: Duplicate pair column */}
+          <Grid item xs={12} md={4}>
+            <FormControl fullWidth size="small">
+              <InputLabel>Duplicate Pair Column (Optional)</InputLabel>
+              <Select
+                value={duplicatePairColumn || ''}
+                onChange={(e) => setDuplicatePairColumn(e.target.value || null)}
+                label="Duplicate Pair Column (Optional)"
+              >
+                <MenuItem value="">
+                  <em>Use naming convention</em>
+                </MenuItem>
+                {textColumns.map((col) => (
+                  <MenuItem key={col.name} value={col.name}>
+                    {col.alias || col.name}
+                  </MenuItem>
+                ))}
+              </Select>
+            </FormControl>
+          </Grid>
         </Grid>
 
         {/* Threshold Settings */}
@@ -308,6 +401,28 @@ export const QAQCManager: React.FC<QAQCManagerProps> = ({ onNavigate }) => {
             </Grid>
           </AccordionDetails>
         </Accordion>
+
+        {/* Feature 3.2: CRM certified values import */}
+        <Box sx={{ mt: 2, display: 'flex', gap: 2, alignItems: 'center' }}>
+          <Button
+            variant="outlined"
+            component="label"
+            size="small"
+          >
+            Import CRM Values (CSV)
+            <input
+              type="file"
+              accept=".csv"
+              hidden
+              onChange={handleCRMImport}
+            />
+          </Button>
+          {standardReferences.length > 0 && (
+            <Typography variant="body2" color="text.secondary">
+              {standardReferences.length} standard reference(s) loaded
+            </Typography>
+          )}
+        </Box>
       </Paper>
 
       {/* Detection Results */}
@@ -439,28 +554,40 @@ export const QAQCManager: React.FC<QAQCManagerProps> = ({ onNavigate }) => {
                       </Typography>
                     </TableCell>
                     <TableCell align="center">
-                      <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 0.5 }}>
-                        {getStatusIcon(summary.standardsPassRate)}
-                        <Typography variant="body2">
-                          {summary.standardsPass}/{summary.standardsAnalyzed}
-                        </Typography>
-                      </Box>
+                      {summary.hasStandards ? (
+                        <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 0.5 }}>
+                          {getStatusIcon(summary.standardsPassRate)}
+                          <Typography variant="body2">
+                            {summary.standardsPass}/{summary.standardsAnalyzed}
+                          </Typography>
+                        </Box>
+                      ) : (
+                        <Typography variant="body2" color="text.disabled">N/A</Typography>
+                      )}
                     </TableCell>
                     <TableCell align="center">
-                      <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 0.5 }}>
-                        {getStatusIcon(summary.blanksPassRate)}
-                        <Typography variant="body2">
-                          {summary.blanksClean}/{summary.blanksAnalyzed}
-                        </Typography>
-                      </Box>
+                      {summary.hasBlanks ? (
+                        <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 0.5 }}>
+                          {getStatusIcon(summary.blanksPassRate)}
+                          <Typography variant="body2">
+                            {summary.blanksClean}/{summary.blanksAnalyzed}
+                          </Typography>
+                        </Box>
+                      ) : (
+                        <Typography variant="body2" color="text.disabled">N/A</Typography>
+                      )}
                     </TableCell>
                     <TableCell align="center">
-                      <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 0.5 }}>
-                        {getStatusIcon(summary.duplicatesPassRate)}
-                        <Typography variant="body2">
-                          {summary.duplicatesPass}/{summary.duplicatesAnalyzed}
-                        </Typography>
-                      </Box>
+                      {summary.hasDuplicates ? (
+                        <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 0.5 }}>
+                          {getStatusIcon(summary.duplicatesPassRate)}
+                          <Typography variant="body2">
+                            {summary.duplicatesPass}/{summary.duplicatesAnalyzed}
+                          </Typography>
+                        </Box>
+                      ) : (
+                        <Typography variant="body2" color="text.disabled">N/A</Typography>
+                      )}
                     </TableCell>
                     <TableCell align="center">
                       <Typography variant="body2">

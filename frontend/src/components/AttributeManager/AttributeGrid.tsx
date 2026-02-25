@@ -209,6 +209,7 @@ const AttributeRow: React.FC<{
     entry: AttributeEntry;
     tab: AttributeType;
     isSelected: boolean;
+    isActiveEntry: boolean;
     onSelect: (e: React.MouseEvent) => void;
     onVisibilityChange: () => void;
     onNameChange: (name: string) => void;
@@ -221,6 +222,7 @@ const AttributeRow: React.FC<{
     entry,
     tab,
     isSelected,
+    isActiveEntry,
     onSelect,
     onVisibilityChange,
     onNameChange,
@@ -449,6 +451,10 @@ const AttributeRow: React.FC<{
                     cursor: 'pointer',
                     '&.Mui-selected': { bgcolor: 'primary.light' },
                     '&:hover': { bgcolor: isSelected ? 'primary.light' : 'action.hover' },
+                    ...(isActiveEntry && {
+                        borderLeft: '3px solid #4caf50',
+                        bgcolor: 'rgba(76, 175, 80, 0.08)',
+                    }),
                 }}
             >
                 {/* Name */}
@@ -475,7 +481,7 @@ const AttributeRow: React.FC<{
                 {/* Rows */}
                 <TableCell sx={{ py: 0.5, px: 1, textAlign: 'right' }}>
                     <Typography variant="body2" sx={{ opacity: entry.visible ? 1 : 0.5 }}>
-                        {entry.rowCount}
+                        {entry.isCustom ? entry.assignedIndices.length : entry.rowCount}
                     </Typography>
                 </TableCell>
 
@@ -634,6 +640,9 @@ export const AttributeGrid: React.FC<AttributeGridProps> = ({ tab, config }) => 
         toggleEntryVisibility,
         updateEntry,
         updateCustomEntry,
+        paintMode,
+        activeEntryId,
+        setActiveEntryId,
     } = useAttributeStore();
 
     // Combine custom entries with field-based entries
@@ -653,7 +662,13 @@ export const AttributeGrid: React.FC<AttributeGridProps> = ({ tab, config }) => 
         [combinedEntries]
     );
 
-    const handleSelect = (entryName: string, e: React.MouseEvent) => {
+    const handleSelect = (entry: AttributeEntry, e: React.MouseEvent) => {
+        // In paint mode, clicking a custom entry sets it as active paint target
+        if (paintMode && entry.isCustom) {
+            setActiveEntryId(entry.id);
+        }
+
+        const entryName = entry.name;
         if (e.ctrlKey || e.metaKey) {
             // Ctrl+Click: toggle individual
             toggleSelectedEntryName(entryName);
@@ -837,7 +852,8 @@ export const AttributeGrid: React.FC<AttributeGridProps> = ({ tab, config }) => 
                                 entry={entry}
                                 tab={tab}
                                 isSelected={selectedEntryNames.includes(entry.name)}
-                                onSelect={(e) => handleSelect(entry.name, e)}
+                                isActiveEntry={entry.id === activeEntryId}
+                                onSelect={(e) => handleSelect(entry, e)}
                                 onVisibilityChange={() => handleVisibilityChange(entry)}
                                 onNameChange={(name) => handleNameChange(entry, name)}
                                 onColorChange={(color) => handleColorChange(entry, color)}

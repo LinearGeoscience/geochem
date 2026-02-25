@@ -104,7 +104,17 @@ export function getPointStyle(
 
     // Get color
     if (colorField) {
-        const value = dataPoint[colorField];
+        let value: any;
+        if (color.additionalFields && color.additionalFields.length > 0) {
+            const allFields = [colorField, ...color.additionalFields];
+            const parts = allFields
+                .map(f => dataPoint[f])
+                .filter(v => v != null && String(v) !== '' && String(v) !== 'null' && String(v) !== 'undefined')
+                .map(v => String(v));
+            value = parts.length > 0 ? parts.join(' + ') : null;
+        } else {
+            value = dataPoint[colorField];
+        }
         const entry = findMatchingEntry(value, color.entries, customLookup, dataIndex);
         if (entry) {
             pointColor = entry.color || DEFAULT_COLOR;
@@ -195,7 +205,18 @@ export function getStyleArrays(
 
         // Get color
         if (color.field) {
-            const value = dataPoint[color.field];
+            let value: any;
+            if (color.additionalFields && color.additionalFields.length > 0) {
+                // Multi-column: compute combined category value
+                const allFields = [color.field, ...color.additionalFields];
+                const parts = allFields
+                    .map(f => dataPoint[f])
+                    .filter(v => v != null && String(v) !== '' && String(v) !== 'null' && String(v) !== 'undefined')
+                    .map(v => String(v));
+                value = parts.length > 0 ? parts.join(' + ') : null;
+            } else {
+                value = dataPoint[color.field];
+            }
             const entry = findMatchingEntry(value, color.entries, customLookup, dataIndex);
             if (entry) {
                 pointColor = entry.color || DEFAULT_COLOR;
@@ -254,6 +275,23 @@ export function getStyleArrays(
             }
         }
 
+        // Apply value filter
+        if (state.valueFilter.enabled && pointVisible) {
+            const filterCol = state.valueFilter.column || color.field;
+            if (filterCol) {
+                const rawValue = dataPoint[filterCol];
+                const numValue = typeof rawValue === 'number' ? rawValue : parseFloat(rawValue);
+                if (!isNaN(numValue)) {
+                    if (state.valueFilter.min !== null && numValue < state.valueFilter.min) {
+                        pointVisible = false;
+                    }
+                    if (state.valueFilter.max !== null && numValue > state.valueFilter.max) {
+                        pointVisible = false;
+                    }
+                }
+            }
+        }
+
         colors.push(pointColor);
         shapes.push(pointShape);
         sizes.push(pointSize);
@@ -261,12 +299,18 @@ export function getStyleArrays(
         entryOpacities.push(combinedEntryOpacity);
     }
 
-    // Calculate emphasis
+    // Calculate emphasis (pass value filter bounds if active)
+    const filterBounds = state.valueFilter.enabled ? {
+        min: state.valueFilter.min,
+        max: state.valueFilter.max,
+    } : undefined;
+
     const emphasisResults = calculateEmphasis(
         data,
         state.emphasis,
         color.entries,
-        color.field
+        color.field,
+        filterBounds
     );
 
     // Apply emphasis to sizes and combine opacity: entryOpacity * emphasisOpacity * globalOpacity
@@ -354,6 +398,88 @@ export function useAttributeStyles() {
 // Re-export emphasis utilities for convenience
 export { applyOpacityToColor, sortByEmphasis } from './emphasisUtils';
 export type { EmphasisResult } from './emphasisUtils';
+
+// ============================================================================
+// Selection Highlighting Utilities
+// ============================================================================
+
+export interface SelectionHighlight {
+    lineWidths: number[];
+    lineColors: string[];
+}
+
+/**
+ * Generate per-point marker.line arrays for selection highlighting (scatter mode).
+ * Selected points get a white 2px outline.
+ */
+export function getSelectionHighlightArrays(
+    dataLength: number,
+    selectedIndices: number[],
+    originalIndices?: number[]
+): SelectionHighlight {
+    const selectedSet = new Set(selectedIndices);
+    const lineWidths = new Array(dataLength).fill(0);
+    const lineColors = new Array(dataLength).fill('rgba(0,0,0,0)');
+
+    for (let i = 0; i < dataLength; i++) {
+        const origIdx = originalIndices ? originalIndices[i] : i;
+        if (selectedSet.has(origIdx)) {
+            lineWidths[i] = 2;
+            lineColors[i] = '#ffffff';
+        }
+    }
+
+    return { lineWidths, lineColors };
+}
+
+/**
+ * Build an overlay trace for selection highlighting in scattergl mode.
+ * scattergl doesn't support per-point marker.line.width arrays,
+ * so we create a separate trace containing only selected points.
+ * Returns null if no points are selected.
+ */
+export function buildSelectionOverlayTrace(
+    xValues: any[],
+    yValues: any[],
+    selectedIndices: number[],
+    sortedOriginalIndices: number[],
+    sizes: number[],
+    shapes: string[]
+): any | null {
+    if (selectedIndices.length === 0) return null;
+
+    const selectedSet = new Set(selectedIndices);
+    const overlayX: any[] = [];
+    const overlayY: any[] = [];
+    const overlaySizes: number[] = [];
+    const overlayShapes: string[] = [];
+
+    for (let i = 0; i < sortedOriginalIndices.length; i++) {
+        if (selectedSet.has(sortedOriginalIndices[i])) {
+            overlayX.push(xValues[i]);
+            overlayY.push(yValues[i]);
+            overlaySizes.push(sizes[i]);
+            overlayShapes.push(shapes[i]);
+        }
+    }
+
+    if (overlayX.length === 0) return null;
+
+    return {
+        x: overlayX,
+        y: overlayY,
+        mode: 'markers',
+        type: 'scattergl',
+        hoverinfo: 'skip',
+        showlegend: false,
+        marker: {
+            color: 'rgba(0,0,0,0)',
+            symbol: overlayShapes.map(s => shapeToPlotlySymbol(s)),
+            size: overlaySizes,
+            line: { width: 2, color: '#ffffff' },
+        },
+    };
+}
 
 /**
  * Get sorted indices for rendering data points with emphasis z-ordering

@@ -154,14 +154,32 @@ export const COLOR_PALETTES: ColorPalette[] = [
     {
         name: 'Copper',
         type: 'sequential',
-        description: 'For copper mineralization',
-        colors: ['#000000', '#2D1B00', '#5C3A00', '#8B5A00', '#BA7A00', '#E89B00', '#FFBB00', '#FFD966']
+        description: 'Cu assay - indigo to teal to amber to dark red',
+        colors: ['#1A1A6B', '#0288D1', '#00897B', '#C0CA33', '#F9A825', '#D84315', '#B71C1C']
     },
     {
         name: 'Gold',
         type: 'sequential',
-        description: 'For gold mineralization',
-        colors: ['#1A1A00', '#333300', '#666600', '#999900', '#CCCC00', '#FFFF00', '#FFFF66', '#FFFFCC']
+        description: 'Au assay - blue to green to red to pink',
+        colors: ['#00007F', '#00C8FF', '#82F57A', '#FFEA00', '#FFAE00', '#FF0000', '#FF00C8']
+    },
+    {
+        name: 'Assay',
+        type: 'sequential',
+        description: 'General geological assay - cold to hot',
+        colors: ['#0D0D80', '#0099FF', '#00C853', '#FFFF00', '#FFB300', '#FF5722', '#D50000', '#FF1493']
+    },
+    {
+        name: 'Mineralisation',
+        type: 'sequential',
+        description: 'Mineral systems - purple to green to red to pink',
+        colors: ['#4A148C', '#0277BD', '#2E7D32', '#F9A825', '#EF6C00', '#C62828', '#AD1457']
+    },
+    {
+        name: 'Pathfinder',
+        type: 'sequential',
+        description: 'Pathfinder elements - teal to green to red',
+        colors: ['#004D40', '#4DB6AC', '#C5E1A5', '#FFD54F', '#FFB74D', '#E57373', '#C62828']
     }
 ];
 
@@ -176,16 +194,9 @@ export function generateColorsFromPalette(paletteName: string, numColors: number
     if (!palette) return [];
 
     const colors = palette.colors;
-    if (numColors <= colors.length) {
-        // Subsample evenly
-        const indices = Array.from({ length: numColors }, (_, i) =>
-            Math.floor(i * (colors.length / numColors))
-        );
-        return indices.map(i => colors[i]);
-    } else {
-        // Interpolate if we need more colors
-        return interpolateColors(colors, numColors);
-    }
+    if (numColors <= 0) return [];
+    if (numColors === 1) return [colors[0]];
+    return interpolateColors(colors, numColors);
 }
 
 // Simple color interpolation

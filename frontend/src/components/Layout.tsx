@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Box, Drawer, List, ListItem, ListItemIcon, ListItemText, AppBar, Toolbar, Typography, IconButton, Divider, Button, Tooltip, Select, MenuItem, FormControl, Chip } from '@mui/material';
-import { CloudUpload, TableChart, ViewColumn, BarChart, Analytics, Settings, Menu as MenuIcon, ChevronLeft, Calculate, FilterList, Science, Functions, Biotech, Edit } from '@mui/icons-material';
+import { CloudUpload, TableChart, ViewColumn, BarChart, Analytics, Settings, Menu as MenuIcon, ChevronLeft, Calculate, FilterList, Science, Biotech, Edit } from '@mui/icons-material';
 import Badge from '@mui/material/Badge';
 import { useAppStore, COLUMN_FILTER_LABELS, ColumnFilterType } from '../store/appStore';
 import { useCalculationStore } from '../store/calculationStore';
@@ -18,6 +18,16 @@ export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) =>
         m => !m.isConfirmed && !m.isExcluded && (m.confidence === 'low' || m.confidence === 'unknown')
     ).length;
 
+    // Guard: ensure the Select always receives a value that matches a MenuItem
+    const effectiveFilter = availableFilters.includes(columnFilter) ? columnFilter : 'all';
+
+    // Reset store if the persisted filter is no longer valid
+    React.useEffect(() => {
+        if (columnFilter !== 'all' && !availableFilters.includes(columnFilter)) {
+            setColumnFilter('all');
+        }
+    }, [columnFilter, availableFilters, setColumnFilter]);
+
     // Show filter when we have geochem mappings (raw-elements) or transformed data
     const hasTransformedData = geochemMappings.length > 0 || availableFilters.length > 2 || availableFilters.some(f => f !== 'all' && f !== 'raw');
 
@@ -28,7 +38,6 @@ export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) =>
         { id: 'plots', label: 'Plots', icon: <BarChart /> },
         { id: 'analysis', label: 'Analysis', icon: <Analytics /> },
         { id: 'qaqc', label: 'QA/QC', icon: <Science /> },
-        { id: 'statistics', label: 'Statistics', icon: <Functions /> },
         { id: 'diagram-editor', label: 'Diagram Editor', icon: <Edit /> },
         { id: 'settings', label: 'Settings', icon: <Settings /> },
     ];
@@ -98,7 +107,7 @@ export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) =>
                                 <FilterList sx={{ color: 'rgba(255,255,255,0.7)', fontSize: 20 }} />
                                 <FormControl size="small" sx={{ minWidth: 140 }}>
                                     <Select
-                                        value={columnFilter}
+                                        value={effectiveFilter}
                                         onChange={(e) => setColumnFilter(e.target.value as ColumnFilterType)}
                                         sx={{
                                             color: 'white',

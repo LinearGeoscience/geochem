@@ -8,8 +8,9 @@ import {
     Tooltip,
     IconButton,
     CircularProgress,
+    Chip,
 } from '@mui/material';
-import { Palette, Category, FormatSize, FilterList, Lock, LockOpen, Share } from '@mui/icons-material';
+import { Palette, Category, FormatSize, FilterList, Lock, LockOpen, Share, Brush } from '@mui/icons-material';
 import { useAttributeStore, AttributeType } from '../../store/attributeStore';
 import { useAppStore } from '../../store/appStore';
 import { AttributeGrid } from './AttributeGrid';
@@ -17,6 +18,7 @@ import { AttributeToolbar } from './AttributeToolbar';
 import { AttributeConfig } from './AttributeConfig';
 import { AttributeActions } from './AttributeActions';
 import { EmphasisControls } from '../StyleManager/EmphasisControls';
+import { ValueFilterControls } from '../StyleManager/ValueFilterControls';
 import { ShapeMarker } from '../ShapeMarker';
 
 // Selected entry indicator component
@@ -140,6 +142,8 @@ export const AttributeManager: React.FC = () => {
         size,
         filter,
         syncStylesToQgis,
+        paintMode,
+        setPaintMode,
     } = useAttributeStore();
 
     const { lockAxes, setLockAxes } = useAppStore();
@@ -195,6 +199,16 @@ export const AttributeManager: React.FC = () => {
                     <Typography variant="subtitle1" fontWeight="bold">
                         Attribute Manager
                     </Typography>
+                    {paintMode && (
+                        <Chip
+                            icon={<Brush sx={{ fontSize: 14 }} />}
+                            label="PAINT"
+                            size="small"
+                            color="success"
+                            onDelete={() => setPaintMode(false)}
+                            sx={{ height: 22, fontSize: '0.7rem', fontWeight: 'bold' }}
+                        />
+                    )}
                     <Tooltip title={lockAxes ? "Unlock axes (allow auto-rescale)" : "Lock axes (prevent auto-rescale)"}>
                         <IconButton
                             size="small"
@@ -260,6 +274,11 @@ export const AttributeManager: React.FC = () => {
 
             {/* Actions (All Visible/Invisible/Save/Load) */}
             <AttributeActions tab={activeTab} />
+
+            {/* Value Filter Controls */}
+            <Box sx={{ px: 1, pb: 1, borderTop: '1px solid', borderColor: 'divider' }}>
+                <ValueFilterControls />
+            </Box>
 
             {/* High Grade Emphasis Controls */}
             <Box sx={{ px: 1, pb: 1, borderTop: '1px solid', borderColor: 'divider' }}>

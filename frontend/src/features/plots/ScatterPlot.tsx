@@ -6,11 +6,12 @@ import { MultiColumnSelector } from '../../components/MultiColumnSelector';
 import { TAS_DIAGRAM } from './classifications';
 import { ExpandablePlotWrapper } from '../../components/ExpandablePlotWrapper';
 import { useAttributeStore } from '../../store/attributeStore';
-import { getStyleArrays, shapeToPlotlySymbol, applyOpacityToColor, getSortedIndices, sortColumnsByPriority, getColumnDisplayName } from '../../utils/attributeUtils';
+import { getStyleArrays, shapeToPlotlySymbol, applyOpacityToColor, getSortedIndices, sortColumnsByPriority, getColumnDisplayName, getSelectionHighlightArrays, buildSelectionOverlayTrace } from '../../utils/attributeUtils';
 import { calculateLinearRegression } from '../../utils/regressionUtils';
 import { buildCustomData, buildScatterHoverTemplate } from '../../utils/tooltipUtils';
 import { getPlotConfig, EXPORT_FONT_SIZES, PRESENTATION_FONT_SIZES } from '../../utils/plotConfig';
 import { computePointDensities, DENSITY_JET_POINT_COLORSCALE } from '../../utils/densityGrid';
+import { useSelectionHandler } from '../../hooks/useSelectionHandler';
 
 // Store axis ranges per plot when locked
 interface AxisRangeCache {
@@ -27,7 +28,9 @@ interface ScatterPlotProps {
 }
 
 export const ScatterPlot: React.FC<ScatterPlotProps> = ({ plotId }) => {
-    const { data, columns, setSelection, lockAxes, getPlotSettings, updatePlotSettings, getFilteredColumns, getDisplayData, getDisplayIndices, sampleIndices, geochemMappings } = useAppStore();
+    const { data, columns, lockAxes, getPlotSettings, updatePlotSettings, getFilteredColumns, getDisplayData, getDisplayIndices, sampleIndices, geochemMappings } = useAppStore();
+    useAppStore(s => s.tooltipMode); // Subscribe to trigger re-render on toggle
+    const { handleSelected, handleDeselect, selectedIndices } = useSelectionHandler();
     const filteredColumns = getFilteredColumns();
     const d = (name: string) => getColumnDisplayName(columns, name);
     const displayData = useMemo(() => getDisplayData(), [data, sampleIndices]);
@@ -252,6 +255,9 @@ export const ScatterPlot: React.FC<ScatterPlotProps> = ({ plotId }) => {
         let traceCustomData = customData;
         let traceShapes = sortedShapes;
         let traceSizes = sortedSizes;
+        // Track original data indices through all reorderings (for selection highlighting)
+        // sortedOriginalIndices are displayData indices; map to true data indices via displayIndices
+        let traceOriginalIndices = sortedOriginalIndices.map(i => displayIndices ? displayIndices[i] : i);
 
         // Density z-ordering: sort by ascending density so high-density (red) points draw on top
         if (densityColors) {
@@ -261,7 +267,21 @@ export const ScatterPlot: React.FC<ScatterPlotProps> = ({ plotId }) => {
             traceCustomData = order.map(i => traceCustomData[i]);
             traceShapes = order.map(i => traceShapes[i]);
             traceSizes = order.map(i => traceSizes[i]);
+            traceOriginalIndices = order.map(i => traceOriginalIndices[i]);
             densityColors = order.map(i => densityColors![i]);
+        }
+
+        // Selection highlighting
+        const isWebGL = plotType === 'scattergl';
+        let markerLine: any = { width: 0 };
+        if (!isWebGL && selectedIndices.length > 0) {
+            // scatter (non-WebGL): per-point marker.line arrays
+            const highlight = getSelectionHighlightArrays(
+                traceX.length,
+                selectedIndices,
+                traceOriginalIndices
+            );
+            markerLine = { width: highlight.lineWidths, color: highlight.lineColors };
         }
 
         const trace: any = {
@@ -278,12 +298,12 @@ export const ScatterPlot: React.FC<ScatterPlotProps> = ({ plotId }) => {
                 symbol: traceShapes.map(s => shapeToPlotlySymbol(s)),
                 size: traceSizes,
                 opacity: densityOpacity,
-                line: { width: 0 }
+                line: markerLine
             } : {
                 color: sortedColors,
                 symbol: traceShapes.map(s => shapeToPlotlySymbol(s)),
                 size: traceSizes,
-                line: { width: 0 }
+                line: markerLine
             }
         };
 
@@ -291,6 +311,14 @@ export const ScatterPlot: React.FC<ScatterPlotProps> = ({ plotId }) => {
 
         // Always add scatter points
         traces.push(trace);
+
+        // WebGL selection overlay trace (scattergl can't do per-point line arrays)
+        if (isWebGL && selectedIndices.length > 0) {
+            const overlay = buildSelectionOverlayTrace(
+                traceX, traceY, selectedIndices, traceOriginalIndices, traceSizes, traceShapes
+            );
+            if (overlay) traces.push(overlay);
+        }
 
         // Add regression lines if enabled
         if (showRegression) {
@@ -346,17 +374,6 @@ export const ScatterPlot: React.FC<ScatterPlotProps> = ({ plotId }) => {
         }
 
         return traces;
-    };
-
-    const handleSelected = (event: any) => {
-        if (event && event.points && event.points.length > 0) {
-            const indices = event.points.map((pt: any) => pt.customdata?.idx ?? pt.customdata);
-            setSelection(indices);
-        }
-    };
-
-    const handleDeselect = () => {
-        setSelection([]);
     };
 
     const getSortedYAxes = (): string[] => {
@@ -482,14 +499,28 @@ export const ScatterPlot: React.FC<ScatterPlotProps> = ({ plotId }) => {
                     </Tooltip>
                     <ToggleButtonGroup
                         size="small"
-                        value={[logScaleX ? 'x' : '', logScaleY ? 'y' : ''].filter(Boolean)}
+                        value={[logScaleX ? 'x' : '', logScaleY ? 'y' : '', (logScaleX && logScaleY) ? 'both' : ''].filter(Boolean)}
                         onChange={(_, newValues: string[]) => {
-                            setLogScaleX(newValues.includes('x'));
-                            setLogScaleY(newValues.includes('y'));
+                            const hadBoth = logScaleX && logScaleY;
+                            const nowHasBoth = newValues.includes('both');
+                            if (nowHasBoth && !hadBoth) {
+                                // "Both" was just selected — enable both axes
+                                setLogScaleX(true);
+                                setLogScaleY(true);
+                            } else if (!nowHasBoth && hadBoth) {
+                                // "Both" was just deselected — disable both axes
+                                setLogScaleX(false);
+                                setLogScaleY(false);
+                            } else {
+                                // Individual axis toggle
+                                setLogScaleX(newValues.includes('x'));
+                                setLogScaleY(newValues.includes('y'));
+                            }
                         }}
                     >
                         <ToggleButton value="x" size="small">X</ToggleButton>
                         <ToggleButton value="y" size="small">Y</ToggleButton>
+                        <ToggleButton value="both" size="small">Both</ToggleButton>
                     </ToggleButtonGroup>
                 </Box>
 

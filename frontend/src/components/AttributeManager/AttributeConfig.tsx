@@ -9,7 +9,7 @@ import {
     Typography,
     IconButton,
 } from '@mui/material';
-import { AutoAwesome, Palette as PaletteIcon, SwapVert, Refresh } from '@mui/icons-material';
+import { AutoAwesome, Palette as PaletteIcon, SwapVert, Refresh, Add, Close } from '@mui/icons-material';
 import {
     useAttributeStore,
     AttributeType,
@@ -32,6 +32,8 @@ export const AttributeConfig: React.FC<AttributeConfigProps> = ({ tab, config })
     const { data, columns } = useAppStore();
     const {
         setField,
+        addAdditionalField,
+        removeAdditionalField,
         setMethod,
         setNumClasses,
         setPalette,
@@ -56,6 +58,26 @@ export const AttributeConfig: React.FC<AttributeConfigProps> = ({ tab, config })
         const col = columns.find(c => c.name === config.field);
         return col?.type === 'numeric' || col?.type === 'float' || col?.type === 'integer';
     }, [config.field, columns]);
+
+    // Can add additional fields? (categorical only, color/shape tabs, max 2 additional)
+    const canAddField = config.field && !isNumericField
+        && (tab === 'color' || tab === 'shape')
+        && (config.additionalFields || []).length < 2;
+
+    // Columns already selected (primary + additional) — used to filter dropdowns
+    const selectedFields = useMemo(() => {
+        const fields = new Set<string>();
+        if (config.field) fields.add(config.field);
+        for (const f of (config.additionalFields || [])) fields.add(f);
+        return fields;
+    }, [config.field, config.additionalFields]);
+
+    // Categorical columns for additional field dropdowns
+    const categoricalColumns = useMemo(() => {
+        return columns.filter(c =>
+            c.type !== 'numeric' && c.type !== 'float' && c.type !== 'integer'
+        );
+    }, [columns]);
 
     // Available classification methods
     const methods: { value: ClassificationMethod; label: string }[] = useMemo(() => {
@@ -91,9 +113,20 @@ export const AttributeConfig: React.FC<AttributeConfigProps> = ({ tab, config })
 
         if (isNumeric) {
             // Get numeric values
-            const values = data
+            let values = data
                 .map(d => d[config.field!])
                 .filter(v => typeof v === 'number' && !isNaN(v)) as number[];
+
+            // Apply value filter if active and matching column
+            const { valueFilter, color: colorConfig } = useAttributeStore.getState();
+            const effectiveFilterCol = valueFilter.column || colorConfig.field;
+            if (valueFilter.enabled && effectiveFilterCol === config.field) {
+                values = values.filter(v => {
+                    if (valueFilter.min !== null && v < valueFilter.min) return false;
+                    if (valueFilter.max !== null && v > valueFilter.max) return false;
+                    return true;
+                });
+            }
 
             if (values.length === 0) return;
 
@@ -148,10 +181,21 @@ export const AttributeConfig: React.FC<AttributeConfigProps> = ({ tab, config })
             setEntries(tab, newEntries);
 
         } else {
-            // Categorical field
+            // Categorical field — check for cross-product (multi-column)
+            const additionalFields = config.additionalFields || [];
+            const allFields = [config.field!, ...additionalFields];
+
+            // Build combined values per row
+            const combinedValues = data.map(d => {
+                const parts = allFields
+                    .map(f => d[f])
+                    .filter(v => v != null && v !== '' && String(v) !== 'null' && String(v) !== 'undefined')
+                    .map(v => String(v));
+                return parts.length > 0 ? parts.join(' + ') : null;
+            });
+
             const uniqueValues = [...new Set(
-                data.map(d => String(d[config.field!]))
-                    .filter(v => v && v !== 'null' && v !== 'undefined')
+                combinedValues.filter((v): v is string => v !== null)
             )].sort((a, b) => a.localeCompare(b, undefined, { numeric: true }));
 
             // Generate entries
@@ -178,7 +222,7 @@ export const AttributeConfig: React.FC<AttributeConfigProps> = ({ tab, config })
                 );
 
                 // Calculate row count
-                entry.rowCount = data.filter(d => String(d[config.field!]) === value).length;
+                entry.rowCount = combinedValues.filter(v => v === value).length;
                 entry.visibleRowCount = entry.rowCount;
 
                 newEntries.push(entry);
@@ -201,24 +245,85 @@ export const AttributeConfig: React.FC<AttributeConfigProps> = ({ tab, config })
                 flexWrap: 'wrap',
             }}
         >
-            {/* Field selector */}
-            <FormControl size="small" sx={{ minWidth: 120, flex: 1 }}>
-                <Select
-                    value={config.field || ''}
-                    onChange={(e) => handleFieldChange(e.target.value)}
-                    displayEmpty
-                    sx={{ fontSize: '0.75rem' }}
-                >
-                    <MenuItem value="">
-                        <em>Select field...</em>
-                    </MenuItem>
-                    {availableColumns.map(col => (
-                        <MenuItem key={col.name} value={col.name}>
-                            {col.alias || col.name}
-                        </MenuItem>
-                    ))}
-                </Select>
-            </FormControl>
+            {/* Field selector(s) */}
+            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5, flex: 1, minWidth: 120 }}>
+                {/* Primary field */}
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                    <FormControl size="small" sx={{ flex: 1 }}>
+                        <Select
+                            value={config.field || ''}
+                            onChange={(e) => handleFieldChange(e.target.value)}
+                            displayEmpty
+                            sx={{ fontSize: '0.75rem' }}
+                        >
+                            <MenuItem value="">
+                                <em>Select field...</em>
+                            </MenuItem>
+                            {availableColumns.map(col => (
+                                <MenuItem key={col.name} value={col.name}>
+                                    {col.alias || col.name}
+                                </MenuItem>
+                            ))}
+                        </Select>
+                    </FormControl>
+                    {canAddField && (
+                        <Tooltip title="Add column for cross-product classification">
+                            <IconButton
+                                size="small"
+                                onClick={() => {
+                                    // Find first categorical column not already selected
+                                    const available = categoricalColumns.find(c => !selectedFields.has(c.name));
+                                    if (available) {
+                                        addAdditionalField(tab, available.name);
+                                        setMethod(tab, 'categorical');
+                                    }
+                                }}
+                                sx={{ p: 0.25 }}
+                            >
+                                <Add sx={{ fontSize: 16 }} />
+                            </IconButton>
+                        </Tooltip>
+                    )}
+                </Box>
+                {/* Additional fields */}
+                {(config.additionalFields || []).map((af, idx) => (
+                    <Box key={idx} sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                        <FormControl size="small" sx={{ flex: 1 }}>
+                            <Select
+                                value={af}
+                                onChange={(e) => {
+                                    // Replace value at this index directly
+                                    const state = useAttributeStore.getState();
+                                    const current = [...(state[tab].additionalFields || [])];
+                                    current[idx] = e.target.value;
+                                    useAttributeStore.setState({
+                                        [tab]: { ...state[tab], additionalFields: current }
+                                    });
+                                }}
+                                sx={{ fontSize: '0.75rem' }}
+                            >
+                                {categoricalColumns
+                                    .filter(c => c.name === af || !selectedFields.has(c.name))
+                                    .map(col => (
+                                        <MenuItem key={col.name} value={col.name}>
+                                            {col.alias || col.name}
+                                        </MenuItem>
+                                    ))
+                                }
+                            </Select>
+                        </FormControl>
+                        <Tooltip title="Remove this field">
+                            <IconButton
+                                size="small"
+                                onClick={() => removeAdditionalField(tab, idx)}
+                                sx={{ p: 0.25 }}
+                            >
+                                <Close sx={{ fontSize: 16 }} />
+                            </IconButton>
+                        </Tooltip>
+                    </Box>
+                ))}
+            </Box>
 
             {/* Classification method (for numeric fields) */}
             {config.field && (
@@ -271,7 +376,7 @@ export const AttributeConfig: React.FC<AttributeConfigProps> = ({ tab, config })
                                 <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                                     <Typography variant="caption" sx={{ minWidth: 60 }}>{p.name}</Typography>
                                     <Box sx={{ display: 'flex', gap: 0.25 }}>
-                                        {p.colors.slice(0, 6).map((c, i) => (
+                                        {generateColorsFromPalette(p.name, 7).map((c, i) => (
                                             <Box key={i} sx={{ width: 10, height: 10, bgcolor: c, borderRadius: 0.5 }} />
                                         ))}
                                     </Box>

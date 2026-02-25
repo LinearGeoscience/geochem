@@ -37,6 +37,7 @@ interface SpiderPlotProps {
 
 export const SpiderPlot: React.FC<SpiderPlotProps> = ({ plotId }) => {
     const { data, columns, lockAxes, getPlotSettings, updatePlotSettings, getFilteredColumns, getDisplayData, getDisplayIndices, sampleIndices, geochemMappings } = useAppStore();
+    useAppStore(s => s.tooltipMode); // Subscribe to trigger re-render on toggle
     const filteredColumns = getFilteredColumns();
     const d = (name: string) => getColumnDisplayName(columns, name);
     useAttributeStore(); // Subscribe to changes

@@ -1,6 +1,6 @@
 import React from 'react';
 import { Box, Button, Tooltip, IconButton } from '@mui/material';
-import { Add, Remove, ClearAll, DeleteForever, AddCircleOutline } from '@mui/icons-material';
+import { Add, Remove, ClearAll, DeleteForever, AddCircleOutline, Brush } from '@mui/icons-material';
 import {
     useAttributeStore,
     AttributeType,
@@ -28,6 +28,8 @@ export const AttributeToolbar: React.FC<AttributeToolbarProps> = ({ tab }) => {
         shape,
         size,
         filter,
+        paintMode,
+        setPaintMode,
     } = useAttributeStore();
 
     const { columns } = useAppStore();
@@ -159,6 +161,20 @@ export const AttributeToolbar: React.FC<AttributeToolbarProps> = ({ tab }) => {
                 bgcolor: 'action.hover',
             }}
         >
+            <Tooltip title={paintMode ? "Disable paint mode" : "Enable paint mode (lasso → paint)"}>
+                <IconButton
+                    size="small"
+                    onClick={() => setPaintMode(!paintMode)}
+                    sx={{
+                        color: paintMode ? '#fff' : undefined,
+                        bgcolor: paintMode ? '#4caf50' : undefined,
+                        '&:hover': { bgcolor: paintMode ? '#388e3c' : undefined },
+                    }}
+                >
+                    <Brush />
+                </IconButton>
+            </Tooltip>
+
             <Tooltip title="Add custom entry (manual selection)">
                 <IconButton size="small" onClick={handleAdd} color="primary">
                     <Add />

@@ -65,7 +65,9 @@ export function jenksBreaks(data: number[], numClasses: number): number[] {
     }
 
     breaks.push(sortedData[0]); // Add minimum
-    return breaks.reverse();
+    const result = breaks.reverse();
+    result.push(sortedData[n - 1]); // Add maximum
+    return result;
 }
 
 /**

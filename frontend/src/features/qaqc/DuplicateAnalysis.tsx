@@ -32,14 +32,15 @@ import {
   Error as ErrorIcon,
 } from '@mui/icons-material';
 import { useQAQCStore } from '../../store/qaqcStore';
-import { DuplicateAnalysis as DuplicateAnalysisType } from '../../types/qaqc';
+import { DuplicateAnalysis as DuplicateAnalysisType, DuplicateResult } from '../../types/qaqc';
+import { thompsonHowarthAnalysis, calculateHARD } from '../../utils/qaqcCalculations';
 import { ExpandablePlotWrapper } from '../../components/ExpandablePlotWrapper';
 
 type DuplicateTypeFilter = 'field_duplicate' | 'pulp_duplicate' | 'core_duplicate' | 'all';
-type PlotType = 'scatter' | 'rpd' | 'histogram';
+type PlotType = 'scatter' | 'rpd' | 'histogram' | 'hard' | 'thompson_howarth';
 
 export const DuplicateAnalysis: React.FC = () => {
-  const { duplicateAnalyses, thresholds } = useQAQCStore();
+  const { duplicateAnalyses, thresholds, navigateToElement, setNavigateToElement } = useQAQCStore();
 
   const [selectedType, setSelectedType] = useState<DuplicateTypeFilter>('all');
   const [selectedElement, setSelectedElement] = useState<string>('');
@@ -59,6 +60,14 @@ export const DuplicateAnalysis: React.FC = () => {
     return Object.keys(duplicateAnalyses) as (keyof typeof duplicateAnalyses)[];
   }, [duplicateAnalyses]);
 
+  // Dashboard drill-down: pre-select element from navigation
+  React.useEffect(() => {
+    if (navigateToElement && availableElements.includes(navigateToElement)) {
+      setSelectedElement(navigateToElement);
+      setNavigateToElement(null);
+    }
+  }, [navigateToElement, availableElements, setNavigateToElement]);
+
   // Auto-select first element
   React.useEffect(() => {
     if (availableElements.length > 0 && !availableElements.includes(selectedElement)) {
@@ -67,12 +76,13 @@ export const DuplicateAnalysis: React.FC = () => {
   }, [availableElements, selectedElement]);
 
   // Get current analysis data
+  // Fix 1.4: "All" view preserves per-result original pass/fail status from each type's threshold
   const currentAnalysis = useMemo((): DuplicateAnalysisType | null => {
     if (!selectedElement) return null;
 
     if (selectedType === 'all') {
-      // Combine all duplicate types for this element
-      const allResults: DuplicateAnalysisType['results'] = [];
+      // Combine all duplicate types for this element, preserving original pass/fail
+      const allResults: DuplicateResult[] = [];
       let totalPass = 0;
       let totalFail = 0;
 
@@ -92,10 +102,18 @@ export const DuplicateAnalysis: React.FC = () => {
       const sortedRPD = [...rpdValues].sort((a, b) => a - b);
       const medianRPD = sortedRPD[Math.floor(sortedRPD.length / 2)];
 
+      // For "all" view, use the field threshold as display reference only
+      // Individual results retain their per-type pass/fail status
+      const differences = allResults.map(r => r.originalValue - r.duplicateValue);
+      const sumSquaredDiffs = differences.reduce((sum, d) => sum + d * d, 0);
+      const absolutePrecision = Math.sqrt(sumSquaredDiffs / (2 * allResults.length));
+      const overallMean = allResults.reduce((sum, r) => sum + r.mean, 0) / allResults.length;
+      const relativePrecision = overallMean !== 0 ? (absolutePrecision / overallMean) * 100 : 0;
+
       return {
         element: selectedElement,
-        duplicateType: 'field_duplicate', // Placeholder
-        threshold: thresholds.fieldDuplicateRPD,
+        duplicateType: 'field_duplicate', // Display placeholder
+        threshold: thresholds.fieldDuplicateRPD, // Display reference only
         results: allResults,
         passCount: totalPass,
         failCount: totalFail,
@@ -103,6 +121,8 @@ export const DuplicateAnalysis: React.FC = () => {
         meanRPD,
         medianRPD,
         precision: meanRPD / 2,
+        absolutePrecision,
+        relativePrecision,
       };
     }
 
@@ -110,6 +130,21 @@ export const DuplicateAnalysis: React.FC = () => {
     if (!analyses) return null;
     return analyses.find(a => a.element === selectedElement) || null;
   }, [selectedElement, selectedType, duplicateAnalyses, thresholds]);
+
+  // Collect per-type thresholds for "all" view envelope lines
+  const typeThresholds = useMemo(() => {
+    const result: { type: string; threshold: number; label: string }[] = [];
+    if (duplicateAnalyses['field_duplicate']?.length) {
+      result.push({ type: 'field_duplicate', threshold: thresholds.fieldDuplicateRPD, label: 'Field' });
+    }
+    if (duplicateAnalyses['pulp_duplicate']?.length) {
+      result.push({ type: 'pulp_duplicate', threshold: thresholds.pulpDuplicateRPD, label: 'Pulp' });
+    }
+    if (duplicateAnalyses['core_duplicate']?.length) {
+      result.push({ type: 'core_duplicate', threshold: thresholds.coreDuplicateRPD, label: 'Core' });
+    }
+    return result;
+  }, [duplicateAnalyses, thresholds]);
 
   // Build Plotly traces
   const { traces, layout } = useMemo(() => {
@@ -120,12 +155,14 @@ export const DuplicateAnalysis: React.FC = () => {
     let traces: any[] = [];
     let layout: any = {};
 
+    // Separate BDL results for gray markers (Feature 2.2)
+    const bdlResults = currentAnalysis.results.filter(r => r.belowDetection);
+    const normalResults = currentAnalysis.results.filter(r => !r.belowDetection);
+    const passResults = normalResults.filter(r => r.status === 'pass');
+    const failResults = normalResults.filter(r => r.status === 'fail');
+
     if (plotType === 'scatter') {
       // Scatter plot: Original vs Duplicate
-      const passResults = currentAnalysis.results.filter(r => r.status === 'pass');
-      const failResults = currentAnalysis.results.filter(r => r.status === 'fail');
-
-      // Calculate axis range
       const allValues = currentAnalysis.results.flatMap(r => [r.originalValue, r.duplicateValue]);
       const minVal = Math.min(...allValues);
       const maxVal = Math.max(...allValues);
@@ -154,6 +191,17 @@ export const DuplicateAnalysis: React.FC = () => {
           text: failResults.map(r => `${r.originalId} / ${r.duplicateId}<br>RPD: ${r.rpd.toFixed(1)}%`),
           hoverinfo: 'text',
         },
+        // BDL points (Feature 2.2)
+        ...(bdlResults.length > 0 ? [{
+          x: bdlResults.map(r => r.originalValue),
+          y: bdlResults.map(r => r.duplicateValue),
+          type: 'scatter' as const,
+          mode: 'markers' as const,
+          name: 'Below DL',
+          marker: { color: '#bdbdbd', size: 7, symbol: 'diamond' },
+          text: bdlResults.map(r => `${r.originalId} / ${r.duplicateId}<br>RPD: ${r.rpd.toFixed(1)}%<br>(Below detection)`),
+          hoverinfo: 'text',
+        }] : []),
         // 1:1 line
         {
           x: range,
@@ -164,27 +212,43 @@ export const DuplicateAnalysis: React.FC = () => {
           line: { color: '#1976d2', width: 2, dash: 'dash' },
           hoverinfo: 'skip',
         },
-        // Upper threshold envelope (e.g., +30% for field duplicates)
-        {
-          x: range,
-          y: range.map(v => v * (1 + currentAnalysis.threshold / 100)),
-          type: 'scatter',
-          mode: 'lines',
-          name: `+${currentAnalysis.threshold}%`,
-          line: { color: '#ff9800', width: 1, dash: 'dot' },
-          hoverinfo: 'skip',
-        },
-        // Lower threshold envelope
-        {
-          x: range,
-          y: range.map(v => v * (1 - currentAnalysis.threshold / 100)),
-          type: 'scatter',
-          mode: 'lines',
-          name: `-${currentAnalysis.threshold}%`,
-          line: { color: '#ff9800', width: 1, dash: 'dot' },
-          hoverinfo: 'skip',
-        },
       ];
+
+      // Fix 1.8: Correct RPD envelope formula: y = x*(2+t)/(2-t) and y = x*(2-t)/(2+t)
+      // Fix 1.4: In "all" view, draw envelopes for each type present
+      const envelopeColors = ['#ff9800', '#9c27b0', '#00bcd4'];
+      const envelopesToDraw = selectedType === 'all'
+        ? typeThresholds
+        : [{ type: selectedType, threshold: currentAnalysis.threshold, label: '' }];
+
+      envelopesToDraw.forEach(({ threshold, label }, idx) => {
+        const t = threshold / 100; // Convert to fraction
+        const color = selectedType === 'all' ? (envelopeColors[idx] || '#ff9800') : '#ff9800';
+        const suffix = label ? ` (${label})` : '';
+        traces.push(
+          // Upper RPD envelope
+          {
+            x: range,
+            y: range.map((v: number) => v * (2 + t) / (2 - t)),
+            type: 'scatter',
+            mode: 'lines',
+            name: `+${threshold}% RPD${suffix}`,
+            line: { color, width: 1, dash: 'dot' },
+            hoverinfo: 'skip',
+          },
+          // Lower RPD envelope
+          {
+            x: range,
+            y: range.map((v: number) => v * (2 - t) / (2 + t)),
+            type: 'scatter',
+            mode: 'lines',
+            name: `-${threshold}% RPD${suffix}`,
+            line: { color, width: 1, dash: 'dot' },
+            showlegend: false,
+            hoverinfo: 'skip',
+          }
+        );
+      });
 
       layout = {
         title: { text: `${currentAnalysis.element} - Original vs Duplicate`, font: { size: 16 } },
@@ -198,8 +262,9 @@ export const DuplicateAnalysis: React.FC = () => {
       };
     } else if (plotType === 'rpd') {
       // RPD vs Mean plot
-      const passResults = currentAnalysis.results.filter(r => r.status === 'pass');
-      const failResults = currentAnalysis.results.filter(r => r.status === 'fail');
+      // Fix 1.3: Conditional log scale for RPD plot
+      const allMeans = currentAnalysis.results.map(r => r.mean);
+      const allPositive = allMeans.every(v => v > 0);
 
       traces = [
         {
@@ -222,6 +287,16 @@ export const DuplicateAnalysis: React.FC = () => {
           text: failResults.map(r => `${r.originalId} / ${r.duplicateId}`),
           hoverinfo: 'text+y',
         },
+        ...(bdlResults.length > 0 ? [{
+          x: bdlResults.map(r => r.mean),
+          y: bdlResults.map(r => r.rpd),
+          type: 'scatter' as const,
+          mode: 'markers' as const,
+          name: 'Below DL',
+          marker: { color: '#bdbdbd', size: 7, symbol: 'diamond' },
+          text: bdlResults.map(r => `${r.originalId} / ${r.duplicateId}<br>(Below detection)`),
+          hoverinfo: 'text+y',
+        }] : []),
         // Threshold line
         {
           x: [0, Math.max(...currentAnalysis.results.map(r => r.mean)) * 1.1],
@@ -236,7 +311,7 @@ export const DuplicateAnalysis: React.FC = () => {
 
       layout = {
         title: { text: `${currentAnalysis.element} - RPD vs Mean`, font: { size: 16 } },
-        xaxis: { title: 'Mean Value', type: 'log' },
+        xaxis: { title: 'Mean Value', type: allPositive ? 'log' : 'linear' },
         yaxis: { title: 'RPD (%)', rangemode: 'tozero' },
         showlegend: true,
         legend: { orientation: 'h', y: -0.2, x: 0.5, xanchor: 'center' },
@@ -277,10 +352,127 @@ export const DuplicateAnalysis: React.FC = () => {
         margin: { l: 60, r: 30, t: 50, b: 80 },
         bargap: 0.1,
       };
+    } else if (plotType === 'hard') {
+      // Feature 2.4: HARD plot visualization
+      const hardValues = currentAnalysis.results.map(r =>
+        calculateHARD(r.originalValue, r.duplicateValue)
+      );
+      const hardThreshold = currentAnalysis.threshold / 2;
+      const allMeans = currentAnalysis.results.map(r => r.mean);
+      const allPositive = allMeans.every(v => v > 0);
+
+      traces = [
+        {
+          x: currentAnalysis.results.map(r => r.mean),
+          y: hardValues,
+          type: 'scatter',
+          mode: 'markers',
+          name: 'HARD',
+          marker: {
+            color: hardValues.map(h => h <= hardThreshold ? '#4caf50' : '#f44336'),
+            size: 8,
+          },
+          text: currentAnalysis.results.map((r, i) =>
+            `${r.originalId} / ${r.duplicateId}<br>HARD: ${hardValues[i].toFixed(1)}%`
+          ),
+          hoverinfo: 'text',
+        },
+        // Threshold line
+        {
+          x: [0, Math.max(...allMeans) * 1.1],
+          y: [hardThreshold, hardThreshold],
+          type: 'scatter',
+          mode: 'lines',
+          name: `Threshold (${hardThreshold}%)`,
+          line: { color: '#f44336', width: 2, dash: 'dash' },
+          hoverinfo: 'skip',
+        },
+      ];
+
+      layout = {
+        title: { text: `${currentAnalysis.element} - HARD Plot`, font: { size: 16 } },
+        xaxis: { title: 'Mean Value', type: allPositive ? 'log' : 'linear' },
+        yaxis: { title: 'HARD (%)', rangemode: 'tozero' },
+        showlegend: true,
+        legend: { orientation: 'h', y: -0.2, x: 0.5, xanchor: 'center' },
+        autosize: true,
+        height: 450,
+        margin: { l: 60, r: 30, t: 50, b: 80 },
+      };
+    } else if (plotType === 'thompson_howarth') {
+      // Feature 2.3: Thompson-Howarth precision analysis
+      const thResult = thompsonHowarthAnalysis(currentAnalysis.results);
+
+      if (thResult && thResult.bins.length > 0) {
+        traces = [
+          // Bin points
+          {
+            x: thResult.bins.map(b => b.meanConcentration),
+            y: thResult.bins.map(b => b.precision),
+            type: 'scatter',
+            mode: 'markers',
+            name: 'Binned Precision',
+            marker: { color: '#1976d2', size: 10 },
+            text: thResult.bins.map(b =>
+              `Conc: ${b.meanConcentration.toFixed(2)}<br>Precision: ${b.precision.toFixed(3)}<br>n=${b.pairCount}`
+            ),
+            hoverinfo: 'text',
+          },
+        ];
+
+        // Regression line
+        if (thResult.r2 > 0) {
+          const xMin = Math.min(...thResult.bins.map(b => b.meanConcentration));
+          const xMax = Math.max(...thResult.bins.map(b => b.meanConcentration));
+          const xLine = Array.from({ length: 50 }, (_, i) =>
+            Math.pow(10, Math.log10(xMin) + i * (Math.log10(xMax) - Math.log10(xMin)) / 49)
+          );
+          const yLine = xLine.map(x =>
+            Math.pow(10, thResult.slope * Math.log10(x) + thResult.intercept)
+          );
+
+          traces.push({
+            x: xLine,
+            y: yLine,
+            type: 'scatter',
+            mode: 'lines',
+            name: `Fit (R²=${thResult.r2.toFixed(3)})`,
+            line: { color: '#f44336', width: 2 },
+            hoverinfo: 'skip',
+          });
+        }
+
+        layout = {
+          title: { text: `${currentAnalysis.element} - Thompson-Howarth Precision`, font: { size: 16 } },
+          xaxis: { title: 'Concentration', type: 'log' },
+          yaxis: { title: 'Precision (1σ)', type: 'log' },
+          showlegend: true,
+          legend: { orientation: 'h', y: -0.2, x: 0.5, xanchor: 'center' },
+          autosize: true,
+          height: 450,
+          margin: { l: 60, r: 30, t: 50, b: 80 },
+        };
+      } else {
+        // Not enough data
+        traces = [];
+        layout = {
+          title: { text: `${currentAnalysis.element} - Insufficient data for Thompson-Howarth`, font: { size: 16 } },
+          annotations: [{
+            text: 'Need at least 6 non-BDL pairs',
+            xref: 'paper', yref: 'paper',
+            x: 0.5, y: 0.5,
+            showarrow: false,
+            font: { size: 16, color: '#666' },
+          }],
+          autosize: true,
+          height: 450,
+          margin: { l: 60, r: 30, t: 50, b: 80 },
+        };
+      }
     }
 
     return { traces, layout };
-  }, [currentAnalysis, plotType]);
+  }, [currentAnalysis, plotType, selectedType, typeThresholds]);
 
   // Get summary by type
   const typeSummary = useMemo(() => {
@@ -369,11 +561,13 @@ export const DuplicateAnalysis: React.FC = () => {
               exclusive
               onChange={(_, value) => value && setPlotType(value)}
               size="small"
-              fullWidth
+              sx={{ flexWrap: 'wrap' }}
             >
               <ToggleButton value="scatter">Scatter</ToggleButton>
-              <ToggleButton value="rpd">RPD Plot</ToggleButton>
-              <ToggleButton value="histogram">Histogram</ToggleButton>
+              <ToggleButton value="rpd">RPD</ToggleButton>
+              <ToggleButton value="histogram">Hist</ToggleButton>
+              <ToggleButton value="hard">HARD</ToggleButton>
+              <ToggleButton value="thompson_howarth">T-H</ToggleButton>
             </ToggleButtonGroup>
           </Grid>
         </Grid>
@@ -432,7 +626,12 @@ export const DuplicateAnalysis: React.FC = () => {
                         Precision (1σ):
                       </Typography>
                       <Typography variant="body1">
-                        ±{currentAnalysis.precision.toFixed(1)}%
+                        ±{currentAnalysis.absolutePrecision?.toFixed(3) ?? currentAnalysis.precision.toFixed(1) + '%'}
+                        {currentAnalysis.relativePrecision != null && (
+                          <Typography variant="caption" color="text.secondary" component="span">
+                            {' '}({currentAnalysis.relativePrecision.toFixed(1)}% rel.)
+                          </Typography>
+                        )}
                       </Typography>
                     </Grid>
                   </Grid>

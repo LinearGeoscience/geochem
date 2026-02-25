@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
-import { Dialog, DialogContent, IconButton, Box } from '@mui/material';
-import { Fullscreen, Close } from '@mui/icons-material';
+import { Dialog, DialogContent, IconButton, Box, Tooltip } from '@mui/material';
+import { Fullscreen, Close, InfoOutlined, Info } from '@mui/icons-material';
+import { useAppStore } from '../store/appStore';
 
 interface ExpandablePlotWrapperProps {
     children: React.ReactElement;
@@ -9,10 +10,37 @@ interface ExpandablePlotWrapperProps {
 
 export const ExpandablePlotWrapper: React.FC<ExpandablePlotWrapperProps> = ({ children }) => {
     const [expanded, setExpanded] = useState(false);
+    const tooltipMode = useAppStore(s => s.tooltipMode);
+    const setTooltipMode = useAppStore(s => s.setTooltipMode);
+
+    const toggleTooltipMode = () => {
+        setTooltipMode(tooltipMode === 'compact' ? 'detailed' : 'compact');
+    };
 
     return (
         <>
             <Box sx={{ position: 'relative' }}>
+                <Tooltip title={tooltipMode === 'compact' ? 'Show detailed tooltips' : 'Show compact tooltips'}>
+                    <IconButton
+                        onClick={toggleTooltipMode}
+                        sx={{
+                            position: 'absolute',
+                            top: 36,
+                            right: 44,
+                            zIndex: 10,
+                            backgroundColor: 'background.paper',
+                            opacity: 0.7,
+                            '&:hover': {
+                                opacity: 1,
+                                backgroundColor: 'background.paper',
+                            },
+                            boxShadow: 1
+                        }}
+                        size="small"
+                    >
+                        {tooltipMode === 'compact' ? <InfoOutlined fontSize="small" /> : <Info fontSize="small" />}
+                    </IconButton>
+                </Tooltip>
                 <IconButton
                     onClick={() => setExpanded(true)}
                     sx={{

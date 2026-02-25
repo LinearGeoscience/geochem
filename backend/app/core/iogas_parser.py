@@ -65,6 +65,16 @@ class IoGasParser:
         self.filter_attributes: List[Dict[str, Any]] = []
         self.df: Optional[pd.DataFrame] = None
 
+    @staticmethod
+    def _safe_int(value: Optional[str], default: int) -> int:
+        """Safely parse an integer from XML text, returning default on failure."""
+        if value is None:
+            return default
+        try:
+            return int(value)
+        except (ValueError, TypeError):
+            return default
+
     def parse(self, file_content: bytes) -> Dict[str, Any]:
         """
         Parse an ioGAS .gas file.
@@ -172,7 +182,7 @@ class IoGasParser:
             for attr in color_attrs.findall('colourAttribute'):
                 self.color_attributes.append({
                     'name': attr.findtext('name', ''),
-                    'color': int(attr.findtext('colour', '-16777216')),  # Signed int RGB
+                    'color': self._safe_int(attr.findtext('colour', '-16777216'), -16777216),  # Signed int RGB
                     'visible': attr.findtext('visible', 'true') == 'true'
                 })
 
@@ -182,7 +192,7 @@ class IoGasParser:
             for attr in shape_attrs.findall('shapeAttribute'):
                 self.shape_attributes.append({
                     'name': attr.findtext('name', ''),
-                    'shape': int(attr.findtext('shapeCode', '0')),
+                    'shape': self._safe_int(attr.findtext('shapeCode', '0'), 0),
                     'filled': attr.findtext('filled', 'true') == 'true',
                     'visible': attr.findtext('visible', 'true') == 'true'
                 })
@@ -193,7 +203,7 @@ class IoGasParser:
             for attr in size_attrs.findall('sizeAttribute'):
                 self.size_attributes.append({
                     'name': attr.findtext('name', ''),
-                    'size': int(attr.findtext('size', '4')),
+                    'size': self._safe_int(attr.findtext('size', '4'), 4),
                     'visible': attr.findtext('visible', 'true') == 'true'
                 })
 
@@ -263,6 +273,11 @@ class IoGasParser:
                 if rename_map:
                     logger.debug("Renaming %d columns", len(rename_map))
                     self.df = self.df.rename(columns=rename_map)
+            else:
+                logger.warning(
+                    "Column count mismatch: CSV has %d columns, metadata has %d — skipping rename",
+                    len(current_cols), len(metadata_cols)
+                )
 
     def _build_result(self) -> Dict[str, Any]:
         """Build the result dictionary for the API response."""
@@ -280,15 +295,42 @@ class IoGasParser:
             iogas_type = col['type'].lower()
             if iogas_type == 'numeric':
                 col_type = 'numeric'
-                # Check if actually integer
                 series = self.df[col_name].dropna()
-                if len(series) > 0 and (series == series.astype(int)).all():
-                    col_type = 'integer'
+                if len(series) > 0:
+                    if pd.api.types.is_numeric_dtype(series):
+                        # Already numeric — check if integer
+                        try:
+                            if (series == series.astype(int)).all():
+                                col_type = 'integer'
+                        except (ValueError, TypeError, OverflowError):
+                            pass
+                    else:
+                        # dtype is object — metadata says Numeric but actual data may not be
+                        coerced = pd.to_numeric(series, errors='coerce')
+                        numeric_ratio = coerced.notna().sum() / len(series)
+                        if numeric_ratio >= 0.8:
+                            # Mostly numeric — coerce and update the dataframe column
+                            self.df[col_name] = pd.to_numeric(self.df[col_name], errors='coerce')
+                            non_null = coerced.dropna()
+                            try:
+                                if len(non_null) > 0 and (non_null == non_null.astype(int)).all():
+                                    col_type = 'integer'
+                            except (ValueError, TypeError, OverflowError):
+                                pass
+                        else:
+                            # Mostly non-numeric — reclassify as text
+                            col_type = 'text'
+                            iogas_type = 'text'
+                            logger.warning(
+                                "Column '%s' marked Numeric in metadata but only %.0f%% "
+                                "values are numeric — reclassified as text",
+                                col_name, numeric_ratio * 100
+                            )
             else:
                 col_type = 'text'
 
             # Determine role based on special column mappings
-            role = 'data'
+            role = None
             if col_name == self.special_columns.get('id'):
                 role = 'id'
             elif col_name == self.special_columns.get('group'):

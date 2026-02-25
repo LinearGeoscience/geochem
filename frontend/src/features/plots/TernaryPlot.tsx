@@ -21,6 +21,7 @@ interface TernaryPlotProps {
 
 export const TernaryPlot: React.FC<TernaryPlotProps> = ({ plotId }) => {
     const { data, columns, lockAxes, getPlotSettings, updatePlotSettings, getFilteredColumns, getDisplayData, getDisplayIndices, sampleIndices } = useAppStore();
+    useAppStore(s => s.tooltipMode); // Subscribe to trigger re-render on toggle
     const filteredColumns = getFilteredColumns();
     const d = (name: string) => getColumnDisplayName(columns, name);
     useAttributeStore(); // Subscribe to changes

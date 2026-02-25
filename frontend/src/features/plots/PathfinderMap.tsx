@@ -31,6 +31,7 @@ import { applyOpacityToColor } from '../../utils/emphasisUtils';
 import Plot from 'react-plotly.js';
 import { ExpandablePlotWrapper } from '../../components/ExpandablePlotWrapper';
 import { sortColumnsByPriority, getColumnDisplayName } from '../../utils/attributeUtils';
+import { useSelectionHandler } from '../../hooks/useSelectionHandler';
 import { getPlotConfig } from '../../utils/plotConfig';
 import {
     PATHFINDER_ELEMENTS,
@@ -105,8 +106,15 @@ function getPathfinderEmphasis(
 
 type DragMode = 'zoom' | 'pan' | 'lasso' | 'select';
 
+// PathfinderMap uses customdata.index instead of customdata.idx
+const pathfinderIndexExtractor = (point: any): number | null => {
+    if (point.customdata && typeof point.customdata.index === 'number') return point.customdata.index;
+    return null;
+};
+
 export const PathfinderMap: React.FC<PathfinderMapProps> = ({ plotId }) => {
-    const { data, columns, getPlotSettings, updatePlotSettings, getFilteredColumns, setSelection, selectedIndices, addColumn, getDisplayData, getDisplayIndices, sampleIndices, geochemMappings } = useAppStore();
+    const { data, columns, getPlotSettings, updatePlotSettings, getFilteredColumns, addColumn, getDisplayData, getDisplayIndices, sampleIndices, geochemMappings } = useAppStore();
+    const { handleSelected: handleSelectionHook, handleDeselect: handleDeselectionHook, selectedIndices } = useSelectionHandler(pathfinderIndexExtractor);
     const filteredColumns = getFilteredColumns();
     const d = (name: string) => getColumnDisplayName(columns, name);
     const displayData = useMemo(() => getDisplayData(), [data, sampleIndices]);
@@ -121,6 +129,7 @@ export const PathfinderMap: React.FC<PathfinderMapProps> = ({ plotId }) => {
     const [yAxis, setYAxisLocal] = useState<string>(storedSettings.yAxis || '');
     const [zAxis, setZAxisLocal] = useState<string>(storedSettings.zAxis || '');
     const [is3D, setIs3DLocal] = useState<boolean>(storedSettings.is3D ?? false);
+    const [equalAxes, setEqualAxesLocal] = useState<boolean>(storedSettings.equalAxes ?? true);
     const [selectedElements, setSelectedElementsLocal] = useState<PathfinderElement[]>(
         storedSettings.selectedElements || []
     );
@@ -186,6 +195,10 @@ export const PathfinderMap: React.FC<PathfinderMapProps> = ({ plotId }) => {
     const setIs3D = (mode: boolean) => {
         setIs3DLocal(mode);
         updatePlotSettings(plotId, { is3D: mode });
+    };
+    const setEqualAxes = (value: boolean) => {
+        setEqualAxesLocal(value);
+        updatePlotSettings(plotId, { equalAxes: value });
     };
     const setSelectedElements = (elements: PathfinderElement[]) => {
         setSelectedElementsLocal(elements);
@@ -264,24 +277,9 @@ export const PathfinderMap: React.FC<PathfinderMapProps> = ({ plotId }) => {
         }
     }, []);
 
-    // Handle lasso/box selection from Plotly
+    // Handle lasso/box selection from Plotly — delegates to the shared selection handler hook
     const handlePlotSelected = (eventData: any, _element: PathfinderElement) => {
-        if (!eventData || !eventData.points || eventData.points.length === 0) {
-            return;
-        }
-
-        // Get the original data indices from customdata
-        const selectedDataIndices: number[] = [];
-        eventData.points.forEach((point: any) => {
-            if (point.customdata && typeof point.customdata.index === 'number') {
-                selectedDataIndices.push(point.customdata.index);
-            }
-        });
-
-        if (selectedDataIndices.length > 0) {
-            // Merge with existing selection if Shift key is held (append mode)
-            setSelection(selectedDataIndices);
-        }
+        handleSelectionHook(eventData);
     };
 
     // Auto-detect pathfinder element columns (prefer geochem mappings, fallback to regex)
@@ -546,10 +544,20 @@ export const PathfinderMap: React.FC<PathfinderMapProps> = ({ plotId }) => {
                     // Apply emphasis styling based on anomaly class
                     const { opacity, sizeMultiplier } = getPathfinderEmphasis(cls, emphasis);
                     const effectiveBaseSize = is3D ? Math.max(2, basePointSize - 2) : basePointSize;
+                    // Selection highlighting
+                    let lineStyle: any = { width: 0 };
+                    if (!is3D && selectedIndices.length > 0) {
+                        const selSet = new Set(selectedIndices);
+                        const origIndices = points.indices.map(i => displayIndices ? displayIndices[i] : i);
+                        lineStyle = {
+                            width: origIndices.map(idx => selSet.has(idx) ? 2 : 0),
+                            color: origIndices.map(idx => selSet.has(idx) ? '#ffffff' : 'rgba(0,0,0,0)'),
+                        };
+                    }
                     return {
                         size: effectiveBaseSize * sizeMultiplier,
                         color: applyOpacityToColor(ANOMALY_COLORS[cls], opacity),
-                        line: { width: 0 }
+                        line: lineStyle
                     };
                 })(),
                 showlegend: false
@@ -851,6 +859,12 @@ export const PathfinderMap: React.FC<PathfinderMapProps> = ({ plotId }) => {
                             control={<Checkbox checked={is3D} onChange={(e) => setIs3D(e.target.checked)} />}
                             label="3D Mode"
                         />
+                        {is3D && (
+                            <FormControlLabel
+                                control={<Checkbox checked={equalAxes} onChange={(e) => setEqualAxes(e.target.checked)} />}
+                                label="Equal Axes"
+                            />
+                        )}
                         <FormControlLabel
                             control={<Checkbox checked={showProbabilityPlots} onChange={(e) => setShowProbabilityPlots(e.target.checked)} />}
                             label="Show Probability Plots"
@@ -918,7 +932,7 @@ export const PathfinderMap: React.FC<PathfinderMapProps> = ({ plotId }) => {
                             <Chip
                                 label={`${selectedIndices.length} selected`}
                                 size="small"
-                                onDelete={() => setSelection([])}
+                                onDelete={() => handleDeselectionHook()}
                                 color="primary"
                                 variant="outlined"
                             />
@@ -1191,6 +1205,7 @@ export const PathfinderMap: React.FC<PathfinderMapProps> = ({ plotId }) => {
                                                 uirevision: plotRevision,
                                                 ...(is3D ? {
                                                     scene: {
+                                                        aspectmode: equalAxes ? 'data' : 'auto',
                                                         xaxis: { title: { text: d(xAxis), font: { size: 10 } } },
                                                         yaxis: { title: { text: d(yAxis), font: { size: 10 } } },
                                                         zaxis: { title: { text: d(zAxis), font: { size: 10 } } },
@@ -1213,7 +1228,7 @@ export const PathfinderMap: React.FC<PathfinderMapProps> = ({ plotId }) => {
                                             style={{ width: '100%' }}
                                             useResizeHandler={true}
                                             onSelected={(eventData) => handlePlotSelected(eventData, element)}
-                                            onDeselect={() => setSelection([])}
+                                            onDeselect={() => handleDeselectionHook()}
                                         />
                                     </ExpandablePlotWrapper>
 

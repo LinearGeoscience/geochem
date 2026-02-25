@@ -1,5 +1,5 @@
 import React, { useState, useCallback, useMemo } from 'react';
-import { Box, Paper, Typography, ToggleButtonGroup, ToggleButton, CircularProgress, Button, Alert } from '@mui/material';
+import { Box, Paper, Typography, ToggleButtonGroup, ToggleButton, CircularProgress, Button, Alert, Checkbox, FormControlLabel, Select, MenuItem, FormControl, InputLabel } from '@mui/material';
 import Plot from 'react-plotly.js';
 import { useAppStore, COLUMN_FILTER_LABELS } from '../../store/appStore';
 import { useAttributeStore } from '../../store/attributeStore';
@@ -55,13 +55,111 @@ const spearmanCorrelation = (x: number[], y: number[]): number => {
     return pearsonCorrelation(rankX, rankY);
 };
 
+// p-value from t-distribution using Abramowitz & Stegun approximation
+const tDistPValue = (t: number, df: number): number => {
+    if (df <= 0) return 1;
+    const x = df / (df + t * t);
+    // Regularized incomplete beta function approximation
+    // For large df, use normal approximation
+    if (df > 100) {
+        // Normal approximation
+        const z = Math.abs(t);
+        const p = Math.exp(-0.5 * z * z) / Math.sqrt(2 * Math.PI);
+        const twoTailP = 2 * (0.5 - p * (0.31938153 / (1 + 0.2316419 * z) - 0.356563782 / Math.pow(1 + 0.2316419 * z, 2) + 1.781477937 / Math.pow(1 + 0.2316419 * z, 3) - 1.821255978 / Math.pow(1 + 0.2316419 * z, 4) + 1.330274429 / Math.pow(1 + 0.2316419 * z, 5)));
+        return Math.max(0, Math.min(1, twoTailP));
+    }
+    // Beta function based approximation for smaller df
+    return betaRegularized(df / 2, 0.5, x);
+};
+
+// Regularized incomplete beta function (simplified for t-distribution p-value)
+const betaRegularized = (a: number, b: number, x: number): number => {
+    if (x <= 0) return 0;
+    if (x >= 1) return 1;
+    // Use continued fraction expansion (Lentz's algorithm)
+    const maxIter = 200;
+    const eps = 1e-10;
+
+    const lnBeta = lnGamma(a) + lnGamma(b) - lnGamma(a + b);
+    const front = Math.exp(Math.log(x) * a + Math.log(1 - x) * b - lnBeta) / a;
+
+    // Modified Lentz's method for continued fraction
+    let f = 1;
+    let c = 1;
+    let d = 1 - (a + b) * x / (a + 1);
+    if (Math.abs(d) < 1e-30) d = 1e-30;
+    d = 1 / d;
+    f = d;
+
+    for (let m = 1; m <= maxIter; m++) {
+        // Even step
+        let numerator = m * (b - m) * x / ((a + 2 * m - 1) * (a + 2 * m));
+        d = 1 + numerator * d;
+        if (Math.abs(d) < 1e-30) d = 1e-30;
+        c = 1 + numerator / c;
+        if (Math.abs(c) < 1e-30) c = 1e-30;
+        d = 1 / d;
+        f *= c * d;
+
+        // Odd step
+        numerator = -(a + m) * (a + b + m) * x / ((a + 2 * m) * (a + 2 * m + 1));
+        d = 1 + numerator * d;
+        if (Math.abs(d) < 1e-30) d = 1e-30;
+        c = 1 + numerator / c;
+        if (Math.abs(c) < 1e-30) c = 1e-30;
+        d = 1 / d;
+        const delta = c * d;
+        f *= delta;
+
+        if (Math.abs(delta - 1) < eps) break;
+    }
+
+    return front * f;
+};
+
+// Log gamma using Stirling's approximation
+const lnGamma = (z: number): number => {
+    if (z <= 0) return 0;
+    // Lanczos approximation
+    const g = 7;
+    const coeff = [0.99999999999980993, 676.5203681218851, -1259.1392167224028, 771.32342877765313, -176.61502916214059, 12.507343278686905, -0.13857109526572012, 9.9843695780195716e-6, 1.5056327351493116e-7];
+    if (z < 0.5) {
+        return Math.log(Math.PI / Math.sin(Math.PI * z)) - lnGamma(1 - z);
+    }
+    z -= 1;
+    let x = coeff[0];
+    for (let i = 1; i < g + 2; i++) {
+        x += coeff[i] / (z + i);
+    }
+    const t = z + g + 0.5;
+    return 0.5 * Math.log(2 * Math.PI) + (z + 0.5) * Math.log(t) - t + Math.log(x);
+};
+
+// Calculate p-value for a correlation coefficient
+const correlationPValue = (r: number, n: number): number => {
+    if (n <= 2) return 1;
+    if (Math.abs(r) >= 1) return 0;
+    const t = r * Math.sqrt((n - 2) / (1 - r * r));
+    return tDistPValue(t, n - 2);
+};
+
+// Significance marker
+const sigMarker = (p: number): string => {
+    if (p < 0.001) return '***';
+    if (p < 0.01) return '**';
+    if (p < 0.05) return '*';
+    return '';
+};
+
 export const CorrelationMatrix: React.FC = () => {
     const { data, columns, correlationSelectedColumns, setCorrelationSelectedColumns, getFilteredColumns, columnFilter } = useAppStore();
     const filteredColumns = getFilteredColumns();
     useAttributeStore(); // Subscribe to changes
     const [method, setMethod] = useState<'pearson' | 'spearman'>('pearson');
-    const [correlationData, setCorrelationData] = useState<{ columns: string[], matrix: number[][] } | null>(null);
+    const [correlationData, setCorrelationData] = useState<{ columns: string[], matrix: number[][], pValues: number[][], nPairs: number[][] } | null>(null);
     const [loading, setLoading] = useState(false);
+    const [showSignificance, setShowSignificance] = useState(false);
+    const [sigThreshold, setSigThreshold] = useState<number>(0.05);
 
     // Dynamic layout config based on column count
     const layoutConfig = useMemo(() => {
@@ -131,14 +229,20 @@ export const CorrelationMatrix: React.FC = () => {
 
                 // Calculate correlation matrix using pairwise complete observations
                 const matrix: number[][] = [];
+                const pValues: number[][] = [];
+                const nPairs: number[][] = [];
                 const correlationFn = method === 'pearson' ? pearsonCorrelation : spearmanCorrelation;
 
                 for (let i = 0; i < cols.length; i++) {
                     const row: number[] = [];
+                    const pRow: number[] = [];
+                    const nRow: number[] = [];
                     const valsI = columnValues.get(cols[i])!;
                     for (let j = 0; j < cols.length; j++) {
                         if (i === j) {
                             row.push(1);
+                            pRow.push(0);
+                            nRow.push(valsI.size);
                         } else {
                             const valsJ = columnValues.get(cols[j])!;
                             // Find rows where both columns have valid values
@@ -152,13 +256,18 @@ export const CorrelationMatrix: React.FC = () => {
                                 }
                             }
                             const corr = correlationFn(xArr, yArr);
-                            row.push(Math.round(corr * 1000) / 1000);
+                            const roundedCorr = Math.round(corr * 1000) / 1000;
+                            row.push(roundedCorr);
+                            pRow.push(correlationPValue(corr, xArr.length));
+                            nRow.push(xArr.length);
                         }
                     }
                     matrix.push(row);
+                    pValues.push(pRow);
+                    nPairs.push(nRow);
                 }
 
-                setCorrelationData({ columns: cols, matrix });
+                setCorrelationData({ columns: cols, matrix, pValues, nPairs });
             } catch (error) {
                 console.error('Failed to calculate correlation matrix:', error);
             } finally {
@@ -218,6 +327,56 @@ export const CorrelationMatrix: React.FC = () => {
                 >
                     Calculate
                 </Button>
+
+                {correlationData && (
+                    <Button
+                        variant="outlined"
+                        size="small"
+                        onClick={() => {
+                            const cols = correlationData.columns;
+                            const lines: string[] = [];
+                            // Correlation matrix
+                            lines.push(['', ...cols].join(','));
+                            for (let i = 0; i < cols.length; i++) {
+                                lines.push([cols[i], ...correlationData.matrix[i].map(v => v.toFixed(4))].join(','));
+                            }
+                            if (showSignificance) {
+                                lines.push('');
+                                lines.push('P-values');
+                                lines.push(['', ...cols].join(','));
+                                for (let i = 0; i < cols.length; i++) {
+                                    lines.push([cols[i], ...correlationData.pValues[i].map(v => v.toFixed(6))].join(','));
+                                }
+                            }
+                            const blob = new Blob([lines.join('\n')], { type: 'text/csv' });
+                            const url = URL.createObjectURL(blob);
+                            const a = document.createElement('a');
+                            a.href = url; a.download = 'correlation_matrix.csv'; a.click();
+                            URL.revokeObjectURL(url);
+                        }}
+                    >
+                        Export CSV
+                    </Button>
+                )}
+
+                {correlationData && (
+                    <>
+                        <FormControlLabel
+                            control={<Checkbox checked={showSignificance} onChange={(_, v) => setShowSignificance(v)} size="small" />}
+                            label="Show significance"
+                        />
+                        {showSignificance && (
+                            <FormControl size="small" sx={{ minWidth: 100 }}>
+                                <InputLabel>Threshold</InputLabel>
+                                <Select value={sigThreshold} label="Threshold" onChange={(e) => setSigThreshold(Number(e.target.value))}>
+                                    <MenuItem value={0.05}>p &lt; 0.05</MenuItem>
+                                    <MenuItem value={0.01}>p &lt; 0.01</MenuItem>
+                                    <MenuItem value={0.001}>p &lt; 0.001</MenuItem>
+                                </Select>
+                            </FormControl>
+                        )}
+                    </>
+                )}
             </Box>
 
             {loading ? (
@@ -243,7 +402,7 @@ export const CorrelationMatrix: React.FC = () => {
                                 zmin: -1,
                                 zmax: 1,
                                 hoverongaps: false,
-                                hovertemplate: '%{y} vs %{x}<br>Correlation: %{z:.2f}<extra></extra>',
+                                hovertemplate: '%{y} vs %{x}<br>Correlation: %{z:.3f}<extra></extra>',
                                 showscale: true,
                                 colorbar: {
                                     title: { text: '', font: { size: 12 } },
@@ -281,22 +440,32 @@ export const CorrelationMatrix: React.FC = () => {
                                 },
                                 ...(layoutConfig?.showAnnotations ? {
                                     annotations: correlationData.matrix.flatMap((row, i) =>
-                                        row.map((value, j) => ({
-                                            x: correlationData.columns[j],
-                                            y: correlationData.columns[i],
-                                            text: value.toFixed(layoutConfig.annotationDecimals),
-                                            font: {
-                                                size: layoutConfig.annotationFontSize,
-                                                color: Math.abs(value) > 0.5 ? 'white' : 'black'
-                                            },
-                                            showarrow: false,
-                                        }))
+                                        row.map((value, j) => {
+                                            const pVal = correlationData.pValues[i][j];
+                                            const sig = showSignificance ? sigMarker(pVal) : '';
+                                            const valText = value.toFixed(layoutConfig.annotationDecimals);
+                                            return {
+                                                x: correlationData.columns[j],
+                                                y: correlationData.columns[i],
+                                                text: sig ? `${valText}${sig}` : valText,
+                                                font: {
+                                                    size: layoutConfig.annotationFontSize,
+                                                    color: Math.abs(value) > 0.5 ? 'white' : 'black'
+                                                },
+                                                showarrow: false,
+                                            };
+                                        })
                                     ),
                                 } : {}),
                             }}
                             config={getPlotConfig({ filename: 'correlation_matrix' })}
                         />
                     </ExpandablePlotWrapper>
+                    {showSignificance && (
+                        <Typography variant="caption" sx={{ mt: 1, display: 'block', color: 'text.secondary' }}>
+                            * p &lt; 0.05 &nbsp;&nbsp; ** p &lt; 0.01 &nbsp;&nbsp; *** p &lt; 0.001
+                        </Typography>
+                    )}
                 </Paper>
             ) : (
                 <Typography color="text.secondary">

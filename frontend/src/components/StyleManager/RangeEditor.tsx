@@ -267,7 +267,7 @@ export const RangeEditor: React.FC<RangeEditorProps> = ({
                                                 <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, width: '100%' }}>
                                                     <Typography sx={{ flex: 1 }}>{palette.name}</Typography>
                                                     <Box sx={{ display: 'flex', gap: 0.5 }}>
-                                                        {palette.colors.slice(0, 8).map((color, i) => (
+                                                        {generateColorsFromPalette(palette.name, 8).map((color, i) => (
                                                             <Box key={i} sx={{ width: 12, height: 12, bgcolor: color, borderRadius: 0.5 }} />
                                                         ))}
                                                     </Box>

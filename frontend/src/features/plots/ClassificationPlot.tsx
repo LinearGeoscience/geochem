@@ -27,6 +27,7 @@ import { useAttributeStore } from '../../store/attributeStore';
 import { getStyleArrays, shapeToPlotlySymbol, applyOpacityToColor, getSortedIndices, sortColumnsByPriority, getColumnDisplayName } from '../../utils/attributeUtils';
 import { buildCustomData, buildTernaryHoverTemplate, buildScatterHoverTemplate } from '../../utils/tooltipUtils';
 import { computePointDensities, computeTernaryDensities, DENSITY_JET_POINT_COLORSCALE } from '../../utils/densityGrid';
+import { useSelectionHandler } from '../../hooks/useSelectionHandler';
 
 interface ClassificationPlotProps {
     plotId: string;
@@ -96,7 +97,9 @@ function getFontSize(name: string, area: number, baseSize: number = 7): number {
 const COMPUTED_AXIS = '__computed__';
 
 export const ClassificationPlot: React.FC<ClassificationPlotProps> = ({ plotId }) => {
-    const { data, columns, setSelection, getPlotSettings, updatePlotSettings, getFilteredColumns, getDisplayData, getDisplayIndices, sampleIndices, geochemMappings } = useAppStore();
+    const { data, columns, getPlotSettings, updatePlotSettings, getFilteredColumns, getDisplayData, getDisplayIndices, sampleIndices, geochemMappings } = useAppStore();
+    useAppStore(s => s.tooltipMode); // Subscribe to trigger re-render on toggle
+    const { handleSelected, handleDeselect, selectedIndices } = useSelectionHandler();
     const filteredColumns = getFilteredColumns();
     // Subscribe to all attribute state that affects styling to trigger re-renders
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
@@ -276,17 +279,7 @@ export const ClassificationPlot: React.FC<ClassificationPlotProps> = ({ plotId }
         }
     }, [plotId, updatePlotSettings]);
 
-    // Lasso selection handlers
-    const handleSelected = useCallback((event: any) => {
-        if (event && event.points && event.points.length > 0) {
-            const indices = event.points.map((pt: any) => pt.customdata?.idx ?? pt.customdata);
-            setSelection(indices);
-        }
-    }, [setSelection]);
-
-    const handleDeselect = useCallback(() => {
-        setSelection([]);
-    }, [setSelection]);
+    // Lasso selection handlers provided by useSelectionHandler hook
 
     // Build ternary classification plot
     const buildTernaryPlot = useCallback(() => {
@@ -479,6 +472,22 @@ export const ClassificationPlot: React.FC<ClassificationPlotProps> = ({ plotId }
                     ternDensities = order.map(i => ternDensities![i]);
                 }
 
+                // Selection highlighting for ternary
+                const ternLineStyle = (() => {
+                    if (selectedIndices.length === 0) return { width: 0.5, color: 'white' };
+                    const selSet = new Set(selectedIndices);
+                    return {
+                        width: ternTraceData.map(dd => {
+                            const origIdx = displayIndices ? displayIndices[dd.idx] : dd.idx;
+                            return selSet.has(origIdx) ? 2.5 : 0.5;
+                        }),
+                        color: ternTraceData.map(dd => {
+                            const origIdx = displayIndices ? displayIndices[dd.idx] : dd.idx;
+                            return selSet.has(origIdx) ? '#ffffff' : 'white';
+                        }),
+                    };
+                })();
+
                 traces.push({
                     type: 'scatterternary',
                     mode: 'markers',
@@ -494,12 +503,12 @@ export const ClassificationPlot: React.FC<ClassificationPlotProps> = ({ plotId }
                         showscale: false,
                         opacity: densityOpacity,
                         symbol: ternTraceData.map(d => shapeToPlotlySymbol(styleArrays.shapes[d.idx])),
-                        line: { width: 0.5, color: 'white' }
+                        line: ternLineStyle
                     } : {
                         size: ternTraceData.map(d => styleArrays.sizes[d.idx]),
                         color: ternTraceData.map(d => applyOpacityToColor(styleArrays.colors[d.idx], styleArrays.opacity[d.idx])),
                         symbol: ternTraceData.map(d => shapeToPlotlySymbol(styleArrays.shapes[d.idx])),
-                        line: { width: 0.5, color: 'white' }
+                        line: ternLineStyle
                     },
                     name: 'Data',
                     showlegend: true
@@ -785,6 +794,22 @@ export const ClassificationPlot: React.FC<ClassificationPlotProps> = ({ plotId }
                     xyDensity = order.map(i => xyDensity![i]);
                 }
 
+                // Selection highlighting for XY scatter
+                const xyLineStyle = (() => {
+                    if (selectedIndices.length === 0) return { width: 0.5, color: 'white' };
+                    const selSet = new Set(selectedIndices);
+                    return {
+                        width: xyTraceData.map(dd => {
+                            const origIdx = displayIndices ? displayIndices[dd.idx] : dd.idx;
+                            return selSet.has(origIdx) ? 2.5 : 0.5;
+                        }),
+                        color: xyTraceData.map(dd => {
+                            const origIdx = displayIndices ? displayIndices[dd.idx] : dd.idx;
+                            return selSet.has(origIdx) ? '#ffffff' : 'white';
+                        }),
+                    };
+                })();
+
                 traces.push({
                     type: 'scatter',
                     mode: 'markers',
@@ -799,12 +824,12 @@ export const ClassificationPlot: React.FC<ClassificationPlotProps> = ({ plotId }
                         showscale: false,
                         opacity: densityOpacity,
                         symbol: xyTraceData.map(d => shapeToPlotlySymbol(styleArrays.shapes[d.idx])),
-                        line: { width: 0.5, color: 'white' }
+                        line: xyLineStyle
                     } : {
                         size: xyTraceData.map(d => styleArrays.sizes[d.idx]),
                         color: xyTraceData.map(d => applyOpacityToColor(styleArrays.colors[d.idx], styleArrays.opacity[d.idx])),
                         symbol: xyTraceData.map(d => shapeToPlotlySymbol(styleArrays.shapes[d.idx])),
-                        line: { width: 0.5, color: 'white' }
+                        line: xyLineStyle
                     },
                     name: 'Data',
                     showlegend: true
