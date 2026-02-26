@@ -10,6 +10,7 @@ import { useShallow } from 'zustand/react/shallow';
 import { useAttributeStore } from '../../store/attributeStore';
 import { DrillholeColumnMapper } from '../../components/DrillholeColumnMapper';
 import { createGeochemMappings } from '../../utils/calculations/elementNameNormalizer';
+import { rowsToColumnar, filterEmptyColumns } from '../../utils/columnarHelpers';
 import Papa from 'papaparse';
 import {
     isVantaPxrfFormat,
@@ -128,18 +129,25 @@ export const DataImport: React.FC = () => {
             // Sort columns by priority for the store
             const sortedColumnInfo = columnInfo.sort((a, b) => a.priority - b.priority);
 
+            // Filter out columns with no data values
+            const filteredColumnInfo = filterEmptyColumns(transformed.data, sortedColumnInfo);
+
+            // Build columnar storage from transformed data
+            const columnarData = rowsToColumnar(transformed.data, filteredColumnInfo);
+
             // Update the store with transformed data
             useAppStore.setState({
                 data: transformed.data,
-                columns: sortedColumnInfo,
+                columnarData,
+                columns: filteredColumnInfo,
                 isLoading: false,
                 uploadProgress: 100,
                 currentView: 'plots'
             });
 
             // Generate geochem mappings
-            const columnNames = sortedColumnInfo.map(c => c.name);
-            const mappings = createGeochemMappings(columnNames, sortedColumnInfo);
+            const columnNames = filteredColumnInfo.map(c => c.name);
+            const mappings = createGeochemMappings(columnNames, filteredColumnInfo);
             useAppStore.setState({ geochemMappings: mappings, showGeochemDialog: true });
 
             // Show transformation summary
@@ -187,18 +195,26 @@ export const DataImport: React.FC = () => {
                 throw new Error(result.error || 'Failed to parse .gas file');
             }
 
+            // Filter out columns with no data values
+            const iogasColumnInfo: any[] = result.column_info;
+            const filteredIogasColumns = filterEmptyColumns(result.data, iogasColumnInfo);
+
+            // Build columnar storage from parsed data
+            const columnarData = rowsToColumnar(result.data, filteredIogasColumns);
+
             // Update the store with parsed data
             useAppStore.setState({
                 data: result.data,
-                columns: result.column_info,
+                columnarData,
+                columns: filteredIogasColumns as any,
                 isLoading: false,
                 uploadProgress: 100,
                 currentView: 'plots'
             });
 
             // Generate geochem mappings
-            const iogasColumnNames = result.column_info.map((c: any) => c.name);
-            const iogasMappings = createGeochemMappings(iogasColumnNames, result.column_info);
+            const iogasColumnNames = filteredIogasColumns.map((c: any) => c.name);
+            const iogasMappings = createGeochemMappings(iogasColumnNames, filteredIogasColumns);
             useAppStore.setState({ geochemMappings: iogasMappings, showGeochemDialog: true });
 
             // Format import stats
@@ -302,16 +318,19 @@ export const DataImport: React.FC = () => {
 
                     // Only use fetched data if it's not empty
                     if (columns?.length > 0 && data?.length > 0) {
+                        const filteredCols = filterEmptyColumns(data, columns as any[]);
+                        const columnarData = rowsToColumnar(data, filteredCols);
                         useAppStore.setState({
                             data: data,
-                            columns: columns,
+                            columnarData,
+                            columns: filteredCols as any,
                             isLoading: false,
                             uploadProgress: 100,
                             currentView: 'plots'
                         });
                         // Generate geochem mappings
-                        const manualColNames = columns.map((c: any) => c.name);
-                        const manualMappings = createGeochemMappings(manualColNames, columns);
+                        const manualColNames = filteredCols.map((c: any) => c.name);
+                        const manualMappings = createGeochemMappings(manualColNames, filteredCols);
                         useAppStore.setState({ geochemMappings: manualMappings, showGeochemDialog: true });
                         console.log('[DEBUG] Store updated with full data');
                         return;
@@ -325,16 +344,20 @@ export const DataImport: React.FC = () => {
             const fallbackData = result.data || result.preview || [];
             console.log(`[DEBUG] Using fallback data from process result: ${fallbackData.length} rows`);
             if (result.column_info?.length > 0) {
+                const fbColumnInfo: any[] = result.column_info;
+                const filteredFbCols = filterEmptyColumns(fallbackData, fbColumnInfo);
+                const columnarData = rowsToColumnar(fallbackData, filteredFbCols);
                 useAppStore.setState({
                     data: fallbackData,  // Use full data if available
-                    columns: result.column_info,
+                    columnarData,
+                    columns: filteredFbCols as any,
                     isLoading: false,
                     uploadProgress: 100,
                     currentView: 'plots'
                 });
                 // Generate geochem mappings
-                const fbColNames = result.column_info.map((c: any) => c.name);
-                const fbMappings = createGeochemMappings(fbColNames, result.column_info);
+                const fbColNames = filteredFbCols.map((c: any) => c.name);
+                const fbMappings = createGeochemMappings(fbColNames, filteredFbCols);
                 useAppStore.setState({ geochemMappings: fbMappings, showGeochemDialog: true });
                 console.log('[DEBUG] Store updated with fallback data:', result.column_info?.length, 'columns,', fallbackData.length, 'rows');
             } else {

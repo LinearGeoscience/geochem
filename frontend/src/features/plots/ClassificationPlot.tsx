@@ -25,8 +25,8 @@ import {
     shouldUseExternalLabel
 } from '../../types/classificationDiagram';
 import { useAttributeStore } from '../../store/attributeStore';
-import { getStyleArrays, shapeToPlotlySymbol, applyOpacityToColor, getSortedIndices, sortColumnsByPriority, getColumnDisplayName } from '../../utils/attributeUtils';
-import { buildCustomData, buildTernaryHoverTemplate, buildScatterHoverTemplate } from '../../utils/tooltipUtils';
+import { getStyleArrays, getStyleArraysColumnar, shapeToPlotlySymbol, applyOpacityToColor, getSortedIndices, sortColumnsByPriority, getColumnDisplayName } from '../../utils/attributeUtils';
+import { buildCustomData, buildCustomDataColumnar, buildTernaryHoverTemplate, buildScatterHoverTemplate } from '../../utils/tooltipUtils';
 import { computePointDensities, computeTernaryDensities, DENSITY_JET_POINT_COLORSCALE } from '../../utils/densityGrid';
 import { useSelectionHandler } from '../../hooks/useSelectionHandler';
 
@@ -98,18 +98,20 @@ function getFontSize(name: string, area: number, baseSize: number = 7): number {
 const COMPUTED_AXIS = '__computed__';
 
 export const ClassificationPlot: React.FC<ClassificationPlotProps> = ({ plotId }) => {
-    const { data, columns, sampleIndices, geochemMappings } = useAppStore(useShallow(s => ({ data: s.data, columns: s.columns, sampleIndices: s.sampleIndices, geochemMappings: s.geochemMappings })));
+    const { data, columns, sampleIndices, geochemMappings, columnarRowCount } = useAppStore(useShallow(s => ({ data: s.data, columns: s.columns, sampleIndices: s.sampleIndices, geochemMappings: s.geochemMappings, columnarRowCount: s.columnarData.rowCount })));
     const getPlotSettings = useAppStore(s => s.getPlotSettings);
     const updatePlotSettings = useAppStore(s => s.updatePlotSettings);
     const getFilteredColumns = useAppStore(s => s.getFilteredColumns);
+    const columnFilter = useAppStore(s => s.columnFilter);
     const getDisplayData = useAppStore(s => s.getDisplayData);
     const getDisplayIndices = useAppStore(s => s.getDisplayIndices);
+    const getDisplayColumn = useAppStore(s => s.getDisplayColumn);
     useAppStore(s => s.tooltipMode); // Subscribe to trigger re-render on toggle
     const { handleSelected, handleDeselect, selectedIndices } = useSelectionHandler();
-    const filteredColumns = getFilteredColumns();
+    const filteredColumns = useMemo(() => getFilteredColumns(), [columns, columnFilter, getFilteredColumns]);
     // Subscribe to all attribute state that affects styling to trigger re-renders
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    const { color: _color, shape: _shape, size: _size, filter: _filter, customEntries: _customEntries, emphasis: _emphasis, globalOpacity: _globalOpacity } = useAttributeStore();
+    const { color: _color, shape: _shape, size: _size, filter: _filter, customEntries: _customEntries, emphasis: _emphasis, globalOpacity: _globalOpacity } = useAttributeStore(useShallow(s => ({ color: s.color, shape: s.shape, size: s.size, filter: s.filter, customEntries: s.customEntries, emphasis: s.emphasis, globalOpacity: s.globalOpacity })));
     const d = (name: string) => getColumnDisplayName(columns, name);
     const displayData = useMemo(() => getDisplayData(), [data, sampleIndices]);
     const displayIndices = useMemo(() => getDisplayIndices(), [data, sampleIndices]);
@@ -428,7 +430,9 @@ export const ClassificationPlot: React.FC<ClassificationPlotProps> = ({ plotId }
 
         // Add user data points
         if (renderOptions.showData && displayData.length > 0) {
-            const styleArrays = getStyleArrays(displayData, displayIndices ?? undefined);
+            const styleArrays = (columnarRowCount > 0
+                ? getStyleArraysColumnar(displayData.length, (name) => getDisplayColumn(name), displayIndices ?? undefined)
+                : getStyleArrays(displayData, displayIndices ?? undefined));
             const sortedIndices = getSortedIndices(styleArrays);
 
             const normalizedData: { a: number; b: number; c: number; idx: number }[] = [];
@@ -456,7 +460,9 @@ export const ClassificationPlot: React.FC<ClassificationPlotProps> = ({ plotId }
 
             if (normalizedData.length > 0) {
                 const dataIndices = normalizedData.map(d => d.idx);
-                const customData = buildCustomData(displayData, dataIndices, displayIndices ?? undefined);
+                const customData = (columnarRowCount > 0
+                    ? buildCustomDataColumnar((name) => getDisplayColumn(name), dataIndices, displayIndices ?? undefined)
+                    : buildCustomData(displayData, dataIndices, displayIndices ?? undefined));
 
                 // Compute density for ternary points if enabled
                 const ternDensityResult = showDensity ? computeTernaryDensities(
@@ -746,7 +752,9 @@ export const ClassificationPlot: React.FC<ClassificationPlotProps> = ({ plotId }
 
         // Add user data points
         if (renderOptions.showData && displayData.length > 0) {
-            const styleArrays = getStyleArrays(displayData, displayIndices ?? undefined);
+            const styleArrays = (columnarRowCount > 0
+                ? getStyleArraysColumnar(displayData.length, (name) => getDisplayColumn(name), displayIndices ?? undefined)
+                : getStyleArrays(displayData, displayIndices ?? undefined));
             const sortedIndices = getSortedIndices(styleArrays);
 
             const validData: { x: number; y: number; idx: number }[] = [];
@@ -763,7 +771,9 @@ export const ClassificationPlot: React.FC<ClassificationPlotProps> = ({ plotId }
 
             if (validData.length > 0) {
                 const dataIndices = validData.map(d => d.idx);
-                const customData = buildCustomData(displayData, dataIndices, displayIndices ?? undefined);
+                const customData = (columnarRowCount > 0
+                    ? buildCustomDataColumnar((name) => getDisplayColumn(name), dataIndices, displayIndices ?? undefined)
+                    : buildCustomData(displayData, dataIndices, displayIndices ?? undefined));
 
                 // Compute per-point density if enabled
                 let xyDensity: number[] | null = null;

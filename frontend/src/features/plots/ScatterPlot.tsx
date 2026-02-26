@@ -7,9 +7,10 @@ import { MultiColumnSelector } from '../../components/MultiColumnSelector';
 import { TAS_DIAGRAM } from './classifications';
 import { ExpandablePlotWrapper } from '../../components/ExpandablePlotWrapper';
 import { useAttributeStore } from '../../store/attributeStore';
-import { getStyleArrays, shapeToPlotlySymbol, applyOpacityToColor, getSortedIndices, sortColumnsByPriority, getColumnDisplayName, getSelectionHighlightArrays, buildSelectionOverlayTrace } from '../../utils/attributeUtils';
+import { getStyleArrays, getStyleArraysColumnar, shapeToPlotlySymbol, applyOpacityToColor, getSortedIndices, sortColumnsByPriority, getColumnDisplayName, getSelectionHighlightArrays, buildSelectionOverlayTrace } from '../../utils/attributeUtils';
 import { calculateLinearRegression } from '../../utils/regressionUtils';
-import { buildCustomData, buildScatterHoverTemplate } from '../../utils/tooltipUtils';
+import { buildCustomData, buildCustomDataColumnar, buildScatterHoverTemplate } from '../../utils/tooltipUtils';
+import { isNumericColumn } from '../../types/columnarData';
 import { getPlotConfig, EXPORT_FONT_SIZES, PRESENTATION_FONT_SIZES } from '../../utils/plotConfig';
 import { DENSITY_JET_POINT_COLORSCALE } from '../../utils/densityGrid';
 import { useDensityWorker } from '../../hooks/useDensityWorker';
@@ -30,21 +31,25 @@ interface ScatterPlotProps {
 }
 
 export const ScatterPlot: React.FC<ScatterPlotProps> = ({ plotId }) => {
-    const { data, columns, lockAxes, sampleIndices, geochemMappings } = useAppStore(useShallow(s => ({ data: s.data, columns: s.columns, lockAxes: s.lockAxes, sampleIndices: s.sampleIndices, geochemMappings: s.geochemMappings })));
+    const { data, columns, lockAxes, sampleIndices, geochemMappings, columnarRowCount } = useAppStore(useShallow(s => ({ data: s.data, columns: s.columns, lockAxes: s.lockAxes, sampleIndices: s.sampleIndices, geochemMappings: s.geochemMappings, columnarRowCount: s.columnarData.rowCount })));
     const getPlotSettings = useAppStore(s => s.getPlotSettings);
     const updatePlotSettings = useAppStore(s => s.updatePlotSettings);
     const getFilteredColumns = useAppStore(s => s.getFilteredColumns);
     const getDisplayData = useAppStore(s => s.getDisplayData);
     const getDisplayIndices = useAppStore(s => s.getDisplayIndices);
+    const getDisplayColumn = useAppStore(s => s.getDisplayColumn);
     useAppStore(s => s.tooltipMode); // Subscribe to trigger re-render on toggle
     const { handleSelected, handleDeselect, selectedIndices } = useSelectionHandler();
-    const filteredColumns = getFilteredColumns();
+    const columnFilter = useAppStore(s => s.columnFilter);
+    const filteredColumns = useMemo(() => getFilteredColumns(), [columns, columnFilter, getFilteredColumns]);
     const d = (name: string) => getColumnDisplayName(columns, name);
     const displayData = useMemo(() => getDisplayData(), [data, sampleIndices]);
     const displayIndices = useMemo(() => getDisplayIndices(), [data, sampleIndices]);
-    // Subscribe to all attribute state that affects styling to trigger re-renders
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    const { color, shape: _shape, size: _size, filter: _filter, customEntries: _customEntries, emphasis: _emphasis, globalOpacity: _globalOpacity } = useAttributeStore();
+    // Subscribe to attribute state that affects styling
+    const { color, shape: _shape, size: _size, filter: _filter, customEntries: _customEntries, emphasis: _emphasis, globalOpacity: _globalOpacity } = useAttributeStore(useShallow(s => ({
+        color: s.color, shape: s.shape, size: s.size, filter: s.filter,
+        customEntries: s.customEntries, emphasis: s.emphasis, globalOpacity: s.globalOpacity,
+    })));
 
     // Get stored settings or defaults
     const storedSettings = getPlotSettings(plotId);
@@ -88,8 +93,11 @@ export const ScatterPlot: React.FC<ScatterPlotProps> = ({ plotId }) => {
             const results: Record<string, number[] | null> = {};
 
             for (const yAxisName of yAxes) {
-                const xRaw = displayData.map(row => Number(row[xAxis]));
-                const yRaw = displayData.map(row => Number(row[yAxisName]));
+                // Use columnar display columns for efficient extraction
+                const xColRaw = getDisplayColumn(xAxis);
+                const yColRaw = getDisplayColumn(yAxisName);
+                const xRaw = xColRaw && isNumericColumn(xColRaw) ? Array.from(xColRaw) : displayData.map(row => Number(row[xAxis]));
+                const yRaw = yColRaw && isNumericColumn(yColRaw) ? Array.from(yColRaw) : displayData.map(row => Number(row[yAxisName]));
 
                 const xValid: number[] = [];
                 const yValid: number[] = [];
@@ -252,27 +260,37 @@ export const ScatterPlot: React.FC<ScatterPlotProps> = ({ plotId }) => {
         return xName.includes('sio2') && (yName.includes('na2o') || yName.includes('k2o'));
     };
 
+    // Memoize style arrays once (shared across all y-axes) — avoids O(n) recompute per y-axis
+    const styleArrays = useMemo(() => {
+        if (!displayData.length) return null;
+        return columnarRowCount > 0
+            ? getStyleArraysColumnar(displayData.length, (name) => getDisplayColumn(name), displayIndices ?? undefined)
+            : getStyleArrays(displayData, displayIndices ?? undefined);
+    }, [displayData, displayIndices, columnarRowCount, getDisplayColumn, _filter, _shape, _size, color, _customEntries, _emphasis, _globalOpacity]);
+
+    const sortedIndices = useMemo(() =>
+        styleArrays ? getSortedIndices(styleArrays) : [],
+        [styleArrays]
+    );
+
     const getPlotDataForAxis = (yAxisName: string) => {
-        if (!displayData.length || !xAxis) return [];
-
-        // Get styles from attribute store (includes emphasis calculations)
-        const styleArrays = getStyleArrays(displayData, displayIndices ?? undefined);
-
-        // Get sorted indices (z-ordering: low-grade first, high-grade last/on top)
-        const sortedIndices = getSortedIndices(styleArrays);
+        if (!displayData.length || !xAxis || !styleArrays) return [];
 
         // Marker size multiplier for presentation mode (makes markers much larger)
         const sizeMultiplier = presentationMode ? 1.8 : 1;
 
+        // Pre-extract display columns for trace building
+        const xDisplayCol = getDisplayColumn(xAxis);
+        const yDisplayCol = getDisplayColumn(yAxisName);
+        const colorDisplayCol = color.field ? getDisplayColumn(color.field) : undefined;
+
         // Build arrays in sorted order for z-ordering
-        const sortedData: Record<string, any>[] = [];
         const sortedColors: string[] = [];
         const sortedShapes: string[] = [];
         const sortedSizes: number[] = [];
         const sortedOriginalIndices: number[] = [];
 
         for (const i of sortedIndices) {
-            sortedData.push(displayData[i]);
             // Apply emphasis opacity to colors
             const colorWithOpacity = applyOpacityToColor(styleArrays.colors[i], styleArrays.opacity[i]);
             sortedColors.push(colorWithOpacity);
@@ -283,10 +301,12 @@ export const ScatterPlot: React.FC<ScatterPlotProps> = ({ plotId }) => {
 
         // Use WebGL for large datasets, but fall back to CPU scatter when too many subplots
         const useWebGL = yAxes.length <= MAX_WEBGL_CONTEXTS;
-        const plotType = (useWebGL && sortedData.length > WEBGL_THRESHOLD) ? 'scattergl' : 'scatter';
+        const plotType = (useWebGL && sortedIndices.length > WEBGL_THRESHOLD) ? 'scattergl' : 'scatter';
 
-        // Build rich customdata for hover tooltips
-        const customData = buildCustomData(displayData, sortedIndices, displayIndices ?? undefined);
+        // Build rich customdata for hover tooltips — columnar fast path
+        const customData = columnarRowCount > 0
+            ? buildCustomDataColumnar((name) => getDisplayColumn(name), sortedIndices, displayIndices ?? undefined)
+            : buildCustomData(displayData, sortedIndices, displayIndices ?? undefined);
 
         // Use pre-computed density from worker (mapped through sort indices)
         let densityColors: number[] | null = null;
@@ -295,9 +315,9 @@ export const ScatterPlot: React.FC<ScatterPlotProps> = ({ plotId }) => {
             densityColors = sortedIndices.map(i => rawDensities[i]);
         }
 
-        // Build trace arrays
-        let traceX = sortedData.map(d => d[xAxis]);
-        let traceY = sortedData.map(d => d[yAxisName]);
+        // Build trace arrays — use columnar data for efficient index gathering
+        let traceX = xDisplayCol ? sortedIndices.map(i => xDisplayCol[i]) : sortedIndices.map(i => displayData[i][xAxis]);
+        let traceY = yDisplayCol ? sortedIndices.map(i => yDisplayCol[i]) : sortedIndices.map(i => displayData[i][yAxisName]);
         let traceCustomData = customData;
         let traceShapes = sortedShapes;
         let traceSizes = sortedSizes;
@@ -370,8 +390,8 @@ export const ScatterPlot: React.FC<ScatterPlotProps> = ({ plotId }) => {
         if (showRegression) {
             if (regressionMode === 'global') {
                 // Global regression - single line for all visible data
-                const xValues = sortedData.map(d => Number(d[xAxis])).filter(v => !isNaN(v) && isFinite(v));
-                const yValues = sortedData.map(d => Number(d[yAxisName])).filter(v => !isNaN(v) && isFinite(v));
+                const xValues = (xDisplayCol ? sortedIndices.map(i => Number(xDisplayCol[i])) : sortedIndices.map(i => Number(displayData[i][xAxis]))).filter(v => !isNaN(v) && isFinite(v));
+                const yValues = (yDisplayCol ? sortedIndices.map(i => Number(yDisplayCol[i])) : sortedIndices.map(i => Number(displayData[i][yAxisName]))).filter(v => !isNaN(v) && isFinite(v));
 
                 const regression = calculateLinearRegression(xValues, yValues);
                 if (regression) {
@@ -387,20 +407,24 @@ export const ScatterPlot: React.FC<ScatterPlotProps> = ({ plotId }) => {
                 }
             } else if (regressionMode === 'per-category' && color.field) {
                 // Per-category regression - one line per color category
-                const categoryGroups = new Map<string, { data: any[], color: string }>();
+                const categoryGroups = new Map<string, { xVals: number[], yVals: number[], color: string }>();
 
-                sortedData.forEach((d, idx) => {
-                    const category = String(d[color.field!]);
+                sortedIndices.forEach((sortedIdx, posIdx) => {
+                    const catVal = colorDisplayCol ? colorDisplayCol[sortedIdx] : displayData[sortedIdx][color.field!];
+                    const category = String(catVal);
                     if (!categoryGroups.has(category)) {
-                        categoryGroups.set(category, { data: [], color: sortedColors[idx] });
+                        categoryGroups.set(category, { xVals: [], yVals: [], color: sortedColors[posIdx] });
                     }
-                    categoryGroups.get(category)!.data.push(d);
+                    const xv = xDisplayCol ? Number(xDisplayCol[sortedIdx]) : Number(displayData[sortedIdx][xAxis]);
+                    const yv = yDisplayCol ? Number(yDisplayCol[sortedIdx]) : Number(displayData[sortedIdx][yAxisName]);
+                    if (!isNaN(xv) && isFinite(xv) && !isNaN(yv) && isFinite(yv)) {
+                        categoryGroups.get(category)!.xVals.push(xv);
+                        categoryGroups.get(category)!.yVals.push(yv);
+                    }
                 });
 
                 // Calculate regression for each category
-                categoryGroups.forEach(({ data: categoryData, color: lineColor }, category) => {
-                    const xValues = categoryData.map(d => Number(d[xAxis])).filter(v => !isNaN(v) && isFinite(v));
-                    const yValues = categoryData.map(d => Number(d[yAxisName])).filter(v => !isNaN(v) && isFinite(v));
+                categoryGroups.forEach(({ xVals: xValues, yVals: yValues, color: lineColor }, category) => {
 
                     const regression = calculateLinearRegression(xValues, yValues);
                     if (regression) {
@@ -429,9 +453,12 @@ export const ScatterPlot: React.FC<ScatterPlotProps> = ({ plotId }) => {
         if (sortOrder === 'r2-high' || sortOrder === 'r2-low' || sortOrder === 'r2-pos' || sortOrder === 'r2-neg') {
             const r2Map = new Map<string, number>();
             const signedR2Map = new Map<string, number>();
+            const getColumn = useAppStore.getState().getColumn;
             for (const yName of yAxes) {
-                const xValues = data.map(d => Number(d[xAxis])).filter(v => !isNaN(v) && isFinite(v));
-                const yValues = data.map(d => Number(d[yName])).filter(v => !isNaN(v) && isFinite(v));
+                const xFullCol = getColumn(xAxis);
+                const yFullCol = getColumn(yName);
+                const xValues = (xFullCol && isNumericColumn(xFullCol) ? Array.from(xFullCol) : data.map(d => Number(d[xAxis]))).filter(v => !isNaN(v) && isFinite(v));
+                const yValues = (yFullCol && isNumericColumn(yFullCol) ? Array.from(yFullCol) : data.map(d => Number(d[yName]))).filter(v => !isNaN(v) && isFinite(v));
                 const regression = calculateLinearRegression(xValues, yValues);
                 r2Map.set(yName, regression?.rSquared ?? -1);
                 const sign = regression && regression.slope >= 0 ? 1 : -1;

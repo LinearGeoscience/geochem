@@ -1,43 +1,57 @@
-import React, { useCallback } from 'react';
+import React, { useCallback, useMemo } from 'react';
 import { Box, Paper, Typography, Button } from '@mui/material';
 import { Download } from '@mui/icons-material';
 import { DataGrid, GridColDef } from '@mui/x-data-grid';
 import { useAppStore } from '../../store/appStore';
+import { isNumericColumn } from '../../types/columnarData';
 
 export const DataView: React.FC = () => {
     const { data, columns } = useAppStore();
+    const columnarRowCount = useAppStore(s => s.columnarData.rowCount);
+    const getColumn = useAppStore(s => s.getColumn);
 
-    // Export data to CSV
+    const rowCount = columnarRowCount > 0 ? columnarRowCount : data.length;
+
+    // Export data to CSV — columnar fast path avoids row materialization
     const handleExportCSV = useCallback(() => {
-        if (!data.length || !columns.length) return;
+        if (rowCount === 0 || !columns.length) return;
 
-        // Get column names (excluding internal fields)
         const columnNames = columns.filter(c => c && c.name).map(c => c.name);
-
-        // Build CSV content
         const csvRows: string[] = [];
 
         // Header row
         csvRows.push(columnNames.map(name => `"${name.replace(/"/g, '""')}"`).join(','));
 
-        // Data rows
-        data.forEach(row => {
-            const values = columnNames.map(colName => {
-                const value = row[colName];
-                if (value === null || value === undefined) {
-                    return '';
-                }
-                if (typeof value === 'string') {
-                    return `"${value.replace(/"/g, '""')}"`;
-                }
-                return String(value);
+        if (columnarRowCount > 0) {
+            // Columnar fast path: read columns directly
+            const colArrays = columnNames.map(name => getColumn(name));
+            for (let i = 0; i < columnarRowCount; i++) {
+                const values = colArrays.map(col => {
+                    if (!col) return '';
+                    if (isNumericColumn(col)) {
+                        const v = col[i];
+                        return isNaN(v) ? '' : String(v);
+                    }
+                    const v = col[i];
+                    return v ? `"${String(v).replace(/"/g, '""')}"` : '';
+                });
+                csvRows.push(values.join(','));
+            }
+        } else {
+            // Legacy row path
+            data.forEach(row => {
+                const values = columnNames.map(colName => {
+                    const value = row[colName];
+                    if (value === null || value === undefined) return '';
+                    if (typeof value === 'string') return `"${value.replace(/"/g, '""')}"`;
+                    return String(value);
+                });
+                csvRows.push(values.join(','));
             });
-            csvRows.push(values.join(','));
-        });
+        }
 
         const csvContent = csvRows.join('\n');
 
-        // Create and download the file
         const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
         const link = document.createElement('a');
         const url = URL.createObjectURL(blob);
@@ -47,7 +61,7 @@ export const DataView: React.FC = () => {
         document.body.appendChild(link);
         link.click();
         document.body.removeChild(link);
-    }, [data, columns]);
+    }, [data, columns, columnarRowCount, rowCount, getColumn]);
 
     // Filter out any columns with invalid/missing names and ensure each has a valid field
     const gridColumns: GridColDef[] = columns
@@ -59,11 +73,32 @@ export const DataView: React.FC = () => {
             type: col.type === 'numeric' ? 'number' : 'string',
         }));
 
-    // Add an ID field if not present, as DataGrid requires it
-    const gridRows = data.map((row, index) => ({
-        id: index,
-        ...row,
-    }));
+    // Build grid rows — use columnar data when available
+    // Depends on columnarRowCount (stable scalar) + columns (only changes on add/remove)
+    // instead of columnarData (changes on ANY mutation)
+    const gridRows = useMemo(() => {
+        if (columnarRowCount > 0) {
+            const rows: any[] = new Array(columnarRowCount);
+            const columnNames = columns.filter(c => c && c.name).map(c => c.name);
+            const colArrays = columnNames.map(name => getColumn(name));
+            for (let i = 0; i < columnarRowCount; i++) {
+                const row: any = { id: i };
+                for (let j = 0; j < columnNames.length; j++) {
+                    const col = colArrays[j];
+                    if (!col) continue;
+                    if (col instanceof Float64Array) {
+                        const v = col[i];
+                        row[columnNames[j]] = isNaN(v) ? null : v;
+                    } else {
+                        row[columnNames[j]] = col[i] === '' ? null : col[i];
+                    }
+                }
+                rows[i] = row;
+            }
+            return rows;
+        }
+        return data.map((row, index) => ({ id: index, ...row }));
+    }, [data, columnarRowCount, columns, getColumn]);
 
     return (
         <Paper sx={{ height: '100%', width: '100%', p: 2 }}>
@@ -73,14 +108,14 @@ export const DataView: React.FC = () => {
                 </Typography>
                 <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
                     <Typography variant="body2" color="text.secondary">
-                        <strong>{data.length.toLocaleString()}</strong> rows | <strong>{columns.length}</strong> columns
+                        <strong>{rowCount.toLocaleString()}</strong> rows | <strong>{columns.length}</strong> columns
                     </Typography>
                     <Button
                         variant="outlined"
                         size="small"
                         startIcon={<Download />}
                         onClick={handleExportCSV}
-                        disabled={!data.length}
+                        disabled={rowCount === 0}
                     >
                         Export CSV
                     </Button>

@@ -19,7 +19,7 @@ import {
 import { ExpandMore, ExpandLess } from '@mui/icons-material';
 import { MultiColumnSelector } from '../../components/MultiColumnSelector';
 import { useAttributeStore } from '../../store/attributeStore';
-import { getStyleArrays, sortColumnsByPriority, getColumnDisplayName } from '../../utils/attributeUtils';
+import { getStyleArrays, getStyleArraysColumnar, sortColumnsByPriority, getColumnDisplayName } from '../../utils/attributeUtils';
 import { getDownholePlotConfig, EXPORT_FONT_SIZES } from '../../utils/plotConfig';
 import { ExpandablePlotWrapper } from '../../components/ExpandablePlotWrapper';
 
@@ -242,15 +242,17 @@ interface DownholePlotProps {
 }
 
 export const DownholePlot: React.FC<DownholePlotProps> = ({ plotId }) => {
-    const { data, columns, lockAxes, sampleIndices } = useAppStore(useShallow(s => ({ data: s.data, columns: s.columns, lockAxes: s.lockAxes, sampleIndices: s.sampleIndices })));
+    const { data, columns, lockAxes, sampleIndices, columnarRowCount } = useAppStore(useShallow(s => ({ data: s.data, columns: s.columns, lockAxes: s.lockAxes, sampleIndices: s.sampleIndices, columnarRowCount: s.columnarData.rowCount })));
     const getPlotSettings = useAppStore(s => s.getPlotSettings);
     const updatePlotSettings = useAppStore(s => s.updatePlotSettings);
     const getFilteredColumns = useAppStore(s => s.getFilteredColumns);
     const getDisplayData = useAppStore(s => s.getDisplayData);
     const getDisplayIndices = useAppStore(s => s.getDisplayIndices);
-    const filteredColumns = getFilteredColumns();
+    const getDisplayColumn = useAppStore(s => s.getDisplayColumn);
+    const columnFilter = useAppStore(s => s.columnFilter);
+    const filteredColumns = useMemo(() => getFilteredColumns(), [columns, columnFilter, getFilteredColumns]);
     const d = (name: string) => getColumnDisplayName(columns, name);
-    useAttributeStore(); // Subscribe to style changes
+    useAttributeStore(s => s.filter); // Subscribe to style changes
 
     const displayData = useMemo(() => getDisplayData(), [data, sampleIndices]);
     const displayIndices = useMemo(() => getDisplayIndices(), [data, sampleIndices]);
@@ -365,7 +367,9 @@ export const DownholePlot: React.FC<DownholePlotProps> = ({ plotId }) => {
     const getHoleData = useCallback((holeName: string) => {
         if (!holeCol) return { data: [], indices: [] };
 
-        const styleArrays = getStyleArrays(displayData, displayIndices ?? undefined);
+        const styleArrays = columnarRowCount > 0
+            ? getStyleArraysColumnar(displayData.length, (name) => getDisplayColumn(name), displayIndices ?? undefined)
+            : getStyleArrays(displayData, displayIndices ?? undefined);
         const visibleData: any[] = [];
         const visibleIndices: number[] = [];
 

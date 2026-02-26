@@ -9,6 +9,19 @@ import {
     findColumnForElement,
     getColumnsByCategory,
 } from '../utils/calculations/elementNameNormalizer';
+import {
+    ColumnarStore,
+    ColumnData,
+    emptyColumnarStore,
+    isNumericColumn,
+} from '../types/columnarData';
+import {
+    rowsToColumnar,
+    columnarToRows,
+    extractDisplayColumn,
+    computeSampleIndicesArray,
+    filterEmptyColumns,
+} from '../utils/columnarHelpers';
 
 interface ColumnInfo {
     name: string;
@@ -149,6 +162,15 @@ interface AppState {
     getDisplayData: () => any[];
     getDisplayIndices: () => number[] | null;
 
+    // Columnar storage (memory-efficient typed arrays alongside data: any[])
+    columnarData: ColumnarStore;
+    _sampleIndicesArray: number[] | null; // sorted array version of sampleIndices
+    getColumn: (name: string) => ColumnData | undefined;
+    getNumericColumn: (name: string) => Float64Array | undefined;
+    getStringColumn: (name: string) => string[] | undefined;
+    getDisplayColumn: (name: string) => ColumnData | undefined;
+    getRowCount: () => number;
+
     // Geochem column mappings
     geochemMappings: ColumnGeochemMapping[];
     showGeochemDialog: boolean;
@@ -279,6 +301,10 @@ export const useAppStore = create<CombinedState>()((set, get, api) => ({
     isSampling: false,
     samplingError: null,
 
+    // Columnar storage
+    columnarData: emptyColumnarStore(),
+    _sampleIndicesArray: null,
+
     // Geochem mappings
     geochemMappings: [],
     showGeochemDialog: false,
@@ -336,7 +362,7 @@ export const useAppStore = create<CombinedState>()((set, get, api) => ({
 
     assignClassToSelection: (columnName, className) => {
         set((state) => {
-            const { data, selectedIndices, columns } = state;
+            const { data, selectedIndices, columns, columnarData } = state;
             if (selectedIndices.length === 0) return {};
 
             // Direct property set — avoids spreading all props per row
@@ -351,9 +377,18 @@ export const useAppStore = create<CombinedState>()((set, get, api) => ({
                 ? columns
                 : [...columns, { name: columnName, type: 'categorical', role: 'Classification', alias: null }];
 
+            // Update columnar storage — create/update string column
+            const newColumnarColumns = new Map(columnarData.columns);
+            const strCol: string[] = new Array(data.length);
+            for (let i = 0; i < data.length; i++) {
+                strCol[i] = selectedSet.has(i) ? className : (newData[i][columnName] ?? 'Unclassified');
+            }
+            newColumnarColumns.set(columnName, strCol);
+
             return {
                 data: newData,
-                columns: newColumns
+                columns: newColumns,
+                columnarData: { ...columnarData, columns: newColumnarColumns },
             };
         });
     },
@@ -390,10 +425,30 @@ export const useAppStore = create<CombinedState>()((set, get, api) => ({
                 newAvailableFilters.push(transformationType);
             }
 
+            // Update columnar storage — add typed column
+            const isNumeric = colType === 'numeric' || colType === 'float' || colType === 'integer';
+            const newColumnarColumns = new Map(state.columnarData.columns);
+            if (isNumeric) {
+                const arr = new Float64Array(values.length);
+                for (let i = 0; i < values.length; i++) {
+                    const v = values[i];
+                    arr[i] = (v === null || v === undefined || v === '') ? NaN : Number(v);
+                }
+                newColumnarColumns.set(name, arr);
+            } else {
+                const arr: string[] = new Array(values.length);
+                for (let i = 0; i < values.length; i++) {
+                    const v = values[i];
+                    arr[i] = (v === null || v === undefined) ? '' : String(v);
+                }
+                newColumnarColumns.set(name, arr);
+            }
+
             return {
                 data: newData,
                 columns: newColumns,
-                availableFilters: newAvailableFilters
+                availableFilters: newAvailableFilters,
+                columnarData: { ...state.columnarData, columns: newColumnarColumns },
             };
         });
     },
@@ -442,7 +497,8 @@ export const useAppStore = create<CombinedState>()((set, get, api) => ({
         set({ isLoading: true });
         try {
             const data = await dataApi.getData();
-            set({ data, isLoading: false });
+            const columnarData = rowsToColumnar(data, get().columns);
+            set({ data, columnarData, isLoading: false });
         } catch (err: any) {
             set({ error: err.message, isLoading: false });
         }
@@ -457,14 +513,14 @@ export const useAppStore = create<CombinedState>()((set, get, api) => ({
             });
             set({ uploadProgress: 50 });
 
-            const columnInfo = result.column_info || [];
+            const columnInfo: ColumnInfo[] = result.column_info || [];
             const totalRows = result.rows || 0;
 
             // Set columns immediately so UI can show structure
             set({ columns: columnInfo });
 
             // Generate geochem mappings early
-            const columnNames = columnInfo.map((c: ColumnInfo) => c.name);
+            const columnNames = columnInfo.map(c => c.name);
             const mappings = createGeochemMappings(columnNames, columnInfo);
             set({ geochemMappings: mappings, showGeochemDialog: true });
 
@@ -479,8 +535,24 @@ export const useAppStore = create<CombinedState>()((set, get, api) => ({
             });
 
             console.log(`[uploadFile] Streamed ${data.length} rows`);
+
+            // Filter out columns with no data values
+            const filteredColumnInfo = filterEmptyColumns(data, columnInfo);
+            console.log(`[uploadFile] Filtered columns: ${columnInfo.length} → ${filteredColumnInfo.length}`);
+
+            // Re-generate geochem mappings with filtered columns
+            const filteredNames = filteredColumnInfo.map(c => c.name);
+            const filteredMappings = createGeochemMappings(filteredNames, filteredColumnInfo);
+            set({ geochemMappings: filteredMappings });
+
+            // Build columnar storage from row data
+            const columnarData = rowsToColumnar(data, filteredColumnInfo);
+            console.log(`[uploadFile] Built columnar store: ${columnarData.rowCount} rows, ${columnarData.columns.size} columns`);
+
             set({
                 data,
+                columnarData,
+                columns: filteredColumnInfo,
                 isLoading: false,
                 uploadProgress: 0,
                 streamingStatus: null
@@ -518,14 +590,14 @@ export const useAppStore = create<CombinedState>()((set, get, api) => ({
             });
             set({ uploadProgress: 50 });
 
-            const columnInfo = result.column_info || [];
+            const columnInfo: ColumnInfo[] = result.column_info || [];
             const totalRows = result.rows || 0;
 
             // Set columns immediately so UI can show structure
             set({ columns: columnInfo });
 
             // Generate geochem mappings early
-            const columnNames = columnInfo.map((c: ColumnInfo) => c.name);
+            const columnNames = columnInfo.map(c => c.name);
             const mappings = createGeochemMappings(columnNames, columnInfo);
             set({ geochemMappings: mappings, showGeochemDialog: true });
 
@@ -540,8 +612,24 @@ export const useAppStore = create<CombinedState>()((set, get, api) => ({
             });
 
             console.log(`[uploadDrillhole] Streamed ${data.length} rows`);
+
+            // Filter out columns with no data values
+            const filteredColumnInfo = filterEmptyColumns(data, columnInfo);
+            console.log(`[uploadDrillhole] Filtered columns: ${columnInfo.length} → ${filteredColumnInfo.length}`);
+
+            // Re-generate geochem mappings with filtered columns
+            const filteredNames = filteredColumnInfo.map(c => c.name);
+            const filteredMappings = createGeochemMappings(filteredNames, filteredColumnInfo);
+            set({ geochemMappings: filteredMappings });
+
+            // Build columnar storage from row data
+            const columnarData = rowsToColumnar(data, filteredColumnInfo);
+            console.log(`[uploadDrillhole] Built columnar store: ${columnarData.rowCount} rows, ${columnarData.columns.size} columns`);
+
             set({
                 data,
+                columnarData,
+                columns: filteredColumnInfo,
                 isLoading: false,
                 uploadProgress: 0,
                 streamingStatus: null
@@ -609,8 +697,27 @@ export const useAppStore = create<CombinedState>()((set, get, api) => ({
                     : col
             );
 
+            // Update columnar storage with converted column
+            const isNumeric = newType === 'numeric' || newType === 'float' || newType === 'integer';
+            const newColumnarColumns = new Map(state.columnarData.columns);
+            if (isNumeric) {
+                const arr = new Float64Array(newData.length);
+                for (let i = 0; i < newData.length; i++) {
+                    const v = newData[i][column];
+                    arr[i] = (v === null || v === undefined) ? NaN : Number(v);
+                }
+                newColumnarColumns.set(column, arr);
+            } else {
+                const arr: string[] = new Array(newData.length);
+                for (let i = 0; i < newData.length; i++) {
+                    const v = newData[i][column];
+                    arr[i] = (v === null || v === undefined) ? '' : String(v);
+                }
+                newColumnarColumns.set(column, arr);
+            }
+
             console.log(`[updateColumnType] Column "${column}" converted to ${newType}`);
-            return { data: newData, columns: newColumns };
+            return { data: newData, columns: newColumns, columnarData: { ...state.columnarData, columns: newColumnarColumns } };
         });
     },
 
@@ -630,8 +737,29 @@ export const useAppStore = create<CombinedState>()((set, get, api) => ({
                     : col
             );
 
+            // Update columnar storage for all converted columns
+            const isNumeric = newType === 'numeric' || newType === 'float' || newType === 'integer';
+            const newColumnarColumns = new Map(state.columnarData.columns);
+            for (const colName of columnNames) {
+                if (isNumeric) {
+                    const arr = new Float64Array(newData.length);
+                    for (let i = 0; i < newData.length; i++) {
+                        const v = newData[i][colName];
+                        arr[i] = (v === null || v === undefined) ? NaN : Number(v);
+                    }
+                    newColumnarColumns.set(colName, arr);
+                } else {
+                    const arr: string[] = new Array(newData.length);
+                    for (let i = 0; i < newData.length; i++) {
+                        const v = newData[i][colName];
+                        arr[i] = (v === null || v === undefined) ? '' : String(v);
+                    }
+                    newColumnarColumns.set(colName, arr);
+                }
+            }
+
             console.log(`[updateColumnTypes] ${columnNames.length} columns converted to ${newType}`);
-            return { data: newData, columns: newColumns };
+            return { data: newData, columns: newColumns, columnarData: { ...state.columnarData, columns: newColumnarColumns } };
         });
     },
 
@@ -682,15 +810,18 @@ export const useAppStore = create<CombinedState>()((set, get, api) => ({
                 // If backend lost data (e.g. restart), re-sync and retry once
                 if (err?.response?.status === 400 && err?.response?.data?.detail === 'No data loaded') {
                     console.log('[computeSample] Backend has no data, syncing...');
-                    await dataApi.syncData(data);
+                    const syncData = data.length > 0 ? data : columnarToRows(get().columnarData);
+                    await dataApi.syncData(syncData);
                     result = await dataApi.computeSample(sampleParams);
                 } else {
                     throw err;
                 }
             }
 
+            const newSampleIndices = new Set(result.indices);
             set({
-                sampleIndices: new Set(result.indices),
+                sampleIndices: newSampleIndices,
+                _sampleIndicesArray: computeSampleIndicesArray(newSampleIndices),
                 samplingResult: {
                     totalRows: result.total_rows,
                     sampleSize: result.sample_size,
@@ -711,6 +842,7 @@ export const useAppStore = create<CombinedState>()((set, get, api) => ({
     clearSample: () => {
         set({
             sampleIndices: null,
+            _sampleIndicesArray: null,
             samplingResult: null,
             samplingError: null,
             samplingConfig: { ...get().samplingConfig, enabled: false },
@@ -732,6 +864,26 @@ export const useAppStore = create<CombinedState>()((set, get, api) => ({
         }
         return indices;
     },
+
+    // Columnar storage accessors
+    getColumn: (name) => get().columnarData.columns.get(name),
+
+    getNumericColumn: (name) => {
+        const col = get().columnarData.columns.get(name);
+        return col && isNumericColumn(col) ? col : undefined;
+    },
+
+    getStringColumn: (name) => {
+        const col = get().columnarData.columns.get(name);
+        return col && Array.isArray(col) ? col : undefined;
+    },
+
+    getDisplayColumn: (name) => {
+        const { columnarData, _sampleIndicesArray } = get();
+        return extractDisplayColumn(columnarData, name, _sampleIndicesArray);
+    },
+
+    getRowCount: () => get().columnarData.rowCount,
 
     // Geochem mapping actions
     setGeochemMappings: (mappings) => {
@@ -799,13 +951,18 @@ export const useAppStore = create<CombinedState>()((set, get, api) => ({
     getREE: () => getColumnsByCategory(get().geochemMappings, 'ree'),
 
     syncToQgis: async () => {
-        const { data, columns } = get();
-        if (data.length === 0) {
+        const { data, columnarData, columns } = get();
+        // Use row data if available, otherwise materialize from columnar
+        let rowData = data;
+        if (rowData.length === 0 && columnarData.rowCount > 0) {
+            rowData = columnarToRows(columnarData);
+        }
+        if (rowData.length === 0) {
             console.warn('[syncToQgis] No data to sync');
             return;
         }
         try {
-            const result = await qgisApi.syncData(data, columns);
+            const result = await qgisApi.syncData(rowData, columns);
             console.log(`[syncToQgis] Synced ${result.rows} rows, ${result.columns} columns to QGIS`);
         } catch (err) {
             console.warn('[syncToQgis] Failed to sync (QGIS integration may not be running):', err);

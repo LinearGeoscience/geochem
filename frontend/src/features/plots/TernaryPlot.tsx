@@ -4,8 +4,8 @@ import { useAppStore } from '../../store/appStore';
 import { useShallow } from 'zustand/react/shallow';
 import { Box, Paper, Typography, FormControl, InputLabel, Select, MenuItem, Checkbox, FormControlLabel, Slider, Tooltip } from '@mui/material';
 import { useAttributeStore } from '../../store/attributeStore';
-import { getStyleArrays, shapeToPlotlySymbol, applyOpacityToColor, getSortedIndices, sortColumnsByPriority, getColumnDisplayName } from '../../utils/attributeUtils';
-import { buildCustomData, buildTernaryHoverTemplate } from '../../utils/tooltipUtils';
+import { getStyleArrays, getStyleArraysColumnar, shapeToPlotlySymbol, applyOpacityToColor, getSortedIndices, sortColumnsByPriority, getColumnDisplayName } from '../../utils/attributeUtils';
+import { buildCustomData, buildCustomDataColumnar, buildTernaryHoverTemplate } from '../../utils/tooltipUtils';
 import { getPlotConfig, EXPORT_FONT_SIZES } from '../../utils/plotConfig';
 import { ExpandablePlotWrapper } from '../../components/ExpandablePlotWrapper';
 import { computeTernaryDensities, DENSITY_JET_POINT_COLORSCALE } from '../../utils/densityGrid';
@@ -21,16 +21,21 @@ interface TernaryPlotProps {
 }
 
 export const TernaryPlot: React.FC<TernaryPlotProps> = ({ plotId }) => {
-    const { data, columns, lockAxes, sampleIndices } = useAppStore(useShallow(s => ({ data: s.data, columns: s.columns, lockAxes: s.lockAxes, sampleIndices: s.sampleIndices })));
+    const { data, columns, lockAxes, sampleIndices, columnarRowCount } = useAppStore(useShallow(s => ({ data: s.data, columns: s.columns, lockAxes: s.lockAxes, sampleIndices: s.sampleIndices, columnarRowCount: s.columnarData.rowCount })));
     const getPlotSettings = useAppStore(s => s.getPlotSettings);
     const updatePlotSettings = useAppStore(s => s.updatePlotSettings);
     const getFilteredColumns = useAppStore(s => s.getFilteredColumns);
     const getDisplayData = useAppStore(s => s.getDisplayData);
     const getDisplayIndices = useAppStore(s => s.getDisplayIndices);
+    const getDisplayColumn = useAppStore(s => s.getDisplayColumn);
     useAppStore(s => s.tooltipMode); // Subscribe to trigger re-render on toggle
-    const filteredColumns = getFilteredColumns();
+    const columnFilter = useAppStore(s => s.columnFilter);
+    const filteredColumns = useMemo(() => getFilteredColumns(), [columns, columnFilter, getFilteredColumns]);
     const d = (name: string) => getColumnDisplayName(columns, name);
-    useAttributeStore(); // Subscribe to changes
+    useAttributeStore(useShallow(s => ({
+        color: s.color, shape: s.shape, size: s.size, filter: s.filter,
+        customEntries: s.customEntries, emphasis: s.emphasis, globalOpacity: s.globalOpacity,
+    })));
 
     const displayData = useMemo(() => getDisplayData(), [data, sampleIndices]);
     const displayIndices = useMemo(() => getDisplayIndices(), [data, sampleIndices]);
@@ -205,35 +210,43 @@ export const TernaryPlot: React.FC<TernaryPlotProps> = ({ plotId }) => {
         );
     }
 
-    // Get styles from attribute store (includes emphasis calculations)
-    const styleArrays = getStyleArrays(displayData, displayIndices ?? undefined);
+    // Memoize style arrays, sorted indices, and normalized data
+    const { styleArrays, normalizedData, customData } = useMemo(() => {
+        const styleArrays = columnarRowCount > 0
+            ? getStyleArraysColumnar(displayData.length, (name) => getDisplayColumn(name), displayIndices ?? undefined)
+            : getStyleArrays(displayData, displayIndices ?? undefined);
 
-    // Get sorted indices for z-ordering (low-grade first, high-grade last/on top)
-    const sortedIndices = getSortedIndices(styleArrays);
+        const sortedIndices = getSortedIndices(styleArrays);
 
-    // Filter and normalize data in sorted order
-    const normalizedData: { a: number; b: number; c: number; idx: number }[] = [];
+        const aCol = getDisplayColumn(aAxis);
+        const bCol = getDisplayColumn(bAxis);
+        const cCol = getDisplayColumn(cAxis);
 
-    for (const i of sortedIndices) {
-        const d = displayData[i];
-        const a = Number(d[aAxis]) || 0;
-        const b = Number(d[bAxis]) || 0;
-        const c = Number(d[cAxis]) || 0;
-        const sum = a + b + c;
+        const normalizedData: { a: number; b: number; c: number; idx: number }[] = [];
 
-        if (sum > 0) {
-            normalizedData.push({
-                a: a / sum,
-                b: b / sum,
-                c: c / sum,
-                idx: i
-            });
+        for (const i of sortedIndices) {
+            const a = Number(aCol ? aCol[i] : displayData[i][aAxis]) || 0;
+            const b = Number(bCol ? bCol[i] : displayData[i][bAxis]) || 0;
+            const c = Number(cCol ? cCol[i] : displayData[i][cAxis]) || 0;
+            const sum = a + b + c;
+
+            if (sum > 0) {
+                normalizedData.push({
+                    a: a / sum,
+                    b: b / sum,
+                    c: c / sum,
+                    idx: i
+                });
+            }
         }
-    }
 
-    // Build customdata for hover tooltips
-    const ternaryIndices = normalizedData.map(d => d.idx);
-    const customData = buildCustomData(displayData, ternaryIndices, displayIndices ?? undefined);
+        const ternaryIndices = normalizedData.map(d => d.idx);
+        const customData = columnarRowCount > 0
+            ? buildCustomDataColumnar((name) => getDisplayColumn(name), ternaryIndices, displayIndices ?? undefined)
+            : buildCustomData(displayData, ternaryIndices, displayIndices ?? undefined);
+
+        return { styleArrays, sortedIndices, normalizedData, customData };
+    }, [displayData, displayIndices, columnarRowCount, aAxis, bAxis, cAxis, getDisplayColumn]);
 
     // Compute density coloring if enabled
     const densityResult = showDensity ? computeTernaryDensities(

@@ -4,7 +4,7 @@ import Plot from 'react-plotly.js';
 import { useShallow } from 'zustand/react/shallow';
 import { useAppStore } from '../../store/appStore';
 import { useAttributeStore } from '../../store/attributeStore';
-import { getStyleArrays, sortColumnsByPriority } from '../../utils/attributeUtils';
+import { getStyleArrays, getStyleArraysColumnar, sortColumnsByPriority } from '../../utils/attributeUtils';
 import { MultiColumnSelector } from '../../components/MultiColumnSelector';
 import { performClustering } from '../../utils/statistics/clustering';
 import type { EnhancedClusteringConfig, EnhancedClusteringResult } from '../../types/statistics';
@@ -92,10 +92,12 @@ function inlinePCA(matrix: number[][]): { pc1: number[]; pc2: number[]; explaine
 }
 
 export const ClusteringAnalysis: React.FC = () => {
-    const { data, columns } = useAppStore(useShallow(s => ({ data: s.data, columns: s.columns })));
+    const { data, columns, columnarRowCount } = useAppStore(useShallow(s => ({ data: s.data, columns: s.columns, columnarRowCount: s.columnarData.rowCount })));
+    const getColumn = useAppStore(s => s.getColumn);
     const getFilteredColumns = useAppStore(s => s.getFilteredColumns);
-    const filteredColumns = getFilteredColumns();
-    useAttributeStore();
+    const columnFilter = useAppStore(s => s.columnFilter);
+    const filteredColumns = useMemo(() => getFilteredColumns(), [columns, columnFilter, getFilteredColumns]);
+    useAttributeStore(s => s.filter);
 
     const [selectedColumns, setSelectedColumns] = useState<string[]>([]);
     const [method, setMethod] = useState<'kmeans' | 'hierarchical'>('kmeans');
@@ -116,7 +118,9 @@ export const ClusteringAnalysis: React.FC = () => {
     const runClustering = useCallback(() => {
         if (selectedColumns.length < 2) return;
         setLoading(true);
-        const currentStyleArrays = getStyleArrays(data);
+        const currentStyleArrays = columnarRowCount > 0
+            ? getStyleArraysColumnar(data.length, (name) => getColumn(name))
+            : getStyleArrays(data);
 
         setTimeout(() => {
             try {
@@ -155,7 +159,9 @@ export const ClusteringAnalysis: React.FC = () => {
     const pcaData = useMemo(() => {
         if (!result || !result.assignments) return null;
 
-        const styleArrays = getStyleArrays(data);
+        const styleArrays = columnarRowCount > 0
+            ? getStyleArraysColumnar(data.length, (name) => getColumn(name))
+            : getStyleArrays(data);
         const matrix: number[][] = [];
         const validIndices: number[] = [];
 

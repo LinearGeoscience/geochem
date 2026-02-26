@@ -6,9 +6,9 @@ import { useShallow } from 'zustand/react/shallow';
 import Plot from 'react-plotly.js';
 import { ExpandablePlotWrapper } from '../../components/ExpandablePlotWrapper';
 import { useAttributeStore } from '../../store/attributeStore';
-import { getStyleArrays, shapeToPlotlySymbol, applyOpacityToColor, getSortedIndices, sortColumnsByPriority, getColumnDisplayName } from '../../utils/attributeUtils';
-import { buildCustomData, build3DHoverTemplate } from '../../utils/tooltipUtils';
-import { AxisRangeSlider } from '../../components/AxisRangeSlider';
+import { getStyleArrays, getStyleArraysColumnar, shapeToPlotlySymbol, applyOpacityToColor, getSortedIndices, sortColumnsByPriority, getColumnDisplayName } from '../../utils/attributeUtils';
+import { buildCustomData, buildCustomDataColumnar, build3DHoverTemplate } from '../../utils/tooltipUtils';
+import { AxisRangeControl, AxisModes, SliceConfig, PickState } from '../../components/AxisRangeControl';
 import { getPlotConfig } from '../../utils/plotConfig';
 
 interface CameraState {
@@ -28,18 +28,23 @@ interface AttributeMap3DProps {
 }
 
 export const AttributeMap3D: React.FC<AttributeMap3DProps> = ({ plotId }) => {
-    const { data, columns, lockAxes, sampleIndices } = useAppStore(useShallow(s => ({ data: s.data, columns: s.columns, lockAxes: s.lockAxes, sampleIndices: s.sampleIndices })));
+    const { data, columns, lockAxes, sampleIndices, columnarRowCount } = useAppStore(useShallow(s => ({ data: s.data, columns: s.columns, lockAxes: s.lockAxes, sampleIndices: s.sampleIndices, columnarRowCount: s.columnarData.rowCount })));
     const getPlotSettings = useAppStore(s => s.getPlotSettings);
     const updatePlotSettings = useAppStore(s => s.updatePlotSettings);
     const getFilteredColumns = useAppStore(s => s.getFilteredColumns);
+    const columnFilter = useAppStore(s => s.columnFilter);
     const getDisplayData = useAppStore(s => s.getDisplayData);
     const getDisplayIndices = useAppStore(s => s.getDisplayIndices);
+    const getDisplayColumn = useAppStore(s => s.getDisplayColumn);
     useAppStore(s => s.tooltipMode); // Subscribe to trigger re-render on toggle
-    const filteredColumns = getFilteredColumns();
+    const filteredColumns = useMemo(() => getFilteredColumns(), [columns, columnFilter, getFilteredColumns]);
     const d = (name: string) => getColumnDisplayName(columns, name);
     const displayData = useMemo(() => getDisplayData(), [data, sampleIndices]);
     const displayIndices = useMemo(() => getDisplayIndices(), [data, sampleIndices]);
-    useAttributeStore(); // Subscribe to changes
+    useAttributeStore(useShallow(s => ({
+        color: s.color, shape: s.shape, size: s.size, filter: s.filter,
+        customEntries: s.customEntries, emphasis: s.emphasis, globalOpacity: s.globalOpacity,
+    })));
 
     // Get stored settings or defaults
     const storedSettings = getPlotSettings(plotId);
@@ -52,6 +57,11 @@ export const AttributeMap3D: React.FC<AttributeMap3DProps> = ({ plotId }) => {
     const [rangeControlsExpanded, setRangeControlsExpandedLocal] = useState(storedSettings.rangeControlsExpanded ?? true);
     const [axisRanges, setAxisRangesLocal] = useState<AxisRanges | null>(storedSettings.axisRanges || null);
     const [equalAxes, setEqualAxesLocal] = useState<boolean>(storedSettings.equalAxes ?? true);
+    const [axisModes, setAxisModesLocal] = useState<AxisModes>(storedSettings.axisModes || { x: 'range', y: 'range', z: 'range' });
+    const [sliceWidths, setSliceWidthsLocal] = useState<SliceConfig>(storedSettings.sliceWidths || { x: 0, y: 0, z: 0 });
+    const [slicePositions, setSlicePositionsLocal] = useState<SliceConfig>(storedSettings.slicePositions || { x: 0, y: 0, z: 0 });
+    const [pickState, setPickState] = useState<PickState>({ axis: null, clickCount: 0, firstValue: null });
+    const mouseDownPos = useRef<{ x: number; y: number } | null>(null);
 
     // Wrapper functions to persist settings
     const setXAxis = (axis: string) => {
@@ -95,6 +105,19 @@ export const AttributeMap3D: React.FC<AttributeMap3DProps> = ({ plotId }) => {
         }
     };
 
+    const setAxisModes = (modes: AxisModes) => {
+        setAxisModesLocal(modes);
+        updatePlotSettings(plotId, { axisModes: modes });
+    };
+    const setSliceWidths = (widths: SliceConfig) => {
+        setSliceWidthsLocal(widths);
+        updatePlotSettings(plotId, { sliceWidths: widths });
+    };
+    const setSlicePositions = (positions: SliceConfig) => {
+        setSlicePositionsLocal(positions);
+        updatePlotSettings(plotId, { slicePositions: positions });
+    };
+
     // Cache camera state when locked
     const cameraRef = useRef<CameraState | null>(null);
 
@@ -104,6 +127,41 @@ export const AttributeMap3D: React.FC<AttributeMap3DProps> = ({ plotId }) => {
             cameraRef.current = event['scene.camera'];
         }
     }, []);
+
+    // Pick mode: handle plot clicks to define ranges from two data points
+    const handlePlotClick = useCallback((event: any) => {
+        if (!pickState.axis) return;
+
+        // Drag disambiguation: ignore if mouse moved >5px
+        if (mouseDownPos.current) {
+            const dx = (event.event?.clientX ?? 0) - mouseDownPos.current.x;
+            const dy = (event.event?.clientY ?? 0) - mouseDownPos.current.y;
+            if (Math.sqrt(dx * dx + dy * dy) > 5) {
+                mouseDownPos.current = null;
+                return;
+            }
+        }
+
+        const points = event.points;
+        if (!points || points.length === 0) return;
+        const point = points[0];
+        const axisKey = pickState.axis;
+        const coordValue = axisKey === 'x' ? point.x : axisKey === 'y' ? point.y : point.z;
+        if (coordValue == null || isNaN(coordValue)) return;
+
+        if (pickState.clickCount === 0) {
+            // First click: store value
+            setPickState({ axis: axisKey, clickCount: 1, firstValue: coordValue });
+        } else {
+            // Second click: set range and exit pick mode
+            const v1 = pickState.firstValue!;
+            const v2 = coordValue;
+            const newMin = Math.min(v1, v2);
+            const newMax = Math.max(v1, v2);
+            setAxisRanges(prev => prev ? { ...prev, [axisKey]: [newMin, newMax] as [number, number] } : null);
+            setPickState({ axis: null, clickCount: 0, firstValue: null });
+        }
+    }, [pickState, setAxisRanges]);
 
     useEffect(() => {
         if (columns.length > 0 && !xAxis && !yAxis && !zAxis && !storedSettings.xAxis && !storedSettings.yAxis && !storedSettings.zAxis) {
@@ -134,27 +192,26 @@ export const AttributeMap3D: React.FC<AttributeMap3DProps> = ({ plotId }) => {
     const dataRanges = useMemo(() => {
         if (!data.length || !xAxis || !yAxis || !zAxis) return null;
 
-        const xValues: number[] = [];
-        const yValues: number[] = [];
-        const zValues: number[] = [];
+        let xMin = Infinity, xMax = -Infinity;
+        let yMin = Infinity, yMax = -Infinity;
+        let zMin = Infinity, zMax = -Infinity;
+        let xCount = 0, yCount = 0, zCount = 0;
 
         for (const row of data) {
             const x = row[xAxis];
             const y = row[yAxis];
             const z = row[zAxis];
-            if (x != null && !isNaN(x)) xValues.push(x);
-            if (y != null && !isNaN(y)) yValues.push(y);
-            if (z != null && !isNaN(z)) zValues.push(z);
+            if (x != null && !isNaN(x)) { if (x < xMin) xMin = x; if (x > xMax) xMax = x; xCount++; }
+            if (y != null && !isNaN(y)) { if (y < yMin) yMin = y; if (y > yMax) yMax = y; yCount++; }
+            if (z != null && !isNaN(z)) { if (z < zMin) zMin = z; if (z > zMax) zMax = z; zCount++; }
         }
 
-        if (xValues.length === 0 || yValues.length === 0 || zValues.length === 0) {
-            return null;
-        }
+        if (xCount === 0 || yCount === 0 || zCount === 0) return null;
 
         return {
-            x: [Math.min(...xValues), Math.max(...xValues)] as [number, number],
-            y: [Math.min(...yValues), Math.max(...yValues)] as [number, number],
-            z: [Math.min(...zValues), Math.max(...zValues)] as [number, number],
+            x: [xMin, xMax] as [number, number],
+            y: [yMin, yMax] as [number, number],
+            z: [zMin, zMax] as [number, number],
         };
     }, [data, xAxis, yAxis, zAxis]);
 
@@ -172,11 +229,18 @@ export const AttributeMap3D: React.FC<AttributeMap3DProps> = ({ plotId }) => {
     const getPlotData = () => {
         if (!displayData.length || !xAxis || !yAxis || !zAxis) return { traces: [], filteredCount: 0, totalCount: 0 };
 
-        // Get styles from attribute store (includes emphasis calculations)
-        const styleArrays = getStyleArrays(displayData, displayIndices ?? undefined);
+        // Get styles from attribute store — columnar fast path
+        const styleArrays = columnarRowCount > 0
+            ? getStyleArraysColumnar(displayData.length, (name) => getDisplayColumn(name), displayIndices ?? undefined)
+            : getStyleArrays(displayData, displayIndices ?? undefined);
 
         // Get sorted indices for z-ordering (low-grade first, high-grade last/on top)
         const sortedIndices = getSortedIndices(styleArrays);
+
+        // Pre-extract display columns for axis data
+        const xCol = getDisplayColumn(xAxis);
+        const yCol = getDisplayColumn(yAxis);
+        const zCol = getDisplayColumn(zAxis);
 
         // Build arrays in sorted order, filtering by axis ranges
         const sortedX: number[] = [];
@@ -191,9 +255,9 @@ export const AttributeMap3D: React.FC<AttributeMap3DProps> = ({ plotId }) => {
         const totalCount = sortedIndices.length;
 
         for (const i of sortedIndices) {
-            const x = displayData[i][xAxis];
-            const y = displayData[i][yAxis];
-            const z = displayData[i][zAxis];
+            const x = xCol ? xCol[i] : displayData[i][xAxis];
+            const y = yCol ? yCol[i] : displayData[i][yAxis];
+            const z = zCol ? zCol[i] : displayData[i][zAxis];
 
             // Skip invalid values
             if (x == null || y == null || z == null || isNaN(x) || isNaN(y) || isNaN(z)) {
@@ -217,8 +281,10 @@ export const AttributeMap3D: React.FC<AttributeMap3DProps> = ({ plotId }) => {
             filteredCount++;
         }
 
-        // Build customdata for hover tooltips
-        const customData = buildCustomData(displayData, filteredIndices, displayIndices ?? undefined);
+        // Build customdata for hover tooltips — columnar fast path
+        const customData = columnarRowCount > 0
+            ? buildCustomDataColumnar((name) => getDisplayColumn(name), filteredIndices, displayIndices ?? undefined)
+            : buildCustomData(displayData, filteredIndices, displayIndices ?? undefined);
 
         const trace: any = {
             type: 'scatter3d',
@@ -246,6 +312,8 @@ export const AttributeMap3D: React.FC<AttributeMap3DProps> = ({ plotId }) => {
                 y: [...dataRanges.y] as [number, number],
                 z: [...dataRanges.z] as [number, number],
             });
+            setAxisModes({ x: 'range', y: 'range', z: 'range' });
+            setPickState({ axis: null, clickCount: 0, firstValue: null });
         }
     };
 
@@ -346,6 +414,7 @@ export const AttributeMap3D: React.FC<AttributeMap3DProps> = ({ plotId }) => {
                                 style={{ width: '100%' }}
                                 useResizeHandler={true}
                                 onRelayout={handleRelayout}
+                                onClick={handlePlotClick}
                             />
                         </ExpandablePlotWrapper>
 
@@ -382,31 +451,32 @@ export const AttributeMap3D: React.FC<AttributeMap3DProps> = ({ plotId }) => {
                             </Box>
 
                             <Collapse in={rangeControlsExpanded}>
-                                <Stack spacing={2}>
-                                    <AxisRangeSlider
-                                        label="X"
-                                        value={axisRanges.x}
-                                        dataRange={dataRanges.x}
-                                        onChange={(val) => setAxisRanges(prev => prev ? { ...prev, x: val } : null)}
-                                        onReset={() => setAxisRanges(prev => prev ? { ...prev, x: [...dataRanges.x] as [number, number] } : null)}
-                                        color="primary"
-                                    />
-                                    <AxisRangeSlider
-                                        label="Y"
-                                        value={axisRanges.y}
-                                        dataRange={dataRanges.y}
-                                        onChange={(val) => setAxisRanges(prev => prev ? { ...prev, y: val } : null)}
-                                        onReset={() => setAxisRanges(prev => prev ? { ...prev, y: [...dataRanges.y] as [number, number] } : null)}
-                                        color="secondary"
-                                    />
-                                    <AxisRangeSlider
-                                        label="Z"
-                                        value={axisRanges.z}
-                                        dataRange={dataRanges.z}
-                                        onChange={(val) => setAxisRanges(prev => prev ? { ...prev, z: val } : null)}
-                                        onReset={() => setAxisRanges(prev => prev ? { ...prev, z: [...dataRanges.z] as [number, number] } : null)}
-                                        color="error"
-                                    />
+                                <Stack spacing={1.5}>
+                                    {(['x', 'y', 'z'] as const).map((ax) => {
+                                        const colorMap = { x: 'primary', y: 'secondary', z: 'error' } as const;
+                                        const defaultWidth = (dataRanges[ax][1] - dataRanges[ax][0]) / 10;
+                                        return (
+                                            <AxisRangeControl
+                                                key={ax}
+                                                label={ax.toUpperCase()}
+                                                axis={ax}
+                                                value={axisRanges[ax]}
+                                                dataRange={dataRanges[ax]}
+                                                onChange={(val) => setAxisRanges(prev => prev ? { ...prev, [ax]: val } : null)}
+                                                onReset={() => setAxisRanges(prev => prev ? { ...prev, [ax]: [...dataRanges[ax]] as [number, number] } : null)}
+                                                color={colorMap[ax]}
+                                                mode={axisModes[ax]}
+                                                onModeChange={(m) => setAxisModes({ ...axisModes, [ax]: m })}
+                                                sliceWidth={sliceWidths[ax] || defaultWidth}
+                                                onSliceWidthChange={(w) => setSliceWidths({ ...sliceWidths, [ax]: w })}
+                                                slicePosition={slicePositions[ax] || dataRanges[ax][0]}
+                                                onSlicePositionChange={(p) => setSlicePositions({ ...slicePositions, [ax]: p })}
+                                                pickState={pickState}
+                                                onPickStart={() => setPickState({ axis: ax, clickCount: 0, firstValue: null })}
+                                                onPickCancel={() => setPickState({ axis: null, clickCount: 0, firstValue: null })}
+                                            />
+                                        );
+                                    })}
                                 </Stack>
                             </Collapse>
                         </Paper>

@@ -4,7 +4,7 @@ import Plot from 'react-plotly.js';
 import { useShallow } from 'zustand/react/shallow';
 import { useAppStore } from '../../store/appStore';
 import { useAttributeStore } from '../../store/attributeStore';
-import { getStyleArrays, sortColumnsByPriority } from '../../utils/attributeUtils';
+import { getStyleArrays, getStyleArraysColumnar, sortColumnsByPriority } from '../../utils/attributeUtils';
 import { MultiColumnSelector } from '../../components/MultiColumnSelector';
 
 interface Stats {
@@ -169,27 +169,33 @@ const downloadCSV = (filename: string, content: string) => {
 };
 
 export const SummaryStats: React.FC = () => {
-    const { data, columns, statsSelectedColumns } = useAppStore(useShallow(s => ({ data: s.data, columns: s.columns, statsSelectedColumns: s.statsSelectedColumns })));
+    const { data, columns, statsSelectedColumns, columnarRowCount } = useAppStore(useShallow(s => ({ data: s.data, columns: s.columns, statsSelectedColumns: s.statsSelectedColumns, columnarRowCount: s.columnarData.rowCount })));
     const setStatsSelectedColumns = useAppStore(s => s.setStatsSelectedColumns);
     const getFilteredColumns = useAppStore(s => s.getFilteredColumns);
-    const filteredColumns = getFilteredColumns();
-    useAttributeStore(); // Subscribe to changes
+    const getColumn = useAppStore(s => s.getColumn);
+    const columnFilter = useAppStore(s => s.columnFilter);
+    const filteredColumns = useMemo(() => getFilteredColumns(), [columns, columnFilter, getFilteredColumns]);
+    useAttributeStore(s => s.filter); // Subscribe to changes
     const [stats, setStats] = useState<Record<string, Stats>>({});
     const [loading, setLoading] = useState(false);
     const [detailLevel, setDetailLevel] = useState<'basic' | 'full'>('basic');
     const [logScaleX, setLogScaleX] = useState(false);
     const [showKDE, setShowKDE] = useState(false);
 
-    // Get style arrays for visibility filtering
-    const styleArrays = getStyleArrays(data);
+    // Get style arrays for visibility filtering — columnar fast path
+    const styleArrays = columnarRowCount > 0
+        ? getStyleArraysColumnar(data.length, (name) => getColumn(name))
+        : getStyleArrays(data);
 
     // Calculate statistics client-side
     const calculateStats = useCallback(() => {
         if (statsSelectedColumns.length === 0) return;
         setLoading(true);
 
-        // Get current visibility
-        const currentStyleArrays = getStyleArrays(data);
+        // Get current visibility — columnar fast path
+        const currentStyleArrays = columnarRowCount > 0
+            ? getStyleArraysColumnar(data.length, (name) => getColumn(name))
+            : getStyleArrays(data);
 
         // Use setTimeout to allow UI to update before heavy computation
         setTimeout(() => {

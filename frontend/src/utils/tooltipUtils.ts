@@ -6,6 +6,8 @@
 
 import { useAttributeStore, AttributeEntry } from '../store/attributeStore';
 import { useAppStore } from '../store/appStore';
+import type { ColumnData } from '../types/columnarData';
+import { getValueAt } from './attributeUtils';
 
 // Axis configuration for different plot types
 export interface AxisConfig {
@@ -218,6 +220,87 @@ export function buildCustomData(
             sizeCategory: getEntryNameForPoint(dataPoint, dataIndex, 'size', paintGroupMap),
             sizeRawDisplay: formatRawValueDisplay(size.field, sizeVal),
             // Paint group
+            paintGroup: paintGroupMap.get(dataIndex) || '',
+        };
+    });
+}
+
+/**
+ * Columnar version of buildCustomData — reads pre-extracted columns by index
+ * instead of row objects. Functionally identical output.
+ */
+export function buildCustomDataColumnar(
+    getCol: (name: string) => ColumnData | undefined,
+    sortedIndices: number[],
+    originalIndices?: number[]
+): PointCustomData[] {
+    const attrState = useAttributeStore.getState();
+    const { color, shape, size, customEntries } = attrState;
+    const { columns } = useAppStore.getState();
+
+    // Find role columns once
+    const idCol = findColumnByRole(columns, 'ID');
+    const eastCol = findColumnByRole(columns, 'East');
+    const northCol = findColumnByRole(columns, 'North');
+    const elevCol = findColumnByRole(columns, 'Elevation');
+    const holeIdCol = findColumnByRole(columns, 'HoleID');
+    const fromCol = findColumnByRole(columns, 'From');
+    const toCol = findColumnByRole(columns, 'To');
+
+    // Pre-extract columns we need
+    const idColumn = idCol ? getCol(idCol) : undefined;
+    const eastColumn = eastCol ? getCol(eastCol) : undefined;
+    const northColumn = northCol ? getCol(northCol) : undefined;
+    const elevColumn = elevCol ? getCol(elevCol) : undefined;
+    const holeIdColumn = holeIdCol ? getCol(holeIdCol) : undefined;
+    const fromColumn = fromCol ? getCol(fromCol) : undefined;
+    const toColumn = toCol ? getCol(toCol) : undefined;
+    const colorColumn = color.field ? getCol(color.field) : undefined;
+    const shapeColumn = shape.field ? getCol(shape.field) : undefined;
+    const sizeColumn = size.field ? getCol(size.field) : undefined;
+
+    // Pre-build paint group lookup Map for O(1) access
+    const paintGroupMap = new Map<number, string>();
+    for (const entry of customEntries) {
+        for (const idx of entry.assignedIndices) {
+            paintGroupMap.set(idx, entry.name);
+        }
+    }
+
+    return sortedIndices.map(sortedIdx => {
+        const dataIndex = originalIndices ? originalIndices[sortedIdx] : sortedIdx;
+
+        const colorVal = getValueAt(colorColumn, sortedIdx);
+        const shapeVal = getValueAt(shapeColumn, sortedIdx);
+        const sizeVal = getValueAt(sizeColumn, sortedIdx);
+
+        // For entry matching, build a minimal row-like proxy for getEntryNameForPoint
+        const proxyPoint: Record<string, any> = {};
+        if (color.field) proxyPoint[color.field] = colorVal;
+        if (shape.field) proxyPoint[shape.field] = shapeVal;
+        if (size.field) proxyPoint[size.field] = sizeVal;
+
+        return {
+            idx: dataIndex,
+            sampleId: idCol ? String(getValueAt(idColumn, sortedIdx) ?? dataIndex) : String(dataIndex),
+            easting: getValueAt(eastColumn, sortedIdx),
+            northing: getValueAt(northColumn, sortedIdx),
+            elevation: getValueAt(elevColumn, sortedIdx),
+            holeId: getValueAt(holeIdColumn, sortedIdx),
+            depthFrom: getValueAt(fromColumn, sortedIdx),
+            depthTo: getValueAt(toColumn, sortedIdx),
+            colorField: color.field,
+            colorValue: colorVal,
+            colorCategory: getEntryNameForPoint(proxyPoint, dataIndex, 'color', paintGroupMap),
+            colorRawDisplay: formatRawValueDisplay(color.field, colorVal),
+            shapeField: shape.field,
+            shapeValue: shapeVal,
+            shapeCategory: getEntryNameForPoint(proxyPoint, dataIndex, 'shape', paintGroupMap),
+            shapeRawDisplay: formatRawValueDisplay(shape.field, shapeVal),
+            sizeField: size.field,
+            sizeValue: sizeVal,
+            sizeCategory: getEntryNameForPoint(proxyPoint, dataIndex, 'size', paintGroupMap),
+            sizeRawDisplay: formatRawValueDisplay(size.field, sizeVal),
             paintGroup: paintGroupMap.get(dataIndex) || '',
         };
     });

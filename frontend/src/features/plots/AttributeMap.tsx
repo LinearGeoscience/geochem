@@ -7,8 +7,8 @@ import { useShallow } from 'zustand/react/shallow';
 import Plot from 'react-plotly.js';
 import { ExpandablePlotWrapper } from '../../components/ExpandablePlotWrapper';
 import { useAttributeStore } from '../../store/attributeStore';
-import { getStyleArrays, shapeToPlotlySymbol, applyOpacityToColor, getSortedIndices, sortColumnsByPriority, getColumnDisplayName } from '../../utils/attributeUtils';
-import { buildCustomData, buildMapHoverTemplate } from '../../utils/tooltipUtils';
+import { getStyleArrays, getStyleArraysColumnar, shapeToPlotlySymbol, applyOpacityToColor, getSortedIndices, sortColumnsByPriority, getColumnDisplayName } from '../../utils/attributeUtils';
+import { buildCustomData, buildCustomDataColumnar, buildMapHoverTemplate } from '../../utils/tooltipUtils';
 import { getPlotConfig } from '../../utils/plotConfig';
 import { transformArrayToWGS84, ensureProjectionRegistered, calculateMapBounds } from '../../utils/coordinateUtils';
 
@@ -201,16 +201,21 @@ interface AttributeMapProps {
 }
 
 export const AttributeMap: React.FC<AttributeMapProps> = ({ plotId }) => {
-    const { data, columns, lockAxes, sampleIndices } = useAppStore(useShallow(s => ({ data: s.data, columns: s.columns, lockAxes: s.lockAxes, sampleIndices: s.sampleIndices })));
+    const { data, columns, lockAxes, sampleIndices, columnarRowCount } = useAppStore(useShallow(s => ({ data: s.data, columns: s.columns, lockAxes: s.lockAxes, sampleIndices: s.sampleIndices, columnarRowCount: s.columnarData.rowCount })));
     const getPlotSettings = useAppStore(s => s.getPlotSettings);
     const updatePlotSettings = useAppStore(s => s.updatePlotSettings);
     const getFilteredColumns = useAppStore(s => s.getFilteredColumns);
+    const columnFilter = useAppStore(s => s.columnFilter);
     const getDisplayData = useAppStore(s => s.getDisplayData);
     const getDisplayIndices = useAppStore(s => s.getDisplayIndices);
+    const getDisplayColumn = useAppStore(s => s.getDisplayColumn);
     useAppStore(s => s.tooltipMode); // Subscribe to trigger re-render on toggle
-    const filteredColumns = getFilteredColumns();
+    const filteredColumns = useMemo(() => getFilteredColumns(), [columns, columnFilter, getFilteredColumns]);
     const d = (name: string) => getColumnDisplayName(columns, name);
-    useAttributeStore(); // Subscribe to changes
+    useAttributeStore(useShallow(s => ({
+        color: s.color, shape: s.shape, size: s.size, filter: s.filter,
+        customEntries: s.customEntries, emphasis: s.emphasis, globalOpacity: s.globalOpacity,
+    })));
 
     const displayData = useMemo(() => getDisplayData(), [data, sampleIndices]);
     const displayIndices = useMemo(() => getDisplayIndices(), [data, sampleIndices]);
@@ -355,8 +360,10 @@ export const AttributeMap: React.FC<AttributeMapProps> = ({ plotId }) => {
     const getPlotDataForAttribute = (_attributeName: string) => {
         if (!displayData.length || !xAxis || !yAxis) return [];
 
-        // Get styles from attribute store (includes emphasis calculations)
-        const styleArrays = getStyleArrays(displayData, displayIndices ?? undefined);
+        // Get styles from attribute store (includes emphasis calculations) — columnar fast path
+        const styleArrays = columnarRowCount > 0
+            ? getStyleArraysColumnar(displayData.length, (name) => getDisplayColumn(name), displayIndices ?? undefined)
+            : getStyleArrays(displayData, displayIndices ?? undefined);
 
         // Get sorted indices for z-ordering (low-grade first, high-grade last/on top)
         const sortedIndices = getSortedIndices(styleArrays);
@@ -367,7 +374,9 @@ export const AttributeMap: React.FC<AttributeMapProps> = ({ plotId }) => {
         );
         const sortedSizes = sortedIndices.map(i => styleArrays.sizes[i]);
         const sortedShapes = sortedIndices.map(i => styleArrays.shapes[i]);
-        const customData = buildCustomData(displayData, sortedIndices, displayIndices ?? undefined);
+        const customData = columnarRowCount > 0
+            ? buildCustomDataColumnar((name) => getDisplayColumn(name), sortedIndices, displayIndices ?? undefined)
+            : buildCustomData(displayData, sortedIndices, displayIndices ?? undefined);
 
         // Use mapbox mode when basemap is enabled and coordinates are transformed
         if (basemapEnabled && transformedCoords && !projectionError && !isTransforming) {

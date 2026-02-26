@@ -29,7 +29,8 @@ interface AttributeConfigProps {
 }
 
 export const AttributeConfig: React.FC<AttributeConfigProps> = ({ tab, config }) => {
-    const { data, columns } = useAppStore();
+    const { columns } = useAppStore();
+    const data = useAppStore(s => s.getDisplayData());
     const {
         setField,
         addAdditionalField,
@@ -158,6 +159,14 @@ export const AttributeConfig: React.FC<AttributeConfigProps> = ({ tab, config })
                 newEntries.push(defaultEntry);
             }
 
+            // Single-pass row counting across all classes
+            const counts = new Array(breaks.length - 1).fill(0);
+            for (const v of values) {
+                for (let i = breaks.length - 2; i >= 0; i--) {
+                    if (v >= breaks[i]) { counts[i]++; break; }
+                }
+            }
+
             // Create range entries
             for (let i = 0; i < breaks.length - 1; i++) {
                 const entry = createRangeEntry(
@@ -169,10 +178,7 @@ export const AttributeConfig: React.FC<AttributeConfigProps> = ({ tab, config })
                     tab === 'size' ? 4 + i * 3 : undefined
                 );
 
-                // Calculate row count
-                entry.rowCount = values.filter(v =>
-                    v >= breaks[i] && (i === breaks.length - 2 ? v <= breaks[i + 1] : v < breaks[i + 1])
-                ).length;
+                entry.rowCount = counts[i];
                 entry.visibleRowCount = entry.rowCount;
 
                 newEntries.push(entry);
@@ -211,6 +217,12 @@ export const AttributeConfig: React.FC<AttributeConfigProps> = ({ tab, config })
                 newEntries.push(defaultEntry);
             }
 
+            // Single-pass frequency counting
+            const freqMap = new Map<string, number>();
+            for (const v of combinedValues) {
+                if (v !== null) freqMap.set(v, (freqMap.get(v) || 0) + 1);
+            }
+
             // Create category entries
             uniqueValues.forEach((value, i) => {
                 const entry = createCategoryEntry(
@@ -221,8 +233,7 @@ export const AttributeConfig: React.FC<AttributeConfigProps> = ({ tab, config })
                     tab === 'size' ? 8 : undefined
                 );
 
-                // Calculate row count
-                entry.rowCount = combinedValues.filter(v => v === value).length;
+                entry.rowCount = freqMap.get(value) || 0;
                 entry.visibleRowCount = entry.rowCount;
 
                 newEntries.push(entry);

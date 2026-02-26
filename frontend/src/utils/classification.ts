@@ -1,6 +1,24 @@
 /**
+ * Subsample a sorted array to at most maxN values, preserving distribution
+ * via stratified (evenly-spaced) index selection.
+ */
+function stratifiedSubsample(sorted: number[], maxN: number): number[] {
+    if (sorted.length <= maxN) return sorted;
+    const result = new Array(maxN);
+    for (let i = 0; i < maxN; i++) {
+        result[i] = sorted[Math.round(i * (sorted.length - 1) / (maxN - 1))];
+    }
+    return result;
+}
+
+const JENKS_MAX_SAMPLE = 10000;
+
+/**
  * Jenks Natural Breaks (Fisher-Jenks) algorithm
- * Finds optimal class breaks that minimize within-class variance
+ * Finds optimal class breaks that minimize within-class variance.
+ * For large datasets (>10k values), uses stratified subsampling to keep
+ * the O(n²) matrix computation tractable, then maps breaks back to the
+ * full sorted array for accurate min/max.
  */
 export function jenksBreaks(data: number[], numClasses: number): number[] {
     if (data.length === 0) return [];
@@ -8,7 +26,10 @@ export function jenksBreaks(data: number[], numClasses: number): number[] {
 
     // Sort data
     const sortedData = [...data].sort((a, b) => a - b);
-    const n = sortedData.length;
+
+    // Subsample for the matrix computation if too large
+    const sample = stratifiedSubsample(sortedData, JENKS_MAX_SAMPLE);
+    const n = sample.length;
 
     // Initialize matrices
     const lowerClassLimits: number[][] = Array(n + 1).fill(0).map(() => Array(numClasses + 1).fill(0));
@@ -31,7 +52,7 @@ export function jenksBreaks(data: number[], numClasses: number): number[] {
 
         for (let m = 1; m <= l; m++) {
             const lm = l - m + 1;
-            const val = sortedData[lm - 1];
+            const val = sample[lm - 1];
 
             w++;
             sum += val;
@@ -60,13 +81,18 @@ export function jenksBreaks(data: number[], numClasses: number): number[] {
 
     for (let j = numClasses; j >= 2; j--) {
         const id = lowerClassLimits[k][j] - 1;
-        breaks.push(sortedData[id]);
+        breaks.push(sample[id]);
         k = lowerClassLimits[k][j] - 1;
     }
 
-    breaks.push(sortedData[0]); // Add minimum
+    breaks.push(sample[0]); // Add minimum
     const result = breaks.reverse();
-    result.push(sortedData[n - 1]); // Add maximum
+    result.push(sample[n - 1]); // Add maximum
+
+    // Use the full sorted array's actual min/max for accurate endpoints
+    result[0] = sortedData[0];
+    result[result.length - 1] = sortedData[sortedData.length - 1];
+
     return result;
 }
 
@@ -74,8 +100,12 @@ export function jenksBreaks(data: number[], numClasses: number): number[] {
  * Equal interval classification
  */
 export function equalIntervals(data: number[], numClasses: number): number[] {
-    const min = Math.min(...data);
-    const max = Math.max(...data);
+    let min = Infinity;
+    let max = -Infinity;
+    for (const v of data) {
+        if (v < min) min = v;
+        if (v > max) max = v;
+    }
     const interval = (max - min) / numClasses;
 
     const breaks: number[] = [min];

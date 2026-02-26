@@ -2,8 +2,9 @@ import React, { useState, useMemo, useCallback } from 'react';
 import { Box, Paper, Typography, Button, Select, MenuItem, FormControl, InputLabel, ToggleButtonGroup, ToggleButton, CircularProgress, Table, TableBody, TableCell, TableContainer, TableHead, TableRow } from '@mui/material';
 import Plot from 'react-plotly.js';
 import { useAppStore } from '../../store/appStore';
+import { useShallow } from 'zustand/react/shallow';
 import { useAttributeStore } from '../../store/attributeStore';
-import { getStyleArrays, sortColumnsByPriority } from '../../utils/attributeUtils';
+import { getStyleArrays, getStyleArraysColumnar, sortColumnsByPriority } from '../../utils/attributeUtils';
 import { performRobustRegression } from '../../utils/statistics/robustRegression';
 import type { RegressionMethod, RegressionResult, RobustRegressionConfig, GroupedRegressionResult } from '../../types/statistics';
 import { getPlotConfig } from '../../utils/plotConfig';
@@ -20,9 +21,16 @@ const CONFIDENCE_LEVELS = [
 ];
 
 export const RobustRegressionView: React.FC = () => {
-    const { data, columns, getFilteredColumns } = useAppStore();
-    const filteredColumns = getFilteredColumns();
-    useAttributeStore();
+    const { data, columns, columnarRowCount } = useAppStore(useShallow(s => ({
+        data: s.data,
+        columns: s.columns,
+        columnarRowCount: s.columnarData.rowCount,
+    })));
+    const getFilteredColumns = useAppStore(s => s.getFilteredColumns);
+    const getColumn = useAppStore(s => s.getColumn);
+    const columnFilter = useAppStore(s => s.columnFilter);
+    const filteredColumns = useMemo(() => getFilteredColumns(), [columns, columnFilter, getFilteredColumns]);
+    useAttributeStore(s => s.filter);
 
     const [xColumn, setXColumn] = useState('');
     const [yColumn, setYColumn] = useState('');
@@ -47,7 +55,9 @@ export const RobustRegressionView: React.FC = () => {
     const runRegression = useCallback(() => {
         if (!xColumn || !yColumn) return;
         setLoading(true);
-        const currentStyleArrays = getStyleArrays(data);
+        const currentStyleArrays = columnarRowCount > 0
+            ? getStyleArraysColumnar(data.length, (name) => getColumn(name))
+            : getStyleArrays(data);
 
         setTimeout(() => {
             try {
@@ -86,7 +96,9 @@ export const RobustRegressionView: React.FC = () => {
     // Extract visible data for plotting
     const plotData = useMemo(() => {
         if (!xColumn || !yColumn || !primaryResult) return null;
-        const styleArrays = getStyleArrays(data);
+        const styleArrays = columnarRowCount > 0
+            ? getStyleArraysColumnar(data.length, (name) => getColumn(name))
+            : getStyleArrays(data);
         const xVals: number[] = [];
         const yVals: number[] = [];
         const indices: number[] = [];

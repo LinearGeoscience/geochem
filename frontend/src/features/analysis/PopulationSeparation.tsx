@@ -2,8 +2,9 @@ import React, { useState, useMemo, useCallback } from 'react';
 import { Box, Paper, Typography, Button, Select, MenuItem, FormControl, InputLabel, Slider, Checkbox, FormControlLabel, ToggleButtonGroup, ToggleButton, CircularProgress } from '@mui/material';
 import Plot from 'react-plotly.js';
 import { useAppStore } from '../../store/appStore';
+import { useShallow } from 'zustand/react/shallow';
 import { useAttributeStore } from '../../store/attributeStore';
-import { getStyleArrays, sortColumnsByPriority } from '../../utils/attributeUtils';
+import { getStyleArrays, getStyleArraysColumnar, sortColumnsByPriority } from '../../utils/attributeUtils';
 import { separatePopulations } from '../../utils/statistics/populationSeparation';
 import type { PopulationSeparationResult, PopulationSeparationConfig } from '../../types/statistics';
 import { getPlotConfig } from '../../utils/plotConfig';
@@ -26,9 +27,16 @@ const normalPDF = (x: number, mean: number, std: number): number => {
 };
 
 export const PopulationSeparation: React.FC = () => {
-    const { data, columns, getFilteredColumns } = useAppStore();
-    const filteredColumns = getFilteredColumns();
-    useAttributeStore();
+    const { data, columns, columnarRowCount } = useAppStore(useShallow(s => ({
+        data: s.data,
+        columns: s.columns,
+        columnarRowCount: s.columnarData.rowCount,
+    })));
+    const getFilteredColumns = useAppStore(s => s.getFilteredColumns);
+    const getColumn = useAppStore(s => s.getColumn);
+    const columnFilter = useAppStore(s => s.columnFilter);
+    const filteredColumns = useMemo(() => getFilteredColumns(), [columns, columnFilter, getFilteredColumns]);
+    const attributeFilter = useAttributeStore(s => s.filter);
 
     const [selectedColumn, setSelectedColumn] = useState<string>('');
     const [method, setMethod] = useState<PopulationSeparationConfig['method']>('gaussian-mixture');
@@ -48,7 +56,9 @@ export const PopulationSeparation: React.FC = () => {
     const separate = useCallback(() => {
         if (!selectedColumn) return;
         setLoading(true);
-        const currentStyleArrays = getStyleArrays(data);
+        const currentStyleArrays = columnarRowCount > 0
+            ? getStyleArraysColumnar(data.length, (name) => getColumn(name))
+            : getStyleArrays(data);
 
         setTimeout(() => {
             try {
@@ -79,7 +89,9 @@ export const PopulationSeparation: React.FC = () => {
     // Get visible values for the selected column
     const visibleValues = useMemo(() => {
         if (!selectedColumn) return [];
-        const styleArrays = getStyleArrays(data);
+        const styleArrays = columnarRowCount > 0
+            ? getStyleArraysColumnar(data.length, (name) => getColumn(name))
+            : getStyleArrays(data);
         const vals: number[] = [];
         for (let i = 0; i < data.length; i++) {
             if (styleArrays.visible[i]) {
@@ -88,14 +100,14 @@ export const PopulationSeparation: React.FC = () => {
             }
         }
         return vals;
-    }, [selectedColumn, data]);
+    }, [selectedColumn, data, columnarRowCount, getColumn, attributeFilter]);
 
     // Generate Gaussian overlay traces
     const gaussianTraces = useMemo(() => {
         if (!result || result.populations.length === 0 || visibleValues.length === 0) return [];
 
-        const min = Math.min(...visibleValues);
-        const max = Math.max(...visibleValues);
+        let min = Infinity, max = -Infinity;
+        for (const v of visibleValues) { if (v < min) min = v; if (v > max) max = v; }
         const range = max - min;
         const nBins = 40;
         const binWidth = range / nBins;

@@ -108,6 +108,40 @@ export function detectQCSamples(
   return qcSamples;
 }
 
+/**
+ * Columnar version of detectQCSamples — reads from a string[] column directly.
+ */
+export function detectQCSamplesColumnar(
+    sampleIdColumn: string[],
+    patterns: QCDetectionPattern[] = DEFAULT_QC_PATTERNS
+): QCSample[] {
+    const qcSamples: QCSample[] = [];
+
+    for (let index = 0; index < sampleIdColumn.length; index++) {
+        const sampleId = sampleIdColumn[index];
+        if (!sampleId) continue;
+
+        const qcType = detectQCSampleType(String(sampleId), patterns);
+
+        if (qcType) {
+            const qcSample: QCSample = {
+                rowIndex: index,
+                sampleId: String(sampleId),
+                qcType,
+                isManuallyTagged: false,
+            };
+
+            if (qcType === 'standard') {
+                qcSample.standardName = extractStandardName(String(sampleId)) || undefined;
+            }
+
+            qcSamples.push(qcSample);
+        }
+    }
+
+    return qcSamples;
+}
+
 // ============================================================================
 // DUPLICATE PAIR DETECTION
 // ============================================================================
@@ -250,6 +284,69 @@ export function detectDuplicatePairs(
 }
 
 /**
+ * Columnar version of detectDuplicatePairs — reads from string[] columns directly.
+ */
+export function detectDuplicatePairsColumnar(
+    sampleIdColumn: string[],
+    duplicateType: 'field_duplicate' | 'pulp_duplicate' | 'core_duplicate' = 'field_duplicate',
+    pairColumn?: string[]
+): DuplicatePair[] {
+    if (pairColumn) {
+        return detectDuplicatePairsByColumnColumnar(sampleIdColumn, pairColumn, duplicateType);
+    }
+
+    const pairs: DuplicatePair[] = [];
+    const sampleMap = new Map<string, { index: number; id: string }>();
+
+    for (let index = 0; index < sampleIdColumn.length; index++) {
+        const sampleId = sampleIdColumn[index];
+        if (!sampleId) continue;
+
+        const id = String(sampleId).trim();
+        const baseId = getBaseSampleId(id, duplicateType);
+
+        if (id === baseId || !sampleMap.has(baseId)) {
+            sampleMap.set(baseId, { index, id });
+        }
+    }
+
+    for (let index = 0; index < sampleIdColumn.length; index++) {
+        const sampleId = sampleIdColumn[index];
+        if (!sampleId) continue;
+
+        const id = String(sampleId).trim();
+        const baseId = getBaseSampleId(id, duplicateType);
+
+        if (id !== baseId) {
+            const original = sampleMap.get(baseId);
+            if (original && original.index !== index) {
+                pairs.push({
+                    originalIndex: original.index,
+                    duplicateIndex: index,
+                    originalId: original.id,
+                    duplicateId: id,
+                    duplicateType,
+                });
+            }
+        }
+    }
+
+    if (duplicateType === 'field_duplicate') {
+        const letterPairs = detectLetterPairsColumnar(sampleIdColumn, duplicateType);
+        pairs.push(...letterPairs);
+    }
+
+    const uniquePairs = pairs.filter((pair, idx, arr) =>
+        arr.findIndex(p =>
+            p.originalIndex === pair.originalIndex &&
+            p.duplicateIndex === pair.duplicateIndex
+        ) === idx
+    );
+
+    return uniquePairs;
+}
+
+/**
  * Detect A/B letter pairs specifically.
  * Fix 1.2: Require separator or digit before A/B to avoid matching
  * legitimate samples like "HZBA" or "RC12B".
@@ -352,6 +449,86 @@ function detectDuplicatePairsByColumn(
   return pairs;
 }
 
+function detectLetterPairsColumnar(
+    sampleIdColumn: string[],
+    duplicateType: 'field_duplicate' | 'pulp_duplicate' | 'core_duplicate'
+): DuplicatePair[] {
+    const pairs: DuplicatePair[] = [];
+    const aPattern = /(.+(?:[-_]|\d))A$/i;
+    const bPattern = /(.+(?:[-_]|\d))B$/i;
+
+    const aSamples = new Map<string, { index: number; id: string }>();
+
+    for (let index = 0; index < sampleIdColumn.length; index++) {
+        const sampleId = sampleIdColumn[index];
+        if (!sampleId) continue;
+
+        const id = String(sampleId).trim();
+        const match = id.match(aPattern);
+        if (match) {
+            aSamples.set(match[1].toUpperCase(), { index, id });
+        }
+    }
+
+    for (let index = 0; index < sampleIdColumn.length; index++) {
+        const sampleId = sampleIdColumn[index];
+        if (!sampleId) continue;
+
+        const id = String(sampleId).trim();
+        const match = id.match(bPattern);
+        if (match) {
+            const aSample = aSamples.get(match[1].toUpperCase());
+            if (aSample) {
+                pairs.push({
+                    originalIndex: aSample.index,
+                    duplicateIndex: index,
+                    originalId: aSample.id,
+                    duplicateId: id,
+                    duplicateType,
+                });
+            }
+        }
+    }
+
+    return pairs;
+}
+
+function detectDuplicatePairsByColumnColumnar(
+    sampleIdColumn: string[],
+    pairColumn: string[],
+    duplicateType: 'field_duplicate' | 'pulp_duplicate' | 'core_duplicate'
+): DuplicatePair[] {
+    const pairs: DuplicatePair[] = [];
+
+    const sampleIndex = new Map<string, number>();
+    for (let index = 0; index < sampleIdColumn.length; index++) {
+        const sampleId = sampleIdColumn[index];
+        if (sampleId) {
+            sampleIndex.set(String(sampleId).trim().toUpperCase(), index);
+        }
+    }
+
+    for (let index = 0; index < pairColumn.length; index++) {
+        const pairValue = pairColumn[index];
+        if (!pairValue) continue;
+
+        const originalId = String(pairValue).trim().toUpperCase();
+        const originalIndex = sampleIndex.get(originalId);
+
+        if (originalIndex !== undefined && originalIndex !== index) {
+            pairs.push({
+                originalIndex,
+                duplicateIndex: index,
+                originalId: String(sampleIdColumn[originalIndex]).trim(),
+                duplicateId: String(sampleIdColumn[index]).trim(),
+                duplicateType,
+            });
+        }
+    }
+
+    return pairs;
+}
+
 // ============================================================================
 // BATCH DETECTION
 // ============================================================================
@@ -423,6 +600,45 @@ export function assignBatches(
   });
 
   return batches;
+}
+
+/**
+ * Columnar version of assignBatches.
+ */
+export function assignBatchesColumnar(
+    sampleIdColumn: string[],
+    batchColumn?: string[],
+    defaultBatchSize: number = 50
+): Map<number, string> {
+    const batches = new Map<number, string>();
+    let currentBatch = 1;
+    let samplesInBatch = 0;
+
+    for (let index = 0; index < sampleIdColumn.length; index++) {
+        const sampleId = String(sampleIdColumn[index] || '');
+
+        // Check batch column first
+        let detectedBatch: string | null = null;
+        if (batchColumn && batchColumn[index]) {
+            detectedBatch = String(batchColumn[index]);
+        } else {
+            // Try to extract from sample ID
+            detectedBatch = extractBatchId(sampleId);
+        }
+
+        if (detectedBatch) {
+            batches.set(index, detectedBatch);
+        } else {
+            if (samplesInBatch >= defaultBatchSize) {
+                currentBatch++;
+                samplesInBatch = 0;
+            }
+            batches.set(index, `AUTO_BATCH_${currentBatch}`);
+            samplesInBatch++;
+        }
+    }
+
+    return batches;
 }
 
 // ============================================================================

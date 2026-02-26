@@ -2,8 +2,23 @@
  * Utility functions for plots to get styling from the attributeStore
  */
 import { useAttributeStore, AttributeEntry } from '../store/attributeStore';
-import { calculateEmphasis, sortByEmphasis } from './emphasisUtils';
+import { calculateEmphasis, calculateEmphasisColumnar, sortByEmphasis } from './emphasisUtils';
 import type { EmphasisResult } from './emphasisUtils';
+import type { ColumnData } from '../types/columnarData';
+import { isNumericColumn } from '../types/columnarData';
+
+/** Accessor type for columnar data — returns a column by name. */
+export type ColumnGetter = (name: string) => ColumnData | undefined;
+
+/** Safely read a value from a typed column at index i, mapping NaN/'' → null. */
+export function getValueAt(col: ColumnData | undefined, i: number): any {
+    if (!col) return null;
+    if (isNumericColumn(col)) {
+        const v = col[i];
+        return isNaN(v) ? null : v;
+    }
+    return col[i] === '' ? null : col[i];
+}
 
 export interface PointStyle {
     color: string;
@@ -319,6 +334,157 @@ export function getStyleArrays(
     const finalSizes: number[] = [];
 
     for (let i = 0; i < data.length; i++) {
+        const emphResult = emphasisResults[i];
+        opacity.push(entryOpacities[i] * emphResult.opacity * globalOpacity);
+        zIndices.push(emphResult.zIndex);
+        finalSizes.push(sizes[i] * emphResult.sizeMultiplier);
+    }
+
+    return { colors, shapes, sizes: finalSizes, visible, opacity, zIndices, emphasisResults };
+}
+
+/**
+ * Columnar version of getStyleArrays — reads pre-extracted columns by index
+ * instead of row objects. Functionally identical; avoids materializing row objects.
+ */
+export function getStyleArraysColumnar(
+    rowCount: number,
+    getCol: ColumnGetter,
+    originalIndices?: number[]
+): StyleArrays {
+    const state = useAttributeStore.getState();
+    const { color, shape, size, filter, customEntries, globalOpacity } = state;
+
+    const customLookup = buildCustomEntryLookup(customEntries);
+
+    // Pre-extract columns we'll need
+    const colorCol = color.field ? getCol(color.field) : undefined;
+    const colorAdditionalCols = (color.additionalFields && color.additionalFields.length > 0)
+        ? [color.field!, ...color.additionalFields].map(f => getCol(f))
+        : null;
+    const shapeCol = shape.field ? getCol(shape.field) : undefined;
+    const sizeCol = size.field ? getCol(size.field) : undefined;
+    const filterCol = filter.field ? getCol(filter.field) : undefined;
+    const valueFilterCol = state.valueFilter.enabled
+        ? getCol(state.valueFilter.column || color.field || '')
+        : undefined;
+
+    const colors: string[] = [];
+    const shapes: string[] = [];
+    const sizes: number[] = [];
+    const visible: boolean[] = [];
+    const entryOpacities: number[] = [];
+
+    for (let i = 0; i < rowCount; i++) {
+        const dataIndex = originalIndices ? originalIndices[i] : i;
+        let pointColor = DEFAULT_COLOR;
+        let pointShape = DEFAULT_SHAPE;
+        let pointSize = DEFAULT_SIZE;
+        let pointVisible = true;
+        let combinedEntryOpacity = 1.0;
+
+        const customMatch = customLookup.get(dataIndex);
+
+        // Get color
+        if (color.field) {
+            let value: any;
+            if (colorAdditionalCols) {
+                const parts = colorAdditionalCols
+                    .map(col => getValueAt(col, i))
+                    .filter(v => v != null && String(v) !== '' && String(v) !== 'null' && String(v) !== 'undefined')
+                    .map(v => String(v));
+                value = parts.length > 0 ? parts.join(' + ') : null;
+            } else {
+                value = getValueAt(colorCol, i);
+            }
+            const entry = findMatchingEntry(value, color.entries, customLookup, dataIndex);
+            if (entry) {
+                pointColor = entry.color || DEFAULT_COLOR;
+                combinedEntryOpacity *= (entry.opacity ?? 1.0);
+                if (!entry.visible) pointVisible = false;
+            }
+        } else if (customMatch) {
+            pointColor = customMatch.color || DEFAULT_COLOR;
+            combinedEntryOpacity *= (customMatch.opacity ?? 1.0);
+            if (!customMatch.visible) pointVisible = false;
+        }
+
+        // Get shape
+        if (shape.field) {
+            const value = getValueAt(shapeCol, i);
+            const entry = findMatchingEntry(value, shape.entries, customLookup, dataIndex);
+            if (entry) {
+                pointShape = entry.shape || DEFAULT_SHAPE;
+                if (!entry.isCustom) combinedEntryOpacity *= (entry.opacity ?? 1.0);
+                if (!entry.visible) pointVisible = false;
+            }
+        } else if (customMatch) {
+            pointShape = customMatch.shape || DEFAULT_SHAPE;
+        }
+
+        // Get size
+        if (size.field) {
+            const value = getValueAt(sizeCol, i);
+            const entry = findMatchingEntry(value, size.entries, customLookup, dataIndex);
+            if (entry) {
+                pointSize = entry.size || DEFAULT_SIZE;
+                if (!entry.isCustom) combinedEntryOpacity *= (entry.opacity ?? 1.0);
+                if (!entry.visible) pointVisible = false;
+            }
+        } else if (customMatch) {
+            pointSize = customMatch.size || DEFAULT_SIZE;
+        }
+
+        // Check filter
+        if (filter.field && pointVisible) {
+            const value = getValueAt(filterCol, i);
+            const entry = findMatchingEntry(value, filter.entries, customLookup, dataIndex);
+            if (entry) {
+                if (!entry.isCustom) combinedEntryOpacity *= (entry.opacity ?? 1.0);
+                if (!entry.visible) pointVisible = false;
+            }
+        }
+
+        // Apply value filter
+        if (state.valueFilter.enabled && pointVisible && valueFilterCol) {
+            const rawValue = getValueAt(valueFilterCol, i);
+            if (rawValue !== null) {
+                const numValue = typeof rawValue === 'number' ? rawValue : parseFloat(rawValue);
+                if (!isNaN(numValue)) {
+                    if (state.valueFilter.min !== null && numValue < state.valueFilter.min) pointVisible = false;
+                    if (state.valueFilter.max !== null && numValue > state.valueFilter.max) pointVisible = false;
+                }
+            }
+        }
+
+        colors.push(pointColor);
+        shapes.push(pointShape);
+        sizes.push(pointSize);
+        visible.push(pointVisible);
+        entryOpacities.push(combinedEntryOpacity);
+    }
+
+    // Calculate emphasis
+    const filterBounds = state.valueFilter.enabled ? {
+        min: state.valueFilter.min,
+        max: state.valueFilter.max,
+    } : undefined;
+
+    const emphasisResults = calculateEmphasisColumnar(
+        rowCount,
+        getCol,
+        state.emphasis,
+        color.entries,
+        color.field,
+        filterBounds
+    );
+
+    // Apply emphasis to sizes and combine opacity
+    const opacity: number[] = [];
+    const zIndices: number[] = [];
+    const finalSizes: number[] = [];
+
+    for (let i = 0; i < rowCount; i++) {
         const emphResult = emphasisResults[i];
         opacity.push(entryOpacities[i] * emphResult.opacity * globalOpacity);
         zIndices.push(emphResult.zIndex);

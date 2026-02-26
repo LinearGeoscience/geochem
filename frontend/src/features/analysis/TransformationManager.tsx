@@ -14,6 +14,7 @@ import {
   Button as MuiButton,
 } from '@mui/material';
 import { useAppStore } from '../../store/appStore';
+import { useShallow } from 'zustand/react/shallow';
 import { useTransformationStore } from '../../store/transformationStore';
 import { TransformationResult } from '../../types/compositional';
 import { TransformationType, ZeroHandlingStrategy } from '../../types/compositional';
@@ -69,8 +70,17 @@ const InfoTooltip: React.FC<{ text: string }> = ({ text }) => (
 // ============================================================================
 
 export const TransformationManager: React.FC = () => {
-  const { data, addColumn, getFilteredColumns, addTransformationGroup, setColumnFilter } = useAppStore();
-  const filteredColumns = getFilteredColumns();
+  const { data, columns } = useAppStore(useShallow(s => ({
+    data: s.data,
+    columns: s.columns,
+  })));
+  const getFilteredColumns = useAppStore(s => s.getFilteredColumns);
+  const getColumn = useAppStore(s => s.getColumn);
+  const addColumn = useAppStore(s => s.addColumn);
+  const addTransformationGroup = useAppStore(s => s.addTransformationGroup);
+  const setColumnFilter = useAppStore(s => s.setColumnFilter);
+  const columnFilter = useAppStore(s => s.columnFilter);
+  const filteredColumns = useMemo(() => getFilteredColumns(), [columns, columnFilter, getFilteredColumns]);
   const {
     activeTransformation,
     selectedColumns,
@@ -197,7 +207,13 @@ export const TransformationManager: React.FC = () => {
   // Handle variance decomposition
   const handleVarianceDecomposition = () => {
     if (selectedColumns.length < 2) return;
-    const groups = groupColumn ? data.map(row => String(row[groupColumn] ?? '')) : undefined;
+    const groups = groupColumn
+      ? (() => {
+          const col = getColumn(groupColumn);
+          if (col && Array.isArray(col)) return col.map(v => String(v ?? ''));
+          return data.map(row => String(row[groupColumn] ?? ''));
+        })()
+      : undefined;
     runVarianceDecomposition(data, selectedColumns, groups);
   };
 

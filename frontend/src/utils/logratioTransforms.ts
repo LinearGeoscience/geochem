@@ -21,6 +21,8 @@
  * - Grunsky et al. (2024) - GeoCoDA workflow
  */
 
+import { extractRawNumericMatrix } from './columnarHelpers';
+
 // ============================================================================
 // TYPES AND INTERFACES
 // ============================================================================
@@ -132,6 +134,9 @@ export interface ChiPowerResult {
   /** Column names */
   columns: string[];
 }
+
+/** Column getter type for columnar overloads */
+export type ColumnGetter = (name: string) => Float64Array | undefined;
 
 // ============================================================================
 // UTILITY FUNCTIONS
@@ -398,6 +403,49 @@ export function plrTransform(
 }
 
 /**
+ * Columnar version of plrTransform.
+ */
+export function plrTransformColumnar(
+    getCol: ColumnGetter,
+    rowCount: number,
+    columns: string[],
+    options: TransformOptions = { zeroStrategy: 'half-min' }
+): PLRResult {
+    const rawMatrix = extractRawNumericMatrix(columns, getCol, rowCount);
+    const { replaced } = replaceZeros(rawMatrix, options.zeroStrategy, {
+        customValue: options.customZeroValue,
+        smallConstant: options.smallConstant
+    });
+
+    const J = columns.length;
+    const plrNames: string[] = [];
+    const numeratorIndices: number[] = [];
+    const denominatorIndices: number[] = [];
+
+    for (let j = 0; j < J; j++) {
+        for (let k = j + 1; k < J; k++) {
+            plrNames.push(`${columns[j]}/${columns[k]}`);
+            numeratorIndices.push(j);
+            denominatorIndices.push(k);
+        }
+    }
+
+    const plrValues: number[][] = [];
+    for (const row of replaced) {
+        const plrs: number[] = [];
+        for (let j = 0; j < J; j++) {
+            for (let k = j + 1; k < J; k++) {
+                const plr = Math.log(row[j] / row[k]);
+                plrs.push(isFinite(plr) ? plr : 0);
+            }
+        }
+        plrValues.push(plrs);
+    }
+
+    return { values: plrValues, names: plrNames, count: (J * (J - 1)) / 2, numeratorIndices, denominatorIndices };
+}
+
+/**
  * Get a specific PLR value
  */
 export function getPLR(
@@ -486,6 +534,48 @@ export function alrTransform(
     reference: referenceColumn,
     referenceIndex: refIndex
   };
+}
+
+/**
+ * Columnar version of alrTransform.
+ */
+export function alrTransformColumnar(
+    getCol: ColumnGetter,
+    rowCount: number,
+    columns: string[],
+    referenceColumn: string,
+    options: TransformOptions = { zeroStrategy: 'half-min' }
+): ALRResult {
+    const refIndex = columns.indexOf(referenceColumn);
+    if (refIndex === -1) {
+        throw new Error(`Reference column "${referenceColumn}" not found in columns`);
+    }
+
+    const rawMatrix = extractRawNumericMatrix(columns, getCol, rowCount);
+    const { replaced } = replaceZeros(rawMatrix, options.zeroStrategy, {
+        customValue: options.customZeroValue,
+        smallConstant: options.smallConstant
+    });
+
+    const alrNames: string[] = [];
+    for (let j = 0; j < columns.length; j++) {
+        if (j !== refIndex) alrNames.push(`${columns[j]}/${referenceColumn}`);
+    }
+
+    const alrValues: number[][] = [];
+    for (const row of replaced) {
+        const refVal = row[refIndex];
+        const alrs: number[] = [];
+        for (let j = 0; j < row.length; j++) {
+            if (j !== refIndex) {
+                const alr = Math.log(row[j] / refVal);
+                alrs.push(isFinite(alr) ? alr : 0);
+            }
+        }
+        alrValues.push(alrs);
+    }
+
+    return { values: alrValues, names: alrNames, reference: referenceColumn, referenceIndex: refIndex };
 }
 
 /**
@@ -657,6 +747,41 @@ export function clrTransform(
 }
 
 /**
+ * Columnar version of clrTransform (logratioTransforms variant).
+ */
+export function clrTransformColumnar(
+    getCol: ColumnGetter,
+    rowCount: number,
+    columns: string[],
+    options: TransformOptions = { zeroStrategy: 'half-min' }
+): CLRResult {
+    if (rowCount === 0 || columns.length === 0) {
+        return { values: [], columns, geometricMeans: [], zerosReplaced: 0 };
+    }
+
+    const rawMatrix = extractRawNumericMatrix(columns, getCol, rowCount);
+    const { replaced, count } = replaceZeros(rawMatrix, options.zeroStrategy, {
+        customValue: options.customZeroValue,
+        smallConstant: options.smallConstant
+    });
+
+    const geometricMeans: number[] = [];
+    const clrValues: number[][] = [];
+
+    for (const row of replaced) {
+        const gm = geometricMean(row);
+        geometricMeans.push(gm);
+        if (gm === 0) {
+            clrValues.push(row.map(() => 0));
+        } else {
+            clrValues.push(row.map(val => Math.log(val / gm)));
+        }
+    }
+
+    return { values: clrValues, columns, geometricMeans, zerosReplaced: count };
+}
+
+/**
  * Inverse CLR transformation (back to compositional space)
  */
 export function inverseCLR(clrValues: number[]): number[] {
@@ -760,6 +885,46 @@ function createDefaultILRContrastMatrix(J: number): number[][] {
   }
 
   return V;
+}
+
+/**
+ * Columnar version of ilrTransform.
+ */
+export function ilrTransformColumnar(
+    getCol: ColumnGetter,
+    rowCount: number,
+    columns: string[],
+    options: TransformOptions = { zeroStrategy: 'half-min' }
+): ILRResult {
+    const J = columns.length;
+    const rawMatrix = extractRawNumericMatrix(columns, getCol, rowCount);
+    const { replaced } = replaceZeros(rawMatrix, options.zeroStrategy, {
+        customValue: options.customZeroValue,
+        smallConstant: options.smallConstant
+    });
+
+    const contrastMatrix = createDefaultILRContrastMatrix(J);
+    const ilrValues: number[][] = [];
+
+    for (const row of replaced) {
+        const logRow = row.map(v => Math.log(v));
+        const ilrs: number[] = [];
+        for (let i = 0; i < J - 1; i++) {
+            let ilr = 0;
+            for (let j = 0; j < J; j++) {
+                ilr += contrastMatrix[i][j] * logRow[j];
+            }
+            ilrs.push(ilr);
+        }
+        ilrValues.push(ilrs);
+    }
+
+    const ilrNames: string[] = [];
+    for (let i = 0; i < J - 1; i++) {
+        ilrNames.push(`ILR_${i + 1}`);
+    }
+
+    return { values: ilrValues, names: ilrNames, contrastMatrix };
 }
 
 // ============================================================================
@@ -894,6 +1059,62 @@ export function slrTransform(
 }
 
 /**
+ * Columnar version of slrTransform.
+ */
+export function slrTransformColumnar(
+  getCol: ColumnGetter,
+  rowCount: number,
+  numeratorElements: string[],
+  denominatorElements: string[],
+  options: TransformOptions = { zeroStrategy: 'half-min' }
+): SLRResult {
+  const allCols = [...numeratorElements, ...denominatorElements];
+  const rawMatrix = extractRawNumericMatrix(allCols, getCol, rowCount);
+
+  const numCount = numeratorElements.length;
+  const values: number[] = [];
+
+  for (const row of rawMatrix) {
+    let numSum = 0;
+    let numValid = 0;
+    for (let j = 0; j < numCount; j++) {
+      const val = row[j];
+      if (val > 0) {
+        numSum += val;
+        numValid++;
+      } else {
+        numSum += (options.customZeroValue ?? 0.001);
+      }
+    }
+
+    let denSum = 0;
+    let denValid = 0;
+    for (let j = numCount; j < row.length; j++) {
+      const val = row[j];
+      if (val > 0) {
+        denSum += val;
+        denValid++;
+      } else {
+        denSum += (options.customZeroValue ?? 0.001);
+      }
+    }
+
+    if (numValid === 0) numSum = options.customZeroValue ?? 0.001;
+    if (denValid === 0) denSum = options.customZeroValue ?? 0.001;
+
+    const slr = Math.log(numSum / denSum);
+    values.push(isFinite(slr) ? slr : 0);
+  }
+
+  return {
+    values,
+    name: `(${numeratorElements.join('+')})/(${ denominatorElements.join('+')})`,
+    numeratorGroup: numeratorElements,
+    denominatorGroup: denominatorElements
+  };
+}
+
+/**
  * Find matching columns for an amalgamation definition
  */
 export function findAmalgamationColumns(
@@ -997,6 +1218,78 @@ export function chiPowerTransform(
             row.push((Math.pow(ratio, lambda) - 1) / lambda);
           } else {
             row.push(-1 / lambda);  // Limit as ratio → 0
+          }
+        }
+      } else {
+        row.push(0);
+      }
+    }
+
+    transformed.push(row);
+  }
+
+  return {
+    values: transformed,
+    lambda,
+    columns
+  };
+}
+
+/**
+ * Columnar version of chiPowerTransform.
+ */
+export function chiPowerTransformColumnar(
+  getCol: ColumnGetter,
+  rowCount: number,
+  columns: string[],
+  lambda: number = 0.25
+): ChiPowerResult {
+  const n = rowCount;
+  const J = columns.length;
+
+  if (n === 0 || J === 0) {
+    return { values: [], lambda, columns };
+  }
+
+  const matrix = extractRawNumericMatrix(columns, getCol, n);
+
+  // Calculate row sums and column sums
+  const rowSums: number[] = matrix.map(row => row.reduce((a, b) => a + b, 0));
+  const colSums: number[] = new Array(J).fill(0);
+  let total = 0;
+
+  for (let i = 0; i < n; i++) {
+    for (let j = 0; j < J; j++) {
+      colSums[j] += matrix[i][j];
+      total += matrix[i][j];
+    }
+  }
+
+  if (total === 0) {
+    return { values: matrix, lambda, columns };
+  }
+
+  const rowFreqs = rowSums.map(s => s / total);
+  const colFreqs = colSums.map(s => s / total);
+
+  const transformed: number[][] = [];
+
+  for (let i = 0; i < n; i++) {
+    const row: number[] = [];
+
+    for (let j = 0; j < J; j++) {
+      const pij = matrix[i][j] / total;
+      const expected = rowFreqs[i] * colFreqs[j];
+
+      if (expected > 0 && pij >= 0) {
+        if (lambda === 0) {
+          row.push(pij > 0 ? Math.log(pij / expected) : 0);
+        } else {
+          const ratio = pij / expected;
+          if (ratio > 0) {
+            row.push((Math.pow(ratio, lambda) - 1) / lambda);
+          } else {
+            row.push(-1 / lambda);
           }
         }
       } else {
@@ -1485,6 +1778,250 @@ function powerIteration(matrix: number[][], k: number): {
 }
 
 // ============================================================================
+// COLUMNAR OVERLOADS FOR SUPPORTING FUNCTIONS
+// ============================================================================
+
+/**
+ * Columnar version of classifyZeros.
+ * Iterates Float64Arrays checking for NaN/0 instead of row objects.
+ */
+export function classifyZerosColumnar(
+  getCol: ColumnGetter,
+  rowCount: number,
+  columns: string[],
+  detectionLimits?: Record<string, number>
+): ZeroClassification[] {
+  const classifications: ZeroClassification[] = [];
+
+  for (const col of columns) {
+    const arr = getCol(col);
+
+    for (let i = 0; i < rowCount; i++) {
+      const val = arr ? arr[i] : NaN;
+
+      if (val === 0 || isNaN(val)) {
+        let type: ZeroType = 'unknown';
+        let dl: number | undefined;
+
+        if (detectionLimits && detectionLimits[col]) {
+          type = 'below-dl';
+          dl = detectionLimits[col];
+        } else if (isNaN(val)) {
+          type = 'missing';
+        } else {
+          type = 'unknown';
+        }
+
+        classifications.push({
+          index: i,
+          column: col,
+          type,
+          detectionLimit: dl
+        });
+      }
+    }
+  }
+
+  return classifications;
+}
+
+/**
+ * Columnar version of calculateProcrustesCorrelation.
+ * Uses alrTransformColumnar + clrTransformColumnar instead of row-based versions.
+ */
+function calculateProcrustesCorrelationColumnar(
+  getCol: ColumnGetter,
+  rowCount: number,
+  columns: string[],
+  referenceColumn: string,
+  options: TransformOptions = { zeroStrategy: 'half-min' }
+): number {
+  const alr = alrTransformColumnar(getCol, rowCount, columns, referenceColumn, options);
+  const clr = clrTransformColumnar(getCol, rowCount, columns, options);
+
+  const n = alr.values.length;
+  if (n < 3) return 0;
+
+  // Calculate pairwise distances in ALR space
+  const alrDists: number[] = [];
+  for (let i = 0; i < n; i++) {
+    for (let j = i + 1; j < n; j++) {
+      let dist = 0;
+      for (let k = 0; k < alr.values[0].length; k++) {
+        dist += Math.pow(alr.values[i][k] - alr.values[j][k], 2);
+      }
+      alrDists.push(Math.sqrt(dist));
+    }
+  }
+
+  // Calculate pairwise distances in CLR space
+  const clrDists: number[] = [];
+  for (let i = 0; i < n; i++) {
+    for (let j = i + 1; j < n; j++) {
+      let dist = 0;
+      for (let k = 0; k < clr.values[0].length; k++) {
+        dist += Math.pow(clr.values[i][k] - clr.values[j][k], 2);
+      }
+      clrDists.push(Math.sqrt(dist));
+    }
+  }
+
+  return pearsonCorrelation(alrDists, clrDists);
+}
+
+/**
+ * Columnar version of findOptimalALRReference.
+ * Uses calculateProcrustesCorrelationColumnar instead of row-based version.
+ */
+export function findOptimalALRReferenceColumnar(
+  getCol: ColumnGetter,
+  rowCount: number,
+  columns: string[],
+  options: TransformOptions = { zeroStrategy: 'half-min' }
+): { reference: string; correlation: number; rankings: Array<{ element: string; correlation: number }> } {
+  const rankings: Array<{ element: string; correlation: number }> = [];
+
+  for (const col of columns) {
+    try {
+      const correlation = calculateProcrustesCorrelationColumnar(getCol, rowCount, columns, col, options);
+      rankings.push({ element: col, correlation });
+    } catch {
+      rankings.push({ element: col, correlation: 0 });
+    }
+  }
+
+  rankings.sort((a, b) => b.correlation - a.correlation);
+
+  return {
+    reference: rankings[0]?.element ?? columns[0],
+    correlation: rankings[0]?.correlation ?? 0,
+    rankings
+  };
+}
+
+/**
+ * Columnar version of varianceDecomposition.
+ * Uses plrTransformColumnar instead of row-based plrTransform;
+ * the rest operates on the PLR result matrix identically.
+ */
+export function varianceDecompositionColumnar(
+  getCol: ColumnGetter,
+  rowCount: number,
+  columns: string[],
+  groups?: string[],
+  options: TransformOptions = { zeroStrategy: 'half-min' }
+): VarianceDecomposition[] {
+  const plr = plrTransformColumnar(getCol, rowCount, columns, options);
+  const results: VarianceDecomposition[] = [];
+
+  // Calculate total logratio variance
+  let totalLogratioVariance = 0;
+  for (let i = 0; i < plr.names.length; i++) {
+    const plrValues = plr.values.map(row => row[i]);
+    totalLogratioVariance += variance(plrValues);
+  }
+
+  for (let i = 0; i < plr.names.length; i++) {
+    const plrValues = plr.values.map(row => row[i]);
+    const plrVar = variance(plrValues);
+
+    const contributedVariance = totalLogratioVariance > 0
+      ? (plrVar / totalLogratioVariance) * 100
+      : 0;
+
+    const explainedVariance = calculateExplainedVariance(plr.values, i);
+
+    let betweenGroupVariance: number | undefined;
+    if (groups && groups.length === rowCount) {
+      betweenGroupVariance = calculateBetweenGroupVarianceForPLR(plrValues, groups);
+    }
+
+    results.push({
+      plr: plr.names[i],
+      contributedVariance,
+      explainedVariance,
+      betweenGroupVariance
+    });
+  }
+
+  return results;
+}
+
+/**
+ * Columnar version of logratioAnalysis (PCA on CLR-transformed data).
+ * Uses clrTransformColumnar instead of row-based clrTransform;
+ * the PCA math is identical.
+ */
+export function logratioAnalysisColumnar(
+  getCol: ColumnGetter,
+  rowCount: number,
+  columns: string[],
+  options: TransformOptions = { zeroStrategy: 'half-min' },
+  nComponents: number = 2
+): {
+  scores: number[][];
+  loadings: number[][];
+  variance: number[];
+  totalVariance: number;
+  columns: string[];
+} {
+  const clr = clrTransformColumnar(getCol, rowCount, columns, options);
+
+  if (clr.values.length === 0) {
+    return { scores: [], loadings: [], variance: [], totalVariance: 0, columns };
+  }
+
+  const n = clr.values.length;
+  const p = columns.length;
+
+  // Center the data
+  const means: number[] = new Array(p).fill(0);
+  for (const row of clr.values) {
+    for (let j = 0; j < p; j++) {
+      means[j] += row[j];
+    }
+  }
+  for (let j = 0; j < p; j++) {
+    means[j] /= n;
+  }
+
+  const centered = clr.values.map(row => row.map((v, j) => v - means[j]));
+
+  // Calculate covariance matrix
+  const cov = clrCovarianceMatrix(clr.values);
+
+  // Power iteration for eigendecomposition
+  const eigen = powerIteration(cov, Math.min(nComponents, p));
+
+  // Calculate scores
+  const scores = centered.map(row => {
+    return eigen.eigenvectors.map(ev =>
+      row.reduce((sum, val, j) => sum + val * ev[j], 0)
+    );
+  });
+
+  // Calculate loadings (eigenvectors scaled by sqrt of eigenvalues)
+  const loadings: number[][] = [];
+  for (let j = 0; j < p; j++) {
+    loadings.push(eigen.eigenvectors.map((ev, k) =>
+      ev[j] * Math.sqrt(Math.abs(eigen.eigenvalues[k]))
+    ));
+  }
+
+  // Calculate variance explained
+  const totalVar = eigen.eigenvalues.reduce((a, b) => a + Math.abs(b), 0);
+  const varianceExplained = eigen.eigenvalues.map(v => Math.abs(v) / totalVar);
+
+  return {
+    scores,
+    loadings,
+    variance: varianceExplained,
+    totalVariance: totalVar,
+    columns
+  };
+}
+
+// ============================================================================
 // EXPORTS
 // ============================================================================
 
@@ -1529,5 +2066,11 @@ export default {
   variance,
   standardDeviation,
   replaceZeros,
-  classifyZeros
+  classifyZeros,
+
+  // Columnar overloads
+  classifyZerosColumnar,
+  findOptimalALRReferenceColumnar,
+  varianceDecompositionColumnar,
+  logratioAnalysisColumnar
 };

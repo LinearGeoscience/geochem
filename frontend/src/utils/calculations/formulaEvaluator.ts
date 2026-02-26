@@ -1,6 +1,7 @@
 // Safe Formula Evaluator - Executes AST without eval()
 
 import { FormulaExpression } from '../../types/calculations';
+import { ColumnData, isNumericColumn } from '../../types/columnarData';
 
 /**
  * Evaluate a formula AST with given variable values
@@ -170,6 +171,49 @@ export function evaluateFormulaForData(
 }
 
 /**
+ * Columnar version of evaluateFormulaForData — evaluates a formula column-wise.
+ * Reads column values directly from ColumnData instead of row objects.
+ */
+export function evaluateFormulaColumnar(
+    expr: FormulaExpression,
+    getCol: (name: string) => ColumnData | undefined,
+    rowCount: number,
+    columnMappings: Record<string, string>
+): (number | null)[] {
+    // Pre-extract all needed columns
+    const colArrays: Record<string, ColumnData | undefined> = {};
+    for (const [, colName] of Object.entries(columnMappings)) {
+        if (!colArrays[colName]) {
+            colArrays[colName] = getCol(colName);
+        }
+    }
+
+    const results: (number | null)[] = new Array(rowCount);
+
+    for (let i = 0; i < rowCount; i++) {
+        try {
+            const variables: Record<string, number | null> = {};
+            for (const [varName, colName] of Object.entries(columnMappings)) {
+                const col = colArrays[colName];
+                if (!col) {
+                    variables[varName] = null;
+                } else if (isNumericColumn(col)) {
+                    const v = col[i];
+                    variables[varName] = isNaN(v) ? null : v;
+                } else {
+                    variables[varName] = parseNumericValue(col[i]);
+                }
+            }
+            results[i] = evaluateFormula(expr, variables);
+        } catch {
+            results[i] = null;
+        }
+    }
+
+    return results;
+}
+
+/**
  * Parse a raw value to a number, handling various formats
  */
 export function parseNumericValue(value: any): number | null {
@@ -258,6 +302,27 @@ export function calculateRatio(
 }
 
 /**
+ * Columnar version of calculateRatio.
+ */
+export function calculateRatioColumnar(
+    numCol: Float64Array,
+    denCol: Float64Array,
+    rowCount: number
+): (number | null)[] {
+    const results: (number | null)[] = new Array(rowCount);
+    for (let i = 0; i < rowCount; i++) {
+        const num = numCol[i];
+        const den = denCol[i];
+        if (isNaN(num) || isNaN(den)) {
+            results[i] = null;
+        } else {
+            results[i] = safeDivide(num, den);
+        }
+    }
+    return results;
+}
+
+/**
  * Calculate sum of multiple columns
  */
 export function calculateSum(
@@ -276,6 +341,29 @@ export function calculateSum(
         }
         return hasValue ? sum : null;
     });
+}
+
+/**
+ * Columnar version of calculateSum.
+ */
+export function calculateSumColumnar(
+    columns: Float64Array[],
+    rowCount: number
+): (number | null)[] {
+    const results: (number | null)[] = new Array(rowCount);
+    for (let i = 0; i < rowCount; i++) {
+        let sum = 0;
+        let hasValue = false;
+        for (const col of columns) {
+            const val = col[i];
+            if (!isNaN(val)) {
+                sum += val;
+                hasValue = true;
+            }
+        }
+        results[i] = hasValue ? sum : null;
+    }
+    return results;
 }
 
 /**

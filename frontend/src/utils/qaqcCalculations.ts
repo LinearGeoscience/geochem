@@ -347,6 +347,72 @@ export function buildControlChart(
   };
 }
 
+/**
+ * Columnar version of buildControlChart — reads element values from Float64Array.
+ */
+export function buildControlChartColumnar(
+    elementColumn: Float64Array,
+    standardSamples: QCSample[],
+    element: string,
+    standardName: string,
+    reference?: StandardReference,
+    thresholds: QAQCThresholds = DEFAULT_QAQC_THRESHOLDS
+): ControlChartData | null {
+    const samples = standardSamples.filter(s => s.standardName === standardName);
+    if (samples.length === 0) return null;
+
+    const values: { index: number; rowIndex: number; sampleId: string; value: number; batchId?: string }[] = [];
+
+    samples.forEach((sample, idx) => {
+        const value = elementColumn[sample.rowIndex];
+        if (typeof value === 'number' && !isNaN(value)) {
+            values.push({
+                index: idx,
+                rowIndex: sample.rowIndex,
+                sampleId: sample.sampleId,
+                value,
+                batchId: sample.batchId,
+            });
+        }
+    });
+
+    if (values.length === 0) return null;
+
+    const certifiedValue = reference?.values.find(v => v.element === element)?.certifiedValue;
+    const certifiedUncertainty = reference?.values.find(v => v.element === element)?.certifiedUncertainty;
+
+    const limits = calculateControlLimits(
+        values.map(v => v.value),
+        certifiedValue,
+        certifiedUncertainty,
+        thresholds.standardWarningSigma,
+        thresholds.standardFailSigma
+    );
+
+    const points: ControlChartPoint[] = values.map(v => ({
+        ...v,
+        status: evaluateControlPoint(v.value, limits),
+        recovery: certifiedValue ? calculateRecovery(v.value, certifiedValue) : undefined,
+    }));
+
+    const passCount = points.filter(p => p.status === 'pass').length;
+    const warningCount = points.filter(p => p.status === 'warning').length;
+    const failCount = points.filter(p => p.status === 'fail').length;
+
+    return {
+        standardName,
+        element,
+        limits,
+        points,
+        passCount,
+        warningCount,
+        failCount,
+        biasDetected: detectBias(points, limits),
+        driftDetected: detectDrift(points),
+        westgardViolations: detectWestgardViolations(points, limits),
+    };
+}
+
 // ============================================================================
 // DUPLICATE ANALYSIS CALCULATIONS
 // ============================================================================
@@ -485,6 +551,90 @@ export function analyzeDuplicates(
   };
 }
 
+/**
+ * Columnar version of analyzeDuplicates — reads element values from Float64Array.
+ */
+export function analyzeDuplicatesColumnar(
+    elementColumn: Float64Array,
+    pairs: DuplicatePair[],
+    element: string,
+    duplicateType: 'field_duplicate' | 'pulp_duplicate' | 'core_duplicate',
+    thresholds: QAQCThresholds = DEFAULT_QAQC_THRESHOLDS,
+    detectionLimit?: number
+): DuplicateAnalysis | null {
+    const results: DuplicateResult[] = [];
+
+    let threshold: number;
+    switch (duplicateType) {
+        case 'field_duplicate': threshold = thresholds.fieldDuplicateRPD; break;
+        case 'pulp_duplicate': threshold = thresholds.pulpDuplicateRPD; break;
+        case 'core_duplicate': threshold = thresholds.coreDuplicateRPD; break;
+        default: threshold = 30;
+    }
+
+    pairs.forEach((pair, idx) => {
+        const originalValue = elementColumn[pair.originalIndex];
+        const duplicateValue = elementColumn[pair.duplicateIndex];
+
+        if (isNaN(originalValue) || isNaN(duplicateValue)) return;
+
+        const rpd = calculateRPD(originalValue, duplicateValue);
+        const ard = calculateARD(originalValue, duplicateValue);
+        const avg = (originalValue + duplicateValue) / 2;
+
+        const belowDetection = detectionLimit
+            ? (originalValue < 5 * detectionLimit && duplicateValue < 5 * detectionLimit)
+            : undefined;
+
+        results.push({
+            pairIndex: idx,
+            originalId: pair.originalId,
+            duplicateId: pair.duplicateId,
+            originalValue,
+            duplicateValue,
+            rpd,
+            ard,
+            mean: avg,
+            status: rpd <= threshold ? 'pass' : 'fail',
+            duplicateType,
+            belowDetection,
+        });
+    });
+
+    if (results.length === 0) return null;
+
+    const passCount = results.filter(r => r.status === 'pass').length;
+    const failCount = results.filter(r => r.status === 'fail').length;
+    const rpdValues = results.map(r => r.rpd);
+    const meanRPD = mean(rpdValues);
+
+    const precisionResults = results.filter(r => !r.belowDetection);
+    let absolutePrecision = 0;
+    let relativePrecision = 0;
+    if (precisionResults.length > 0) {
+        const differences = precisionResults.map(r => r.originalValue - r.duplicateValue);
+        const sumSquaredDiffs = differences.reduce((sum, d) => sum + d * d, 0);
+        absolutePrecision = Math.sqrt(sumSquaredDiffs / (2 * precisionResults.length));
+        const overallMean = mean(precisionResults.map(r => r.mean));
+        relativePrecision = overallMean !== 0 ? (absolutePrecision / overallMean) * 100 : 0;
+    }
+
+    return {
+        element,
+        duplicateType,
+        threshold,
+        results,
+        passCount,
+        failCount,
+        passRate: (passCount / results.length) * 100,
+        meanRPD,
+        medianRPD: median(rpdValues),
+        precision: meanRPD / 2,
+        absolutePrecision,
+        relativePrecision,
+    };
+}
+
 // ============================================================================
 // BLANK ANALYSIS CALCULATIONS
 // ============================================================================
@@ -609,6 +759,99 @@ export function analyzeBlanks(
     meanValue: mean(values),
     contaminationEvents,
   };
+}
+
+/**
+ * Columnar version of analyzeBlanks — reads element values from Float64Array.
+ */
+export function analyzeBlanksColumnar(
+    elementColumn: Float64Array,
+    blankSamples: QCSample[],
+    element: string,
+    detectionLimit?: number,
+    thresholds: QAQCThresholds = DEFAULT_QAQC_THRESHOLDS
+): BlankAnalysis | null {
+    const results: BlankResult[] = [];
+
+    blankSamples.forEach((sample, idx) => {
+        const value = elementColumn[sample.rowIndex];
+
+        if (isNaN(value)) return;
+
+        let adjustedValue: number | undefined;
+        if (value < 0 && detectionLimit && detectionLimit > 0) {
+            adjustedValue = detectionLimit / 2;
+        }
+
+        const evalValue = adjustedValue ?? value;
+
+        let status: 'clean' | 'elevated' | 'contaminated' = 'clean';
+        let multipleOfDL: number | undefined;
+
+        if (detectionLimit && detectionLimit > 0) {
+            multipleOfDL = evalValue / detectionLimit;
+            if (multipleOfDL > thresholds.blankContaminatedMultiple) {
+                status = 'contaminated';
+            } else if (multipleOfDL > thresholds.blankElevatedMultiple) {
+                status = 'elevated';
+            }
+        }
+
+        results.push({
+            index: idx,
+            rowIndex: sample.rowIndex,
+            sampleId: sample.sampleId,
+            value,
+            detectionLimit,
+            status,
+            multipleOfDL,
+            adjustedValue,
+        });
+    });
+
+    if (results.length === 0) return null;
+
+    if (!detectionLimit) {
+        const statValues = results.map(r => r.adjustedValue ?? r.value);
+        const meanVal = mean(statValues);
+        const sdVal = standardDeviation(statValues);
+        const statThreshold = meanVal + 3 * sdVal;
+
+        results.forEach(r => {
+            const v = r.adjustedValue ?? r.value;
+            if (v > statThreshold) {
+                r.status = 'contaminated';
+            } else if (v > meanVal + 2 * sdVal) {
+                r.status = 'elevated';
+            }
+        });
+    }
+
+    let contaminationEvents = 0;
+    results.forEach(r => {
+        if (r.status === 'contaminated' && r.precedingSampleValue !== undefined) {
+            if (r.precedingSampleValue > r.value * 10) {
+                contaminationEvents++;
+            }
+        }
+    });
+
+    const cleanCount = results.filter(r => r.status === 'clean').length;
+    const elevatedCount = results.filter(r => r.status === 'elevated').length;
+    const contaminatedCount = results.filter(r => r.status === 'contaminated').length;
+    const values = results.map(r => r.adjustedValue ?? r.value);
+
+    return {
+        element,
+        detectionLimit,
+        results,
+        cleanCount,
+        elevatedCount,
+        contaminatedCount,
+        maxValue: Math.max(...values),
+        meanValue: mean(values),
+        contaminationEvents,
+    };
 }
 
 // ============================================================================

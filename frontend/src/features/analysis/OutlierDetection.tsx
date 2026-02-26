@@ -4,7 +4,7 @@ import Plot from 'react-plotly.js';
 import { useShallow } from 'zustand/react/shallow';
 import { useAppStore } from '../../store/appStore';
 import { useAttributeStore } from '../../store/attributeStore';
-import { getStyleArrays, sortColumnsByPriority } from '../../utils/attributeUtils';
+import { getStyleArrays, getStyleArraysColumnar, sortColumnsByPriority } from '../../utils/attributeUtils';
 import { MultiColumnSelector } from '../../components/MultiColumnSelector';
 import { detectAnomalies } from '../../utils/statistics/anomalyDetection';
 import type { AnomalyMethod, AnomalyResult } from '../../types/statistics';
@@ -48,10 +48,12 @@ const METHOD_RANGES: Record<string, [number, number, number]> = {
 };
 
 export const OutlierDetection: React.FC = () => {
-    const { data, columns } = useAppStore(useShallow(s => ({ data: s.data, columns: s.columns })));
+    const { data, columns, columnarRowCount } = useAppStore(useShallow(s => ({ data: s.data, columns: s.columns, columnarRowCount: s.columnarData.rowCount })));
+    const getColumn = useAppStore(s => s.getColumn);
     const getFilteredColumns = useAppStore(s => s.getFilteredColumns);
-    const filteredColumns = getFilteredColumns();
-    useAttributeStore();
+    const columnFilter = useAppStore(s => s.columnFilter);
+    const filteredColumns = useMemo(() => getFilteredColumns(), [columns, columnFilter, getFilteredColumns]);
+    useAttributeStore(s => s.filter);
 
     const [selectedColumns, setSelectedColumns] = useState<string[]>([]);
     const [method, setMethod] = useState<AnomalyMethod>('sigma');
@@ -75,7 +77,9 @@ export const OutlierDetection: React.FC = () => {
     const detect = useCallback(() => {
         if (selectedColumns.length === 0) return;
         setLoading(true);
-        const currentStyleArrays = getStyleArrays(data);
+        const currentStyleArrays = columnarRowCount > 0
+            ? getStyleArraysColumnar(data.length, (name) => getColumn(name))
+            : getStyleArrays(data);
 
         setTimeout(() => {
             try {
@@ -195,7 +199,9 @@ export const OutlierDetection: React.FC = () => {
             ) : results.length > 0 && (
                 <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(500px, 1fr))', gap: 3 }}>
                     {results.map((result) => {
-                        const styleArrays = getStyleArrays(data);
+                        const styleArrays = columnarRowCount > 0
+                            ? getStyleArraysColumnar(data.length, (name) => getColumn(name))
+                            : getStyleArrays(data);
                         // Track visible index to correctly map isAnomaly (which is indexed per visible row)
                         const visibleNumericValues: { value: number; visibleIdx: number }[] = [];
                         let visIdx = 0;

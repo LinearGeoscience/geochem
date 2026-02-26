@@ -16,6 +16,7 @@ import {
     AmalgamationClusteringResult,
     ElementClusterNode,
 } from '../../types/statistics';
+import { extractNumericMatrix } from '../columnarHelpers';
 
 // =============================================================================
 // UTILITY FUNCTIONS
@@ -699,6 +700,204 @@ export function performClustering(
         elbowData,
         optimalK: kRange && !k ? finalK : undefined,
     };
+}
+
+/**
+ * Columnar version of performClustering — reads directly from Float64Array columns.
+ */
+export function performClusteringColumnar(
+    getCol: (name: string) => Float64Array | undefined,
+    rowCount: number,
+    config: EnhancedClusteringConfig
+): EnhancedClusteringResult {
+    const {
+        method,
+        columns,
+        k,
+        kRange,
+        transformationType = 'none',
+        alrReference,
+        linkage = 'ward',
+        distanceMetric = 'euclidean',
+        calculateSilhouette: calcSilhouette = true,
+        nInitializations = 10,
+        maxIterations = 100,
+    } = config;
+
+    // Extract validated matrix from columns
+    const { matrix, validIndices } = extractNumericMatrix(columns, getCol, rowCount);
+
+    if (matrix.length < 2) {
+        return createEmptyClusterResult(method, rowCount);
+    }
+
+    // Apply transformation
+    let transformedData: number[][] = matrix;
+
+    if (transformationType === 'clr') {
+        transformedData = matrix.map(applyCLR);
+    } else if (transformationType === 'alr' && alrReference) {
+        const refIdx = columns.indexOf(alrReference);
+        if (refIdx >= 0) {
+            transformedData = matrix.map(row => applyALR(row, refIdx));
+        }
+    } else if (transformationType === 'zscore') {
+        const colMeans = columns.map((_, j) => mean(matrix.map(row => row[j])));
+        const colStds = columns.map((_, j) => std(matrix.map(row => row[j])));
+        transformedData = applyZScore(matrix, colMeans, colStds);
+    }
+
+    let finalK = k || 3;
+    let elbowData: { k: number; inertia: number; silhouette?: number }[] | undefined;
+
+    if (kRange && !k) {
+        const [minK, maxK] = kRange;
+        elbowData = [];
+
+        for (let testK = minK; testK <= maxK; testK++) {
+            const result = kMeans(transformedData, testK, maxIterations, nInitializations, distanceMetric);
+            const silhouettes = calcSilhouette
+                ? calculateSilhouetteScores(transformedData, result.assignments, distanceMetric)
+                : [];
+
+            elbowData.push({
+                k: testK,
+                inertia: result.inertia,
+                silhouette: silhouettes.length > 0 ? mean(silhouettes) : undefined,
+            });
+        }
+
+        if (elbowData.length >= 3) {
+            const inertias = elbowData.map(d => d.inertia);
+            let maxSecondDerivative = 0;
+            let optimalIdx = 0;
+
+            for (let i = 1; i < inertias.length - 1; i++) {
+                const secondDerivative = inertias[i - 1] - 2 * inertias[i] + inertias[i + 1];
+                if (secondDerivative > maxSecondDerivative) {
+                    maxSecondDerivative = secondDerivative;
+                    optimalIdx = i;
+                }
+            }
+
+            finalK = elbowData[optimalIdx].k;
+        }
+    }
+
+    let assignments: number[];
+    let centers: number[][] | undefined;
+    let dendrogram: ClusterDendrogramNode | undefined;
+
+    switch (method) {
+        case 'hierarchical': {
+            const root = hierarchicalClustering(transformedData, linkage, distanceMetric);
+            assignments = cutDendrogram(root, finalK);
+            dendrogram = convertToDendrogram(root);
+            break;
+        }
+        case 'kmeans':
+        default: {
+            const kmeansResult = kMeans(transformedData, finalK, maxIterations, nInitializations, distanceMetric);
+            assignments = kmeansResult.assignments;
+            centers = kmeansResult.centers;
+            break;
+        }
+    }
+
+    const assignmentsFull: (number | null)[] = new Array(rowCount).fill(null);
+    for (let i = 0; i < validIndices.length; i++) {
+        assignmentsFull[validIndices[i]] = assignments[i];
+    }
+
+    const clusterStats = calculateClusterStatisticsColumnar(getCol, columns, assignmentsFull, finalK);
+
+    let silhouetteScores: number[] | undefined;
+    let avgSilhouette: number | undefined;
+
+    if (calcSilhouette) {
+        silhouetteScores = calculateSilhouetteScores(transformedData, assignments, distanceMetric);
+        avgSilhouette = mean(silhouetteScores);
+    }
+
+    let withinClusterSS = 0;
+    let totalSS = 0;
+    const globalCentroid = calculateCentroid(transformedData);
+
+    for (let i = 0; i < transformedData.length; i++) {
+        const cluster = assignments[i];
+        const clusterPoints = transformedData.filter((_, j) => assignments[j] === cluster);
+        const clusterCentroid = calculateCentroid(clusterPoints);
+
+        for (let j = 0; j < transformedData[i].length; j++) {
+            withinClusterSS += Math.pow(transformedData[i][j] - clusterCentroid[j], 2);
+            totalSS += Math.pow(transformedData[i][j] - globalCentroid[j], 2);
+        }
+    }
+
+    const betweenClusterSS = totalSS - withinClusterSS;
+    const bssOverTss = totalSS > 0 ? betweenClusterSS / totalSS : 0;
+
+    return {
+        method,
+        k: finalK,
+        assignments: assignmentsFull,
+        centers,
+        withinClusterSS,
+        betweenClusterSS,
+        totalSS,
+        bssOverTss,
+        silhouetteScores,
+        avgSilhouette,
+        clusterStats,
+        dendrogram,
+        elbowData,
+        optimalK: kRange && !k ? finalK : undefined,
+    };
+}
+
+function calculateClusterStatisticsColumnar(
+    getCol: (name: string) => Float64Array | undefined,
+    columns: string[],
+    assignments: (number | null)[],
+    k: number
+): ClusterStatistics[] {
+    const stats: ClusterStatistics[] = [];
+    const n = assignments.filter(a => a !== null).length;
+    const cols = columns.map(c => getCol(c));
+
+    for (let clusterId = 0; clusterId < k; clusterId++) {
+        const clusterIndices = assignments
+            .map((a, i) => a === clusterId ? i : -1)
+            .filter(i => i >= 0);
+
+        const count = clusterIndices.length;
+        const proportion = n > 0 ? count / n : 0;
+
+        const meanByColumn: Record<string, number> = {};
+        const stdByColumn: Record<string, number> = {};
+        const centroid: Record<string, number> = {};
+
+        for (let ci = 0; ci < columns.length; ci++) {
+            const col = columns[ci];
+            const arr = cols[ci];
+            const values: number[] = [];
+
+            if (arr) {
+                for (const i of clusterIndices) {
+                    const v = arr[i];
+                    if (!isNaN(v) && isFinite(v)) values.push(v);
+                }
+            }
+
+            meanByColumn[col] = values.length > 0 ? mean(values) : 0;
+            stdByColumn[col] = values.length > 1 ? std(values) : 0;
+            centroid[col] = meanByColumn[col];
+        }
+
+        stats.push({ clusterId, count, proportion, centroid, meanByColumn, stdByColumn });
+    }
+
+    return stats;
 }
 
 function calculateClusterStatistics(

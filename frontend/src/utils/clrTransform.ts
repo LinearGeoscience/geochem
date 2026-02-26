@@ -12,6 +12,8 @@
  * - Aitchison (1986) - The Statistical Analysis of Compositional Data
  */
 
+import { extractRawNumericMatrix } from './columnarHelpers';
+
 export type ZeroHandlingStrategy = 'half-min' | 'small-constant' | 'multiplicative' | 'custom';
 
 export interface CLROptions {
@@ -220,6 +222,38 @@ export function clrTransform(
 }
 
 /**
+ * Columnar version of clrTransform - reads directly from Float64Array columns.
+ */
+export function clrTransformColumnar(
+    getCol: (name: string) => Float64Array | undefined,
+    rowCount: number,
+    columns: string[],
+    options: CLROptions = { zeroStrategy: 'half-min' }
+): CLRResult {
+    if (rowCount === 0 || columns.length === 0) {
+        return { transformed: [], columns, zerosReplaced: 0, geometricMeans: [] };
+    }
+
+    const rawMatrix = extractRawNumericMatrix(columns, getCol, rowCount);
+
+    const { replaced, count } = replaceZeros(rawMatrix, options.zeroStrategy, {
+        customValue: options.customZeroValue,
+        smallConstant: options.smallConstant
+    });
+
+    const geometricMeans: number[] = [];
+    const transformed: number[][] = [];
+
+    for (const row of replaced) {
+        const gm = geometricMean(row);
+        geometricMeans.push(gm);
+        transformed.push(clrTransformRow(row));
+    }
+
+    return { transformed, columns, zerosReplaced: count, geometricMeans };
+}
+
+/**
  * Inverse CLR transformation (back to compositional space)
  * Note: This returns values that sum to 1 (proportions), not the original scale
  */
@@ -401,6 +435,7 @@ function powerIteration(matrix: number[][], k: number): {
 export default {
     geometricMean,
     clrTransform,
+    clrTransformColumnar,
     inverseCLR,
     clrCorrelationMatrix,
     simplePCA

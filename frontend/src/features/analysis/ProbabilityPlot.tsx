@@ -2,9 +2,10 @@ import React, { useState, useMemo } from 'react';
 import { Box, Paper, Typography, ToggleButtonGroup, ToggleButton, Grid, Alert } from '@mui/material';
 import Plot from 'react-plotly.js';
 import { useAppStore } from '../../store/appStore';
+import { useShallow } from 'zustand/react/shallow';
 import { ExpandablePlotWrapper } from '../../components/ExpandablePlotWrapper';
 import { useAttributeStore } from '../../store/attributeStore';
-import { getStyleArrays, sortColumnsByPriority } from '../../utils/attributeUtils';
+import { getStyleArrays, getStyleArraysColumnar, sortColumnsByPriority } from '../../utils/attributeUtils';
 import { getPlotConfig, EXPORT_FONT_SIZES } from '../../utils/plotConfig';
 import { MultiColumnSelector } from '../../components/MultiColumnSelector';
 
@@ -12,23 +13,38 @@ import { MultiColumnSelector } from '../../components/MultiColumnSelector';
 const MAX_SIMULTANEOUS_PLOTS = 12;
 
 export const ProbabilityPlot: React.FC = () => {
-    const { data, columns, getFilteredColumns } = useAppStore();
-    const filteredColumns = getFilteredColumns();
-    useAttributeStore(); // Subscribe to changes
+    const { data, columns, columnarRowCount } = useAppStore(useShallow(s => ({
+        data: s.data,
+        columns: s.columns,
+        columnarRowCount: s.columnarData.rowCount,
+    })));
+    const getFilteredColumns = useAppStore(s => s.getFilteredColumns);
+    const getColumn = useAppStore(s => s.getColumn);
+    const columnFilter = useAppStore(s => s.columnFilter);
+    const filteredColumns = useMemo(() => getFilteredColumns(), [columns, columnFilter, getFilteredColumns]);
+    useAttributeStore(useShallow(s => ({
+        color: s.color, shape: s.shape, size: s.size, filter: s.filter,
+        customEntries: s.customEntries, emphasis: s.emphasis, globalOpacity: s.globalOpacity,
+    })));
     const [selectedColumns, setSelectedColumns] = useState<string[]>([]);
     const [plotType, setPlotType] = useState<'probability' | 'cumulative'>('probability');
     const [xAxisType, setXAxisType] = useState<'nscore' | 'probability'>('nscore');
 
-    const numericColumns = sortColumnsByPriority(
+    const numericColumns = useMemo(() => sortColumnsByPriority(
         filteredColumns.filter(c => c.type === 'numeric' || c.type === 'float' || c.type === 'integer')
-    );
+    ), [filteredColumns]);
 
     const allNumericColumns = useMemo(() => sortColumnsByPriority(
         columns.filter(c => c && c.name && (c.type === 'numeric' || c.type === 'float' || c.type === 'integer'))
     ), [columns]);
 
-    // Get style arrays for visibility and colors
-    const styleArrays = getStyleArrays(data);
+    // Get style arrays for visibility and colors — memoized
+    const styleArrays = useMemo(() => {
+        if (!data.length) return { visible: [], colors: [], sizes: [], shapes: [], opacity: [] };
+        return columnarRowCount > 0
+            ? getStyleArraysColumnar(data.length, (name) => getColumn(name))
+            : getStyleArrays(data);
+    }, [data, columnarRowCount, getColumn]);
 
     const handlePlotTypeChange = (_: React.MouseEvent<HTMLElement>, newType: 'probability' | 'cumulative' | null) => {
         if (newType !== null) {

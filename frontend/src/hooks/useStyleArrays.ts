@@ -4,11 +4,15 @@
  */
 import { useMemo } from 'react';
 import { useAttributeStore } from '../store/attributeStore';
-import { getStyleArrays, StyleArrays } from '../utils/attributeUtils';
+import { getStyleArrays, getStyleArraysColumnar, StyleArrays } from '../utils/attributeUtils';
+import { useAppStore } from '../store/appStore';
 
 /**
  * Returns memoized style arrays that only recompute when
  * the data, indices, or relevant attribute configuration changes.
+ *
+ * When columnar data is available (rowCount > 0), uses the faster
+ * columnar path that avoids materializing row objects.
  */
 export function useStyleArrays(
     data: Record<string, any>[],
@@ -24,15 +28,28 @@ export function useStyleArrays(
     const globalOpacity = useAttributeStore(s => s.globalOpacity);
     const valueFilter = useAttributeStore(s => s.valueFilter);
 
+    // Columnar data for fast path — subscribe to stable scalar, not full object
+    const columnarRowCount = useAppStore(s => s.columnarData.rowCount);
+    const _sampleIndicesArray = useAppStore(s => s._sampleIndicesArray);
+    const getDisplayColumn = useAppStore(s => s.getDisplayColumn);
+
     return useMemo(() => {
         if (data.length === 0) {
             return { colors: [], shapes: [], sizes: [], visible: [], opacity: [], zIndices: [], emphasisResults: [] };
         }
+
+        // Fast path: use columnar storage when available
+        if (columnarRowCount > 0) {
+            return getStyleArraysColumnar(data.length, (name) => getDisplayColumn(name), originalIndices);
+        }
+
         return getStyleArrays(data, originalIndices);
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [
         data,
         originalIndices,
+        columnarRowCount,
+        _sampleIndicesArray,
         // Attribute config dependencies
         color.field, color.entries, color.additionalFields,
         shape.field, shape.entries,

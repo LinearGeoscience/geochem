@@ -19,9 +19,9 @@ import {
     RadioGroup, Radio, FormLabel, Dialog, DialogTitle, DialogContent,
     DialogActions, Table, TableBody, TableCell, TableHead, TableRow,
     Tooltip, Divider, TextField, Autocomplete, CircularProgress, Slider,
-    ToggleButton, ToggleButtonGroup
+    ToggleButton, ToggleButtonGroup, Stack
 } from '@mui/material';
-import { ExpandMore, ExpandLess, SelectAll, Clear, Info, Settings, Map as MapIcon, ZoomOutMap, PanTool, HighlightAlt, CropFree, Download, TableChart, MenuBook } from '@mui/icons-material';
+import { ExpandMore, ExpandLess, SelectAll, Clear, Info, Settings, Map as MapIcon, ZoomOutMap, PanTool, HighlightAlt, CropFree, Download, TableChart, MenuBook, Refresh } from '@mui/icons-material';
 import Snackbar from '@mui/material/Snackbar';
 import Alert from '@mui/material/Alert';
 import { ALL_EPSG_CODES, MapViewStyle, transformCoordinates, createMapboxLayout } from '../../utils/basemapUtils';
@@ -56,6 +56,7 @@ import {
 import { findColumnForElement } from '../../utils/calculations/elementNameNormalizer';
 import { qgisApi } from '../../services/api';
 import { PathfinderPublicationDialog } from './pathfinder';
+import { AxisRangeControl, AxisModes, SliceConfig } from '../../components/AxisRangeControl';
 
 interface PathfinderMapProps {
     plotId: string;
@@ -176,6 +177,15 @@ export const PathfinderMap: React.FC<PathfinderMapProps> = ({ plotId }) => {
     const [plotRevision, setPlotRevision] = useState(0);
     const [basePointSize, setBasePointSizeLocal] = useState<number>(storedSettings.basePointSize ?? 6);
 
+    // 3D axis range controls
+    const [axisRanges3D, setAxisRanges3DLocal] = useState<{ x: [number, number]; y: [number, number]; z: [number, number] } | null>(storedSettings.axisRanges3D || null);
+    const [axisModes3D, setAxisModes3DLocal] = useState<AxisModes>(storedSettings.axisModes3D || { x: 'range', y: 'range', z: 'range' });
+    const [sliceWidths3D, setSliceWidths3DLocal] = useState<SliceConfig>(storedSettings.sliceWidths3D || { x: 0, y: 0, z: 0 });
+    const [slicePositions3D, setSlicePositions3DLocal] = useState<SliceConfig>(storedSettings.slicePositions3D || { x: 0, y: 0, z: 0 });
+    const [rangeControlsExpanded, setRangeControlsExpandedLocal] = useState(storedSettings.rangeControlsExpanded ?? true);
+    const [pickState3D, setPickState3D] = useState<import('../../components/AxisRangeControl').PickState>({ axis: null, clickCount: 0, firstValue: null });
+    const mouseDownPos3D = useRef<{ x: number; y: number } | null>(null);
+
     const basemapEnabled = mapViewStyle !== 'normal' && !is3D;
 
     // QGIS sync state
@@ -265,6 +275,36 @@ export const PathfinderMap: React.FC<PathfinderMapProps> = ({ plotId }) => {
     const setBasePointSize = (size: number) => {
         setBasePointSizeLocal(size);
         updatePlotSettings(plotId, { basePointSize: size });
+    };
+
+    // 3D range control setters
+    const setAxisRanges3D = (ranges: { x: [number, number]; y: [number, number]; z: [number, number] } | null | ((prev: any) => any)) => {
+        if (typeof ranges === 'function') {
+            setAxisRanges3DLocal((prev: any) => {
+                const newRanges = ranges(prev);
+                updatePlotSettings(plotId, { axisRanges3D: newRanges });
+                return newRanges;
+            });
+        } else {
+            setAxisRanges3DLocal(ranges);
+            updatePlotSettings(plotId, { axisRanges3D: ranges });
+        }
+    };
+    const setAxisModes3D = (modes: AxisModes) => {
+        setAxisModes3DLocal(modes);
+        updatePlotSettings(plotId, { axisModes3D: modes });
+    };
+    const setSliceWidths3D = (widths: SliceConfig) => {
+        setSliceWidths3DLocal(widths);
+        updatePlotSettings(plotId, { sliceWidths3D: widths });
+    };
+    const setSlicePositions3D = (positions: SliceConfig) => {
+        setSlicePositions3DLocal(positions);
+        updatePlotSettings(plotId, { slicePositions3D: positions });
+    };
+    const setRangeControlsExpanded = (expanded: boolean) => {
+        setRangeControlsExpandedLocal(expanded);
+        updatePlotSettings(plotId, { rangeControlsExpanded: expanded });
     };
 
     // Zoom to data - reset all plots to autorange
@@ -419,6 +459,74 @@ export const PathfinderMap: React.FC<PathfinderMapProps> = ({ plotId }) => {
         [columns]
     );
 
+    // 3D data ranges for axis controls
+    const dataRanges3D = useMemo(() => {
+        if (!is3D || !data.length || !xAxis || !yAxis || !zAxis) return null;
+        let xMin = Infinity, xMax = -Infinity;
+        let yMin = Infinity, yMax = -Infinity;
+        let zMin = Infinity, zMax = -Infinity;
+        let count = 0;
+        for (const row of data) {
+            const x = row[xAxis], y = row[yAxis], z = row[zAxis];
+            if (x != null && !isNaN(x)) { if (x < xMin) xMin = x; if (x > xMax) xMax = x; }
+            if (y != null && !isNaN(y)) { if (y < yMin) yMin = y; if (y > yMax) yMax = y; }
+            if (z != null && !isNaN(z)) { if (z < zMin) zMin = z; if (z > zMax) zMax = z; count++; }
+        }
+        if (count === 0) return null;
+        return {
+            x: [xMin, xMax] as [number, number],
+            y: [yMin, yMax] as [number, number],
+            z: [zMin, zMax] as [number, number],
+        };
+    }, [is3D, data, xAxis, yAxis, zAxis]);
+
+    // Initialize 3D axis ranges when data ranges change
+    useEffect(() => {
+        if (dataRanges3D && !axisRanges3D) {
+            setAxisRanges3D({
+                x: [...dataRanges3D.x] as [number, number],
+                y: [...dataRanges3D.y] as [number, number],
+                z: [...dataRanges3D.z] as [number, number],
+            });
+        }
+    }, [dataRanges3D]);
+
+    // 3D pick mode click handler
+    const handlePathfinder3DClick = useCallback((event: any) => {
+        if (!pickState3D.axis) return;
+        if (mouseDownPos3D.current) {
+            const dx = (event.event?.clientX ?? 0) - mouseDownPos3D.current.x;
+            const dy = (event.event?.clientY ?? 0) - mouseDownPos3D.current.y;
+            if (Math.sqrt(dx * dx + dy * dy) > 5) { mouseDownPos3D.current = null; return; }
+        }
+        const points = event.points;
+        if (!points || points.length === 0) return;
+        const point = points[0];
+        const axisKey = pickState3D.axis;
+        const coordValue = axisKey === 'x' ? point.x : axisKey === 'y' ? point.y : point.z;
+        if (coordValue == null || isNaN(coordValue)) return;
+        if (pickState3D.clickCount === 0) {
+            setPickState3D({ axis: axisKey, clickCount: 1, firstValue: coordValue });
+        } else {
+            const v1 = pickState3D.firstValue!;
+            const v2 = coordValue;
+            setAxisRanges3D((prev: any) => prev ? { ...prev, [axisKey]: [Math.min(v1, v2), Math.max(v1, v2)] as [number, number] } : null);
+            setPickState3D({ axis: null, clickCount: 0, firstValue: null });
+        }
+    }, [pickState3D, setAxisRanges3D]);
+
+    const handleResetAll3D = () => {
+        if (dataRanges3D) {
+            setAxisRanges3D({
+                x: [...dataRanges3D.x] as [number, number],
+                y: [...dataRanges3D.y] as [number, number],
+                z: [...dataRanges3D.z] as [number, number],
+            });
+            setAxisModes3D({ x: 'range', y: 'range', z: 'range' });
+            setPickState3D({ axis: null, clickCount: 0, firstValue: null });
+        }
+    };
+
     // Toggle element selection
     const toggleElement = (element: PathfinderElement) => {
         if (selectedElements.includes(element)) {
@@ -485,6 +593,13 @@ export const PathfinderMap: React.FC<PathfinderMapProps> = ({ plotId }) => {
 
             if (x == null || y == null || isNaN(x) || isNaN(y)) continue;
             if (is3D && zAxis && (z == null || isNaN(z))) continue;
+
+            // Filter by 3D axis ranges
+            if (is3D && axisRanges3D) {
+                if (x < axisRanges3D.x[0] || x > axisRanges3D.x[1]) continue;
+                if (y < axisRanges3D.y[0] || y > axisRanges3D.y[1]) continue;
+                if (z < axisRanges3D.z[0] || z > axisRanges3D.z[1]) continue;
+            }
 
             const elementValue = row[elementColumn];
 
@@ -1167,6 +1282,64 @@ export const PathfinderMap: React.FC<PathfinderMapProps> = ({ plotId }) => {
                 </Box>
             </Paper>
 
+            {/* 3D Axis Range Controls */}
+            {is3D && dataRanges3D && axisRanges3D && (
+                <Paper sx={{ p: 2, mb: 2 }}>
+                    <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1.5 }}>
+                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                            <Typography variant="subtitle2">Axis Ranges</Typography>
+                            <IconButton
+                                size="small"
+                                onClick={() => setRangeControlsExpanded(!rangeControlsExpanded)}
+                            >
+                                {rangeControlsExpanded ? <ExpandLess fontSize="small" /> : <ExpandMore fontSize="small" />}
+                            </IconButton>
+                        </Box>
+                        <Button
+                            size="small"
+                            startIcon={<Refresh />}
+                            onClick={handleResetAll3D}
+                            disabled={
+                                axisRanges3D.x[0] === dataRanges3D.x[0] && axisRanges3D.x[1] === dataRanges3D.x[1] &&
+                                axisRanges3D.y[0] === dataRanges3D.y[0] && axisRanges3D.y[1] === dataRanges3D.y[1] &&
+                                axisRanges3D.z[0] === dataRanges3D.z[0] && axisRanges3D.z[1] === dataRanges3D.z[1]
+                            }
+                        >
+                            Reset All
+                        </Button>
+                    </Box>
+                    <Collapse in={rangeControlsExpanded}>
+                        <Stack spacing={1.5}>
+                            {(['x', 'y', 'z'] as const).map((ax) => {
+                                const colorMap = { x: 'primary', y: 'secondary', z: 'error' } as const;
+                                const defaultWidth = (dataRanges3D[ax][1] - dataRanges3D[ax][0]) / 10;
+                                return (
+                                    <AxisRangeControl
+                                        key={ax}
+                                        label={ax.toUpperCase()}
+                                        axis={ax}
+                                        value={axisRanges3D[ax]}
+                                        dataRange={dataRanges3D[ax]}
+                                        onChange={(val) => setAxisRanges3D((prev: any) => prev ? { ...prev, [ax]: val } : null)}
+                                        onReset={() => setAxisRanges3D((prev: any) => prev ? { ...prev, [ax]: [...dataRanges3D[ax]] as [number, number] } : null)}
+                                        color={colorMap[ax]}
+                                        mode={axisModes3D[ax]}
+                                        onModeChange={(m) => setAxisModes3D({ ...axisModes3D, [ax]: m })}
+                                        sliceWidth={sliceWidths3D[ax] || defaultWidth}
+                                        onSliceWidthChange={(w) => setSliceWidths3D({ ...sliceWidths3D, [ax]: w })}
+                                        slicePosition={slicePositions3D[ax] || dataRanges3D[ax][0]}
+                                        onSlicePositionChange={(p) => setSlicePositions3D({ ...slicePositions3D, [ax]: p })}
+                                        pickState={pickState3D}
+                                        onPickStart={() => setPickState3D({ axis: ax, clickCount: 0, firstValue: null })}
+                                        onPickCancel={() => setPickState3D({ axis: null, clickCount: 0, firstValue: null })}
+                                    />
+                                );
+                            })}
+                        </Stack>
+                    </Collapse>
+                </Paper>
+            )}
+
             {/* Plot Grid */}
             {!xAxis || !yAxis || selectedElements.length === 0 ? (
                 <Typography color="text.secondary">
@@ -1213,9 +1386,9 @@ export const PathfinderMap: React.FC<PathfinderMapProps> = ({ plotId }) => {
                                                 ...(is3D ? {
                                                     scene: {
                                                         aspectmode: equalAxes ? 'data' : 'auto',
-                                                        xaxis: { title: { text: d(xAxis), font: { size: 10 } } },
-                                                        yaxis: { title: { text: d(yAxis), font: { size: 10 } } },
-                                                        zaxis: { title: { text: d(zAxis), font: { size: 10 } } },
+                                                        xaxis: { title: { text: d(xAxis), font: { size: 10 } }, ...(axisRanges3D ? { range: axisRanges3D.x } : {}) },
+                                                        yaxis: { title: { text: d(yAxis), font: { size: 10 } }, ...(axisRanges3D ? { range: axisRanges3D.y } : {}) },
+                                                        zaxis: { title: { text: d(zAxis), font: { size: 10 } }, ...(axisRanges3D ? { range: axisRanges3D.z } : {}) },
                                                         camera: { eye: { x: 1.5, y: 1.5, z: 1.3 } }
                                                     },
                                                     margin: { l: 50, r: 20, t: 40, b: 40 }
@@ -1236,6 +1409,7 @@ export const PathfinderMap: React.FC<PathfinderMapProps> = ({ plotId }) => {
                                             useResizeHandler={true}
                                             onSelected={(eventData) => handlePlotSelected(eventData, element)}
                                             onDeselect={() => handleDeselectionHook()}
+                                            onClick={is3D ? handlePathfinder3DClick : undefined}
                                         />
                                     </ExpandablePlotWrapper>
 

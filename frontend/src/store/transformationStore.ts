@@ -42,7 +42,19 @@ import {
   classifyZeros,
   PREDEFINED_AMALGAMATIONS,
   findAmalgamationColumns,
+  plrTransformColumnar,
+  alrTransformColumnar,
+  clrTransformColumnar,
+  ilrTransformColumnar,
+  slrTransformColumnar,
+  chiPowerTransformColumnar,
+  varianceDecompositionColumnar,
+  findOptimalALRReferenceColumnar,
+  logratioAnalysisColumnar,
+  classifyZerosColumnar,
+  ColumnGetter,
 } from '../utils/logratioTransforms';
+import { useAppStore } from './appStore';
 
 // ============================================================================
 // STORE INTERFACE
@@ -148,6 +160,23 @@ interface TransformationState {
 }
 
 // ============================================================================
+// COLUMNAR ACCESS HELPER
+// ============================================================================
+
+/** Get columnar accessor from appStore if available. Returns null if no columnar data. */
+function getColumnarAccess(): { getCol: ColumnGetter; rowCount: number } | null {
+  const { columnarData } = useAppStore.getState();
+  if (columnarData.rowCount === 0) return null;
+  return {
+    getCol: (name: string) => {
+      const col = columnarData.columns.get(name);
+      return col instanceof Float64Array ? col : undefined;
+    },
+    rowCount: columnarData.rowCount,
+  };
+}
+
+// ============================================================================
 // STORE IMPLEMENTATION
 // ============================================================================
 
@@ -247,10 +276,11 @@ export const useTransformationStore = create<TransformationState>()(
       // Individual transformation methods
       executePLR: (data, columns) => {
         const state = get();
-        const result = plrTransform(data, columns, {
-          zeroStrategy: state.zeroStrategy,
-          customZeroValue: state.customZeroValue
-        });
+        const opts = { zeroStrategy: state.zeroStrategy, customZeroValue: state.customZeroValue };
+        const ca = getColumnarAccess();
+        const result = ca
+          ? plrTransformColumnar(ca.getCol, ca.rowCount, columns, opts)
+          : plrTransform(data, columns, opts);
 
         return {
           id: `plr_${Date.now()}`,
@@ -269,10 +299,11 @@ export const useTransformationStore = create<TransformationState>()(
 
       executeALR: (data, columns, reference) => {
         const state = get();
-        const result = alrTransform(data, columns, reference, {
-          zeroStrategy: state.zeroStrategy,
-          customZeroValue: state.customZeroValue
-        });
+        const opts = { zeroStrategy: state.zeroStrategy, customZeroValue: state.customZeroValue };
+        const ca = getColumnarAccess();
+        const result = ca
+          ? alrTransformColumnar(ca.getCol, ca.rowCount, columns, reference, opts)
+          : alrTransform(data, columns, reference, opts);
 
         return {
           id: `alr_${Date.now()}`,
@@ -293,10 +324,11 @@ export const useTransformationStore = create<TransformationState>()(
 
       executeCLR: (data, columns) => {
         const state = get();
-        const result = clrTransform(data, columns, {
-          zeroStrategy: state.zeroStrategy,
-          customZeroValue: state.customZeroValue
-        });
+        const opts = { zeroStrategy: state.zeroStrategy, customZeroValue: state.customZeroValue };
+        const ca = getColumnarAccess();
+        const result = ca
+          ? clrTransformColumnar(ca.getCol, ca.rowCount, columns, opts)
+          : clrTransform(data, columns, opts);
 
         return {
           id: `clr_${Date.now()}`,
@@ -315,10 +347,11 @@ export const useTransformationStore = create<TransformationState>()(
 
       executeILR: (data, columns) => {
         const state = get();
-        const result = ilrTransform(data, columns, {
-          zeroStrategy: state.zeroStrategy,
-          customZeroValue: state.customZeroValue
-        });
+        const opts = { zeroStrategy: state.zeroStrategy, customZeroValue: state.customZeroValue };
+        const ca = getColumnarAccess();
+        const result = ca
+          ? ilrTransformColumnar(ca.getCol, ca.rowCount, columns, opts)
+          : ilrTransform(data, columns, opts);
 
         return {
           id: `ilr_${Date.now()}`,
@@ -337,10 +370,11 @@ export const useTransformationStore = create<TransformationState>()(
 
       executeSLR: (data, numerator, denominator) => {
         const state = get();
-        const result = slrTransform(data, numerator, denominator, {
-          zeroStrategy: state.zeroStrategy,
-          customZeroValue: state.customZeroValue
-        });
+        const opts = { zeroStrategy: state.zeroStrategy, customZeroValue: state.customZeroValue };
+        const ca = getColumnarAccess();
+        const result = ca
+          ? slrTransformColumnar(ca.getCol, ca.rowCount, numerator, denominator, opts)
+          : slrTransform(data, numerator, denominator, opts);
 
         return {
           id: `slr_${Date.now()}`,
@@ -360,7 +394,10 @@ export const useTransformationStore = create<TransformationState>()(
       },
 
       executeChiPower: (data, columns, lambda) => {
-        const result = chiPowerTransform(data, columns, lambda);
+        const ca = getColumnarAccess();
+        const result = ca
+          ? chiPowerTransformColumnar(ca.getCol, ca.rowCount, columns, lambda)
+          : chiPowerTransform(data, columns, lambda);
 
         return {
           id: `chipower_${Date.now()}`,
@@ -383,10 +420,11 @@ export const useTransformationStore = create<TransformationState>()(
         set({ isProcessing: true, error: null });
 
         try {
-          const decomposition = varianceDecomposition(data, columns, groups, {
-            zeroStrategy: state.zeroStrategy,
-            customZeroValue: state.customZeroValue
-          });
+          const opts = { zeroStrategy: state.zeroStrategy, customZeroValue: state.customZeroValue };
+          const ca = getColumnarAccess();
+          const decomposition = ca
+            ? varianceDecompositionColumnar(ca.getCol, ca.rowCount, columns, groups, opts)
+            : varianceDecomposition(data, columns, groups, opts);
 
           const topByContributed = getTopPLRs(decomposition, 'contributed', 10);
           const topByExplained = getTopPLRs(decomposition, 'explained', 10);
@@ -445,10 +483,11 @@ export const useTransformationStore = create<TransformationState>()(
         set({ isProcessing: true, error: null });
 
         try {
-          const result = findOptimalALRReference(data, columns, {
-            zeroStrategy: state.zeroStrategy,
-            customZeroValue: state.customZeroValue
-          });
+          const opts = { zeroStrategy: state.zeroStrategy, customZeroValue: state.customZeroValue };
+          const ca = getColumnarAccess();
+          const result = ca
+            ? findOptimalALRReferenceColumnar(ca.getCol, ca.rowCount, columns, opts)
+            : findOptimalALRReference(data, columns, opts);
 
           set({
             procrustesResult: {
@@ -472,10 +511,11 @@ export const useTransformationStore = create<TransformationState>()(
         set({ isProcessing: true, error: null });
 
         try {
-          const result = logratioAnalysis(data, columns, {
-            zeroStrategy: state.zeroStrategy,
-            customZeroValue: state.customZeroValue
-          }, nComponents);
+          const opts = { zeroStrategy: state.zeroStrategy, customZeroValue: state.customZeroValue };
+          const ca = getColumnarAccess();
+          const result = ca
+            ? logratioAnalysisColumnar(ca.getCol, ca.rowCount, columns, opts, nComponents)
+            : logratioAnalysis(data, columns, opts, nComponents);
 
           // Calculate cumulative variance
           const cumulativeVariance: number[] = [];
@@ -508,7 +548,10 @@ export const useTransformationStore = create<TransformationState>()(
         set({ isProcessing: true, error: null });
 
         try {
-          const classifications = classifyZeros(data, columns, detectionLimits);
+          const ca = getColumnarAccess();
+          const classifications = ca
+            ? classifyZerosColumnar(ca.getCol, ca.rowCount, columns, detectionLimits)
+            : classifyZeros(data, columns, detectionLimits);
 
           // Summarize by type
           const byType: Record<string, number> = {

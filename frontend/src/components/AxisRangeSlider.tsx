@@ -16,6 +16,8 @@ interface AxisRangeSliderProps {
     onChange: (value: [number, number]) => void;
     onReset?: () => void;
     color?: 'primary' | 'secondary' | 'error';
+    hideLabel?: boolean;
+    hideReset?: boolean;
 }
 
 export const AxisRangeSlider: React.FC<AxisRangeSliderProps> = ({
@@ -25,6 +27,8 @@ export const AxisRangeSlider: React.FC<AxisRangeSliderProps> = ({
     onChange,
     onReset,
     color = 'primary',
+    hideLabel,
+    hideReset,
 }) => {
     const [localMin, setLocalMin] = useState(value[0].toString());
     const [localMax, setLocalMax] = useState(value[1].toString());
@@ -100,16 +104,18 @@ export const AxisRangeSlider: React.FC<AxisRangeSliderProps> = ({
     return (
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
             {/* Label */}
-            <Typography
-                variant="body2"
-                sx={{
-                    minWidth: 20,
-                    fontWeight: 'bold',
-                    color: `${color}.main`,
-                }}
-            >
-                {label}:
-            </Typography>
+            {!hideLabel && (
+                <Typography
+                    variant="body2"
+                    sx={{
+                        minWidth: 20,
+                        fontWeight: 'bold',
+                        color: `${color}.main`,
+                    }}
+                >
+                    {label}:
+                </Typography>
+            )}
 
             {/* Min input */}
             <TextField
@@ -174,7 +180,7 @@ export const AxisRangeSlider: React.FC<AxisRangeSliderProps> = ({
             />
 
             {/* Reset button */}
-            {onReset && (
+            {!hideReset && onReset && (
                 <Tooltip title="Reset to full range">
                     <span>
                         <IconButton

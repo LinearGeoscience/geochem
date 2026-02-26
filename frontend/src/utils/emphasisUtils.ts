@@ -1,4 +1,6 @@
 import { EmphasisConfig, AttributeEntry } from '../store/attributeStore';
+import type { ColumnData } from '../types/columnarData';
+import { isNumericColumn } from '../types/columnarData';
 
 /**
  * Result of emphasis calculation for a single data point
@@ -236,6 +238,142 @@ export function calculateEmphasis(
 }
 
 /**
+ * Columnar version of calculateCategoryRanks — reads from typed column instead of row objects.
+ */
+function calculateCategoryRanksColumnar(
+    rowCount: number,
+    col: ColumnData | undefined,
+    entries: AttributeEntry[],
+    field: string | null
+): (number | null)[] {
+    if (!field || !col || entries.length <= 1) {
+        return new Array(rowCount).fill(0.5);
+    }
+
+    const rangeEntries = entries.filter(e => !e.isDefault && e.type === 'range');
+    const categoryEntries = entries.filter(e => !e.isDefault && e.type === 'category');
+    const numEntries = rangeEntries.length || categoryEntries.length;
+    if (numEntries === 0) {
+        return new Array(rowCount).fill(0.5);
+    }
+
+    const isNumeric = isNumericColumn(col);
+    const result: (number | null)[] = new Array(rowCount);
+
+    for (let i = 0; i < rowCount; i++) {
+        const rawValue = col[i];
+        // Check null
+        if (isNumeric ? isNaN(rawValue as number) : rawValue === '') {
+            result[i] = null;
+            continue;
+        }
+
+        if (rangeEntries.length > 0) {
+            const numVal = Number(rawValue);
+            if (isNaN(numVal)) { result[i] = null; continue; }
+
+            let found = false;
+            for (let j = 0; j < rangeEntries.length; j++) {
+                const entry = rangeEntries[j];
+                const min = entry.min ?? -Infinity;
+                const max = entry.max ?? Infinity;
+                if (numVal >= min && numVal < max) {
+                    result[i] = j / Math.max(1, rangeEntries.length - 1);
+                    found = true;
+                    break;
+                }
+            }
+            if (!found) {
+                const lastEntry = rangeEntries[rangeEntries.length - 1];
+                result[i] = numVal >= (lastEntry.max ?? -Infinity) ? 1 : 0;
+            }
+        } else if (categoryEntries.length > 0) {
+            const strVal = String(rawValue);
+            const idx = categoryEntries.findIndex(e => e.categoryValue === strVal || e.name === strVal);
+            result[i] = idx >= 0 ? idx / Math.max(1, categoryEntries.length - 1) : 0.5;
+        } else {
+            result[i] = 0.5;
+        }
+    }
+
+    return result;
+}
+
+/**
+ * Columnar version of calculateEmphasis — uses a column getter instead of row objects.
+ */
+export function calculateEmphasisColumnar(
+    rowCount: number,
+    getCol: (name: string) => ColumnData | undefined,
+    config: EmphasisConfig,
+    colorEntries: AttributeEntry[],
+    colorField: string | null,
+    filterBounds?: FilterBounds
+): EmphasisResult[] {
+    if (!config.enabled) {
+        const neutral: EmphasisResult = { opacity: 1, sizeMultiplier: 1, zIndex: 0 };
+        return new Array(rowCount).fill(neutral);
+    }
+
+    const emphasisColumn = config.column || colorField;
+    let rankings: (number | null)[];
+
+    if (config.mode === 'category') {
+        const col = colorField ? getCol(colorField) : undefined;
+        rankings = calculateCategoryRanksColumnar(rowCount, col, colorEntries, colorField);
+    } else {
+        // Extract numeric values from column
+        const col = emphasisColumn ? getCol(emphasisColumn) : undefined;
+        const values: (number | null)[] = new Array(rowCount);
+        if (col && isNumericColumn(col)) {
+            for (let i = 0; i < rowCount; i++) {
+                values[i] = isNaN(col[i]) ? null : col[i];
+            }
+        } else if (col) {
+            // String column — try to parse as number
+            for (let i = 0; i < rowCount; i++) {
+                const v = col[i];
+                if (v === '') { values[i] = null; continue; }
+                const n = Number(v);
+                values[i] = isNaN(n) ? null : n;
+            }
+        } else {
+            values.fill(null);
+        }
+
+        rankings = config.mode === 'percentile'
+            ? calculatePercentileRanks(values, filterBounds)
+            : calculateLinearRanks(values, filterBounds);
+    }
+
+    // Convert rankings to emphasis values (identical logic to calculateEmphasis)
+    const thresholdNorm = config.threshold / 100;
+
+    return rankings.map((rank) => {
+        if (rank === null) {
+            return { opacity: config.minOpacity, sizeMultiplier: 1, zIndex: 0 };
+        }
+
+        let emphasis: number;
+        if (rank >= thresholdNorm) {
+            emphasis = 1;
+        } else {
+            emphasis = config.minOpacity + (1 - config.minOpacity) * (rank / thresholdNorm);
+        }
+
+        const sizeMultiplier = config.boostSize && rank >= thresholdNorm
+            ? config.sizeBoostFactor
+            : 1;
+
+        return {
+            opacity: emphasis,
+            sizeMultiplier,
+            zIndex: Math.round(rank * 1000)
+        };
+    });
+}
+
+/**
  * Convert hex color to rgba with opacity
  */
 export function applyOpacityToColor(hexColor: string, opacity: number): string {
@@ -290,6 +428,26 @@ export function getFieldRange(data: any[], field: string): { min: number; max: n
     for (const d of data) {
         const v = d[field];
         if (typeof v === 'number' && !isNaN(v) && isFinite(v)) {
+            if (v < min) min = v;
+            if (v > max) max = v;
+            hasValue = true;
+        }
+    }
+
+    return hasValue ? { min, max } : null;
+}
+
+/**
+ * Columnar version of getFieldRange — reads directly from a Float64Array.
+ */
+export function getFieldRangeColumnar(col: ColumnData | undefined): { min: number; max: number } | null {
+    if (!col || !isNumericColumn(col)) return null;
+    let min = Infinity, max = -Infinity;
+    let hasValue = false;
+
+    for (let i = 0; i < col.length; i++) {
+        const v = col[i];
+        if (!isNaN(v) && isFinite(v)) {
             if (v < min) min = v;
             if (v > max) max = v;
             hasValue = true;

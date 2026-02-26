@@ -18,7 +18,7 @@ import {
 import { ExpandMore, ExpandLess, AutoFixHigh } from '@mui/icons-material';
 import { MultiColumnSelector } from '../../components/MultiColumnSelector';
 import { useAttributeStore } from '../../store/attributeStore';
-import { getStyleArrays, applyOpacityToColor, getSortedIndices, sortColumnsByPriority, getColumnDisplayName } from '../../utils/attributeUtils';
+import { getStyleArrays, getStyleArraysColumnar, applyOpacityToColor, getSortedIndices, sortColumnsByPriority, getColumnDisplayName } from '../../utils/attributeUtils';
 import { getPlotConfig, EXPORT_FONT_SIZES } from '../../utils/plotConfig';
 import { ExpandablePlotWrapper } from '../../components/ExpandablePlotWrapper';
 import { buildSpiderHoverText } from '../../utils/tooltipUtils';
@@ -37,16 +37,21 @@ interface SpiderPlotProps {
 }
 
 export const SpiderPlot: React.FC<SpiderPlotProps> = ({ plotId }) => {
-    const { data, columns, lockAxes, sampleIndices, geochemMappings } = useAppStore(useShallow(s => ({ data: s.data, columns: s.columns, lockAxes: s.lockAxes, sampleIndices: s.sampleIndices, geochemMappings: s.geochemMappings })));
+    const { data, columns, lockAxes, sampleIndices, geochemMappings, columnarRowCount } = useAppStore(useShallow(s => ({ data: s.data, columns: s.columns, lockAxes: s.lockAxes, sampleIndices: s.sampleIndices, geochemMappings: s.geochemMappings, columnarRowCount: s.columnarData.rowCount })));
     const getPlotSettings = useAppStore(s => s.getPlotSettings);
     const updatePlotSettings = useAppStore(s => s.updatePlotSettings);
     const getFilteredColumns = useAppStore(s => s.getFilteredColumns);
     const getDisplayData = useAppStore(s => s.getDisplayData);
     const getDisplayIndices = useAppStore(s => s.getDisplayIndices);
+    const getDisplayColumn = useAppStore(s => s.getDisplayColumn);
     useAppStore(s => s.tooltipMode); // Subscribe to trigger re-render on toggle
-    const filteredColumns = getFilteredColumns();
+    const columnFilter = useAppStore(s => s.columnFilter);
+    const filteredColumns = useMemo(() => getFilteredColumns(), [columns, columnFilter, getFilteredColumns]);
     const d = (name: string) => getColumnDisplayName(columns, name);
-    useAttributeStore(); // Subscribe to changes
+    useAttributeStore(useShallow(s => ({
+        color: s.color, shape: s.shape, size: s.size, filter: s.filter,
+        customEntries: s.customEntries, emphasis: s.emphasis, globalOpacity: s.globalOpacity,
+    })));
 
     const displayData = useMemo(() => getDisplayData(), [data, sampleIndices]);
     const displayIndices = useMemo(() => getDisplayIndices(), [data, sampleIndices]);
@@ -181,8 +186,10 @@ export const SpiderPlot: React.FC<SpiderPlotProps> = ({ plotId }) => {
     const plotData = useMemo(() => {
         if (!displayData.length || selectedElements.length === 0) return [];
 
-        // Get styles from attribute store (includes emphasis calculations)
-        const styleArrays = getStyleArrays(displayData, displayIndices ?? undefined);
+        // Get styles from attribute store — columnar fast path
+        const styleArrays = columnarRowCount > 0
+            ? getStyleArraysColumnar(displayData.length, (name) => getDisplayColumn(name), displayIndices ?? undefined)
+            : getStyleArrays(displayData, displayIndices ?? undefined);
 
         // Get sorted indices for z-ordering (low-grade first, high-grade last/on top)
         const sortedIndices = getSortedIndices(styleArrays);

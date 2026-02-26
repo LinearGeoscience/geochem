@@ -3,7 +3,7 @@ import Plot from 'react-plotly.js';
 import { useAppStore } from '../../store/appStore';
 import { useShallow } from 'zustand/react/shallow';
 import { useAttributeStore } from '../../store/attributeStore';
-import { getStyleArrays, applyOpacityToColor, getSortedIndices, sortColumnsByPriority, getColumnDisplayName } from '../../utils/attributeUtils';
+import { getStyleArrays, getStyleArraysColumnar, applyOpacityToColor, getSortedIndices, sortColumnsByPriority, getColumnDisplayName } from '../../utils/attributeUtils';
 import {
     clrTransform,
     simplePCA,
@@ -54,17 +54,22 @@ interface CLRPlotProps {
 }
 
 export const CLRPlot: React.FC<CLRPlotProps> = ({ plotId }) => {
-    const { data, columns, sampleIndices } = useAppStore(useShallow(s => ({ data: s.data, columns: s.columns, sampleIndices: s.sampleIndices })));
+    const { data, columns, sampleIndices, columnarRowCount } = useAppStore(useShallow(s => ({ data: s.data, columns: s.columns, sampleIndices: s.sampleIndices, columnarRowCount: s.columnarData.rowCount })));
     const getPlotSettings = useAppStore(s => s.getPlotSettings);
     const updatePlotSettings = useAppStore(s => s.updatePlotSettings);
     const getFilteredColumns = useAppStore(s => s.getFilteredColumns);
+    const columnFilter = useAppStore(s => s.columnFilter);
     const getDisplayData = useAppStore(s => s.getDisplayData);
     const getDisplayIndices = useAppStore(s => s.getDisplayIndices);
-    const filteredColumns = getFilteredColumns();
+    const getDisplayColumn = useAppStore(s => s.getDisplayColumn);
+    const filteredColumns = useMemo(() => getFilteredColumns(), [columns, columnFilter, getFilteredColumns]);
     const d = (name: string) => getColumnDisplayName(columns, name);
     const displayData = useMemo(() => getDisplayData(), [data, sampleIndices]);
     const displayIndices = useMemo(() => getDisplayIndices(), [data, sampleIndices]);
-    useAttributeStore(); // Subscribe to style changes
+    useAttributeStore(useShallow(s => ({
+        color: s.color, shape: s.shape, size: s.size, filter: s.filter,
+        customEntries: s.customEntries, emphasis: s.emphasis, globalOpacity: s.globalOpacity,
+    })));
 
     // Get stored settings or defaults
     const storedSettings = getPlotSettings(plotId);
@@ -130,9 +135,11 @@ export const CLRPlot: React.FC<CLRPlotProps> = ({ plotId }) => {
     // Get visible data
     const visibleData = useMemo(() => {
         if (!displayData.length) return [];
-        const styleArrays = getStyleArrays(displayData, displayIndices ?? undefined);
+        const styleArrays = columnarRowCount > 0
+            ? getStyleArraysColumnar(displayData.length, (name) => getDisplayColumn(name), displayIndices ?? undefined)
+            : getStyleArrays(displayData, displayIndices ?? undefined);
         return displayData.filter((_, i) => styleArrays.visible[i]);
-    }, [displayData, displayIndices]);
+    }, [displayData, displayIndices, columnarRowCount]);
 
     // Perform CLR transformation
     const clrResult = useMemo(() => {
@@ -159,8 +166,10 @@ export const CLRPlot: React.FC<CLRPlotProps> = ({ plotId }) => {
     // Get style arrays for coloring
     const styleArrays = useMemo(() => {
         if (!displayData.length) return null;
-        return getStyleArrays(displayData, displayIndices ?? undefined);
-    }, [displayData, displayIndices]);
+        return columnarRowCount > 0
+            ? getStyleArraysColumnar(displayData.length, (name) => getDisplayColumn(name), displayIndices ?? undefined)
+            : getStyleArrays(displayData, displayIndices ?? undefined);
+    }, [displayData, displayIndices, columnarRowCount]);
 
     // Generate plot traces
     const traces = useMemo(() => {

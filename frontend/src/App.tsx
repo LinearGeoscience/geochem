@@ -46,7 +46,7 @@ const MAX_SIDEBAR_WIDTH = 600;
 const DEFAULT_SIDEBAR_WIDTH = 420;
 
 function App() {
-    const { columns, data, currentView, showGeochemDialog } = useAppStore(useShallow(s => ({ columns: s.columns, data: s.data, currentView: s.currentView, showGeochemDialog: s.showGeochemDialog })));
+    const { columns, data, currentView, showGeochemDialog, plots, activePlotId } = useAppStore(useShallow(s => ({ columns: s.columns, data: s.data, currentView: s.currentView, showGeochemDialog: s.showGeochemDialog, plots: s.plots, activePlotId: s.activePlotId })));
     const setShowGeochemDialog = useAppStore(s => s.setShowGeochemDialog);
     const [analysisTab, setAnalysisTab] = React.useState(0);
     const [qaqcTab, setQaqcTab] = React.useState(0);
@@ -112,7 +112,7 @@ function App() {
                                     </Typography>
                                     <SamplingControls />
                                 </Box>
-                                {useAppStore.getState().plots.length === 0 ? (
+                                {plots.length === 0 ? (
                                     <Paper sx={{ p: 4, textAlign: 'center' }}>
                                         <Typography variant="h6" color="text.secondary">
                                             No plots open. Add a plot from the Plot Manager.
@@ -121,7 +121,7 @@ function App() {
                                 ) : (
                                     <>
                                         {(() => {
-                                            const activePlot = useAppStore.getState().plots.find(p => p.id === useAppStore.getState().activePlotId);
+                                            const activePlot = plots.find(p => p.id === activePlotId);
                                             const plotId = activePlot?.id || '';
                                             switch (activePlot?.type) {
                                                 case 'scatter': return <ScatterPlot key={plotId} plotId={plotId} />;

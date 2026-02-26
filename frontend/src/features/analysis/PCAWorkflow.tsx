@@ -31,9 +31,10 @@ import {
 } from '@mui/material';
 import CloseIcon from '@mui/icons-material/Close';
 import { useAppStore } from '../../store/appStore';
+import { useShallow } from 'zustand/react/shallow';
 import { useTransformationStore } from '../../store/transformationStore';
 import { useAttributeStore } from '../../store/attributeStore';
-import { sortColumnsByPriority, getStyleArrays } from '../../utils/attributeUtils';
+import { sortColumnsByPriority, getStyleArrays, getStyleArraysColumnar } from '../../utils/attributeUtils';
 import { ZeroHandlingStrategy } from '../../types/compositional';
 import { PCAssociationAnalysis, MatchingOptions } from '../../types/associations';
 import { matchAssociations } from '../../utils/calculations/associationMatcher';
@@ -76,10 +77,20 @@ function inverseNormalCDF(p: number): number {
 }
 
 export const PCAWorkflow: React.FC = () => {
-  const { data, addColumn, getFilteredColumns, geochemMappings } = useAppStore();
-  const filteredColumns = getFilteredColumns();
+  const { data, columns, columnarRowCount, geochemMappings } = useAppStore(useShallow(s => ({
+    data: s.data,
+    columns: s.columns,
+    columnarRowCount: s.columnarData.rowCount,
+    geochemMappings: s.geochemMappings,
+  })));
+  const getFilteredColumns = useAppStore(s => s.getFilteredColumns);
+  const getColumn = useAppStore(s => s.getColumn);
+  const addColumn = useAppStore(s => s.addColumn);
+  const columnFilter = useAppStore(s => s.columnFilter);
+  const filteredColumns = useMemo(() => getFilteredColumns(), [columns, columnFilter, getFilteredColumns]);
   const attributeColor = useAttributeStore((s) => s.color);
-  const { setField: setAttributeField, setEntries: setAttributeEntries } = useAttributeStore();
+  const setAttributeField = useAttributeStore(s => s.setField);
+  const setAttributeEntries = useAttributeStore(s => s.setEntries);
 
   const {
     fullPcaResult,
@@ -121,7 +132,9 @@ export const PCAWorkflow: React.FC = () => {
   }, [attributeColor]);
 
   // Get style arrays for probability plots (respects visibility and coloring)
-  const styleArrays = useMemo(() => getStyleArrays(data), [data]);
+  const styleArrays = useMemo(() => columnarRowCount > 0
+    ? getStyleArraysColumnar(data.length, (name) => getColumn(name))
+    : getStyleArrays(data), [data, columnarRowCount, getColumn]);
 
   // Get numeric columns from filtered set (respects RAW/CLR filter)
   const numericColumns = useMemo(

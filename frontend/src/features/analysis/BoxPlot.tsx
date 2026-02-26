@@ -1,8 +1,9 @@
 import React, { useState, useMemo } from 'react';
 import Plot from 'react-plotly.js';
 import { useAppStore } from '../../store/appStore';
+import { useShallow } from 'zustand/react/shallow';
 import { useAttributeStore } from '../../store/attributeStore';
-import { getStyleArrays, sortColumnsByPriority } from '../../utils/attributeUtils';
+import { getStyleArrays, getStyleArraysColumnar, sortColumnsByPriority } from '../../utils/attributeUtils';
 import { getPlotConfig, EXPORT_FONT_SIZES } from '../../utils/plotConfig';
 import { ExpandablePlotWrapper } from '../../components/ExpandablePlotWrapper';
 import {
@@ -30,9 +31,16 @@ const BOX_COLORS = [
 ];
 
 export const BoxPlot: React.FC = () => {
-    const { data, columns, getFilteredColumns } = useAppStore();
-    const filteredColumns = getFilteredColumns();
-    useAttributeStore(); // Subscribe to visibility changes
+    const { data, columns, columnarRowCount } = useAppStore(useShallow(s => ({
+        data: s.data,
+        columns: s.columns,
+        columnarRowCount: s.columnarData.rowCount,
+    })));
+    const getFilteredColumns = useAppStore(s => s.getFilteredColumns);
+    const getColumn = useAppStore(s => s.getColumn);
+    const columnFilter = useAppStore(s => s.columnFilter);
+    const filteredColumns = useMemo(() => getFilteredColumns(), [columns, columnFilter, getFilteredColumns]);
+    const attributeFilter = useAttributeStore(s => s.filter);
 
     // State
     const [numericColumns, setNumericColumns] = useState<string[]>([]);
@@ -70,9 +78,11 @@ export const BoxPlot: React.FC = () => {
     // Get visible data
     const visibleData = useMemo(() => {
         if (!data.length) return [];
-        const styleArrays = getStyleArrays(data);
+        const styleArrays = columnarRowCount > 0
+            ? getStyleArraysColumnar(data.length, (name) => getColumn(name))
+            : getStyleArrays(data);
         return data.filter((_, i) => styleArrays.visible[i]);
-    }, [data]);
+    }, [data, columnarRowCount, getColumn, attributeFilter]);
 
     // Get unique categories (with optional sorting by median value)
     const categories = useMemo(() => {

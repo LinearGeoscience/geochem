@@ -4,7 +4,7 @@ import Plot from 'react-plotly.js';
 import { useShallow } from 'zustand/react/shallow';
 import { useAppStore, COLUMN_FILTER_LABELS } from '../../store/appStore';
 import { useAttributeStore } from '../../store/attributeStore';
-import { getStyleArrays, sortColumnsByPriority } from '../../utils/attributeUtils';
+import { getStyleArrays, getStyleArraysColumnar, sortColumnsByPriority } from '../../utils/attributeUtils';
 import { getPlotConfig, SCREEN_FONT_SIZES } from '../../utils/plotConfig';
 import { ExpandablePlotWrapper } from '../../components/ExpandablePlotWrapper';
 import { MultiColumnSelector } from '../../components/MultiColumnSelector';
@@ -156,11 +156,12 @@ const sigMarker = (p: number): string => {
 };
 
 export const CorrelationMatrix: React.FC = () => {
-    const { data, columns, correlationSelectedColumns, columnFilter } = useAppStore(useShallow(s => ({ data: s.data, columns: s.columns, correlationSelectedColumns: s.correlationSelectedColumns, columnFilter: s.columnFilter })));
+    const { data, columns, correlationSelectedColumns, columnFilter, columnarRowCount } = useAppStore(useShallow(s => ({ data: s.data, columns: s.columns, correlationSelectedColumns: s.correlationSelectedColumns, columnFilter: s.columnFilter, columnarRowCount: s.columnarData.rowCount })));
+    const getColumn = useAppStore(s => s.getColumn);
     const setCorrelationSelectedColumns = useAppStore(s => s.setCorrelationSelectedColumns);
     const getFilteredColumns = useAppStore(s => s.getFilteredColumns);
-    const filteredColumns = getFilteredColumns();
-    useAttributeStore(); // Subscribe to changes
+    const filteredColumns = useMemo(() => getFilteredColumns(), [columns, columnFilter, getFilteredColumns]);
+    useAttributeStore(s => s.filter); // Subscribe to changes
     const [method, setMethod] = useState<'pearson' | 'spearman'>('pearson');
     const [correlationData, setCorrelationData] = useState<{ columns: string[], matrix: number[][], pValues: number[][], nPairs: number[][] } | null>(null);
     const [loading, setLoading] = useState(false);
@@ -215,7 +216,9 @@ export const CorrelationMatrix: React.FC = () => {
         setComputeProgress(0);
 
         // Get current visibility
-        const currentStyleArrays = getStyleArrays(data);
+        const currentStyleArrays = columnarRowCount > 0
+            ? getStyleArraysColumnar(data.length, (name) => getColumn(name))
+            : getStyleArrays(data);
         const cols = correlationSelectedColumns;
 
         // Pre-compute valid numeric arrays per column (only visible rows, aligned by row index)
