@@ -96,12 +96,12 @@ export const AttributeMap3D: React.FC<AttributeMap3DProps> = ({ plotId }) => {
         if (typeof ranges === 'function') {
             setAxisRangesLocal(prev => {
                 const newRanges = ranges(prev);
-                updatePlotSettings(plotId, { axisRanges: newRanges });
+                deferStoreWrite({ axisRanges: newRanges });
                 return newRanges;
             });
         } else {
             setAxisRangesLocal(ranges);
-            updatePlotSettings(plotId, { axisRanges: ranges });
+            deferStoreWrite({ axisRanges: ranges });
         }
     };
 
@@ -115,8 +115,25 @@ export const AttributeMap3D: React.FC<AttributeMap3DProps> = ({ plotId }) => {
     };
     const setSlicePositions = (positions: SliceConfig) => {
         setSlicePositionsLocal(positions);
-        updatePlotSettings(plotId, { slicePositions: positions });
+        deferStoreWrite({ slicePositions: positions });
     };
+
+    // Stable uirevision: only increments when axes/color change (triggers camera reset)
+    const revisionRef = useRef(0);
+    useEffect(() => { revisionRef.current++; }, [xAxis, yAxis, zAxis, colorAttribute]);
+
+    // Deferred store writes: batch Zustand updates during drag to avoid churn
+    const pendingStoreWrite = useRef<ReturnType<typeof setTimeout> | null>(null);
+    const deferStoreWrite = useCallback((settings: Record<string, any>) => {
+        if (pendingStoreWrite.current) clearTimeout(pendingStoreWrite.current);
+        pendingStoreWrite.current = setTimeout(() => {
+            updatePlotSettings(plotId, settings);
+        }, 500);
+    }, [plotId, updatePlotSettings]);
+
+    useEffect(() => () => {
+        if (pendingStoreWrite.current) clearTimeout(pendingStoreWrite.current);
+    }, []);
 
     // Cache camera state when locked
     const cameraRef = useRef<CameraState | null>(null);
@@ -408,7 +425,7 @@ export const AttributeMap3D: React.FC<AttributeMap3DProps> = ({ plotId }) => {
                                             : { eye: { x: 1.5, y: 1.5, z: 1.3 } }
                                     },
                                     margin: { l: 0, r: 0, t: 40, b: 0 },
-                                    uirevision: lockAxes ? 'locked' : Date.now()
+                                    uirevision: lockAxes ? 'locked' : revisionRef.current
                                 }}
                                 config={getPlotConfig({ filename: `map3d_${colorAttribute || 'default'}` })}
                                 style={{ width: '100%' }}

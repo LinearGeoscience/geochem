@@ -97,13 +97,13 @@ export const AxisRangeControl: React.FC<AxisRangeControlProps> = ({
     // Local drag state: slider moves freely during drag, commits on release
     const [draggingPos, setDraggingPos] = useState<number | null>(null);
 
-    // Throttled live updates during drag
-    const throttleRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+    // rAF-throttled live updates during drag
+    const rafRef = useRef<number | null>(null);
     const latestDragPos = useRef<number>(slicePosition);
 
-    // Cleanup throttle on unmount
+    // Cleanup rAF on unmount
     useEffect(() => () => {
-        if (throttleRef.current) clearTimeout(throttleRef.current);
+        if (rafRef.current) cancelAnimationFrame(rafRef.current);
     }, []);
 
     // When slice position changes, update the range value
@@ -251,18 +251,18 @@ export const AxisRangeControl: React.FC<AxisRangeControlProps> = ({
                             const pos = v as number;
                             setDraggingPos(pos);
                             latestDragPos.current = pos;
-                            // Throttle: commit at most every 200ms during drag
-                            if (!throttleRef.current) {
-                                throttleRef.current = setTimeout(() => {
-                                    throttleRef.current = null;
+                            // rAF throttle: update at most once per browser frame
+                            if (!rafRef.current) {
+                                rafRef.current = requestAnimationFrame(() => {
+                                    rafRef.current = null;
                                     handleSlicePositionChange(latestDragPos.current);
-                                }, 200);
+                                });
                             }
                         }}
                         onChangeCommitted={(_, v) => {
-                            if (throttleRef.current) {
-                                clearTimeout(throttleRef.current);
-                                throttleRef.current = null;
+                            if (rafRef.current) {
+                                cancelAnimationFrame(rafRef.current);
+                                rafRef.current = null;
                             }
                             setDraggingPos(null);
                             handleSlicePositionChange(v as number);
