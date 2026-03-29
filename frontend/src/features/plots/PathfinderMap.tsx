@@ -57,15 +57,29 @@ import { findColumnForElement } from '../../utils/calculations/elementNameNormal
 import { qgisApi } from '../../services/api';
 import { PathfinderPublicationDialog } from './pathfinder';
 import { AxisRangeControl, AxisModes, SliceConfig } from '../../components/AxisRangeControl';
+import {
+    EXTENDED_ELEMENT_CATEGORIES,
+    BACKGROUND_STANDARDS,
+    getBackgroundValue,
+    generateAnomalyThresholds,
+    type ReferenceStandardId
+} from '../../utils/calculations/elementBackgroundConstants';
+import {
+    getElementAnomalyClass,
+    findElementColumn as findExtendedElementColumn
+} from '../../utils/calculations/elementAnomalyClassification';
 
 interface PathfinderMapProps {
     plotId: string;
 }
 
 type NormalizationType = 'none' | 'sc' | 'k';
+type MapMode = 'pathfinder' | 'extended';
 
 // Element column mapping type
 type ElementColumnMapping = Partial<Record<PathfinderElement, string>>;
+// Extended element column mapping (any element symbol -> column name)
+type ExtendedElementColumnMapping = Record<string, string>;
 
 // Anomaly class ranking for emphasis (0 = lowest, 1 = highest)
 const ANOMALY_RANK: Record<AnomalyClass, number> = {
@@ -196,6 +210,21 @@ export const PathfinderMap: React.FC<PathfinderMapProps> = ({ plotId }) => {
         severity: 'success'
     });
 
+    // Extended element mode state
+    const [mapMode, setMapModeLocal] = useState<MapMode>(storedSettings.mapMode || 'pathfinder');
+    const [referenceStandard, setReferenceStandardLocal] = useState<ReferenceStandardId>(
+        storedSettings.referenceStandard || 'ucc-rudnick-gao-2003'
+    );
+    const [selectedExtendedElements, setSelectedExtendedElementsLocal] = useState<string[]>(
+        storedSettings.selectedExtendedElements || []
+    );
+    const [customBackgrounds, setCustomBackgroundsLocal] = useState<Record<string, number>>(
+        storedSettings.customBackgrounds || {}
+    );
+    const [extendedColumnMapping, setExtendedColumnMappingLocal] = useState<ExtendedElementColumnMapping>(
+        storedSettings.extendedColumnMapping || {}
+    );
+
     // Wrapper functions to persist settings
     const setXAxis = (axis: string) => {
         setXAxisLocal(axis);
@@ -307,6 +336,29 @@ export const PathfinderMap: React.FC<PathfinderMapProps> = ({ plotId }) => {
         updatePlotSettings(plotId, { rangeControlsExpanded: expanded });
     };
 
+    // Extended mode setting wrappers
+    const setMapMode = (mode: MapMode) => {
+        setMapModeLocal(mode);
+        updatePlotSettings(plotId, { mapMode: mode });
+    };
+    const setReferenceStandard = (standard: ReferenceStandardId) => {
+        setReferenceStandardLocal(standard);
+        updatePlotSettings(plotId, { referenceStandard: standard });
+    };
+    const setSelectedExtendedElements = (elements: string[]) => {
+        setSelectedExtendedElementsLocal(elements);
+        updatePlotSettings(plotId, { selectedExtendedElements: elements });
+    };
+    const setCustomBackgrounds = (backgrounds: Record<string, number>) => {
+        setCustomBackgroundsLocal(backgrounds);
+        updatePlotSettings(plotId, { customBackgrounds: backgrounds });
+    };
+    const _setExtendedColumnMapping = (mapping: ExtendedElementColumnMapping) => {
+        setExtendedColumnMappingLocal(mapping);
+        updatePlotSettings(plotId, { extendedColumnMapping: mapping });
+    };
+    void _setExtendedColumnMapping; // reserved for future column mapping UI
+
     // Zoom to data - reset all plots to autorange
     const handleZoomToData = () => {
         setPlotRevision(prev => prev + 1);
@@ -315,7 +367,7 @@ export const PathfinderMap: React.FC<PathfinderMapProps> = ({ plotId }) => {
     // Auto-zoom to data on initial load
     useEffect(() => {
         // Trigger initial zoom when data and axes are set
-        if (data.length > 0 && xAxis && yAxis && selectedElements.length > 0) {
+        if (data.length > 0 && xAxis && yAxis && activeElements.length > 0) {
             // Use a small delay to ensure plots are rendered first
             const timer = setTimeout(() => {
                 setPlotRevision(prev => prev + 1);
@@ -325,7 +377,7 @@ export const PathfinderMap: React.FC<PathfinderMapProps> = ({ plotId }) => {
     }, []);
 
     // Handle lasso/box selection from Plotly — delegates to the shared selection handler hook
-    const handlePlotSelected = (eventData: any, _element: PathfinderElement) => {
+    const handlePlotSelected = (eventData: any, _element: string) => {
         handleSelectionHook(eventData);
     };
 
@@ -396,6 +448,59 @@ export const PathfinderMap: React.FC<PathfinderMapProps> = ({ plotId }) => {
     const availableElements = useMemo(() => {
         return PATHFINDER_ELEMENTS.filter(el => getElementColumn(el) !== null);
     }, [elementColumnMapping, autoDetectedColumns]);
+
+    // ─── Extended mode: auto-detect columns for all elements in the library ──
+    const autoDetectedExtendedColumns = useMemo(() => {
+        const found: Record<string, string> = {};
+        const colNames = filteredColumns.map(c => c.name);
+        for (const [, group] of Object.entries(EXTENDED_ELEMENT_CATEGORIES)) {
+            for (const element of group.elements) {
+                const col = findExtendedElementColumn(element, colNames, geochemMappings);
+                if (col) {
+                    found[element] = col;
+                }
+            }
+        }
+        return found;
+    }, [filteredColumns, geochemMappings]);
+
+    const getExtendedElementColumn = (element: string): string | null => {
+        return extendedColumnMapping[element] || autoDetectedExtendedColumns[element] || null;
+    };
+
+    const availableExtendedElements = useMemo(() => {
+        const all: string[] = [];
+        for (const [, group] of Object.entries(EXTENDED_ELEMENT_CATEGORIES)) {
+            for (const element of group.elements) {
+                if (getExtendedElementColumn(element)) {
+                    all.push(element);
+                }
+            }
+        }
+        return all;
+    }, [extendedColumnMapping, autoDetectedExtendedColumns]);
+
+    // Get background value for an extended element (from standard or custom)
+    const getExtendedBackground = (element: string): number | null => {
+        if (referenceStandard === 'custom') {
+            return customBackgrounds[element] ?? null;
+        }
+        const entry = getBackgroundValue(referenceStandard, element);
+        return entry ? entry.value : null;
+    };
+
+    // The active element list depends on mode
+    const activeElements: string[] = mapMode === 'pathfinder'
+        ? selectedElements
+        : selectedExtendedElements;
+
+    // Unified column getter for active mode
+    const getActiveElementColumn = (element: string): string | null => {
+        if (mapMode === 'pathfinder') {
+            return getElementColumn(element as PathfinderElement);
+        }
+        return getExtendedElementColumn(element);
+    };
 
     // Auto-select coordinate columns on load
     useEffect(() => {
@@ -561,12 +666,12 @@ export const PathfinderMap: React.FC<PathfinderMapProps> = ({ plotId }) => {
     // With probability plots, each element uses 2 contexts in 2D mode
     const maxWebGLContexts = 16;
     const contextsPerElement = showProbabilityPlots ? 2 : 1;
-    const useWebGL = selectedElements.length * contextsPerElement <= maxWebGLContexts;
+    const useWebGL = activeElements.length * contextsPerElement <= maxWebGLContexts;
     const scatterType = useWebGL ? 'scattergl' : 'scatter';
 
     // Get plot data for a single element
-    const getPlotDataForElement = (element: PathfinderElement) => {
-        const elementColumn = getElementColumn(element);
+    const getPlotDataForElement = (element: string) => {
+        const elementColumn = getActiveElementColumn(element);
         if (!elementColumn || !displayData.length || !xAxis || !yAxis) {
             return { traces: [], validCount: 0, totalCount: displayData.length };
         }
@@ -604,14 +709,17 @@ export const PathfinderMap: React.FC<PathfinderMapProps> = ({ plotId }) => {
             const elementValue = row[elementColumn];
 
             let anomalyClass: AnomalyClass;
-            if (normalization === 'sc' && SC_NORMALIZABLE_ELEMENTS.includes(element) && effectiveScColumn) {
+            if (mapMode === 'extended') {
+                const bg = getExtendedBackground(element);
+                anomalyClass = bg !== null ? getElementAnomalyClass(elementValue, bg) : 'nodata';
+            } else if (normalization === 'sc' && SC_NORMALIZABLE_ELEMENTS.includes(element as PathfinderElement) && effectiveScColumn) {
                 const scValue = row[effectiveScColumn];
-                anomalyClass = getPathfinderClassNormalized(element, elementValue, scValue);
-            } else if (normalization === 'k' && K_NORMALIZABLE_ELEMENTS.includes(element) && effectiveKColumn) {
+                anomalyClass = getPathfinderClassNormalized(element as PathfinderElement, elementValue, scValue);
+            } else if (normalization === 'k' && K_NORMALIZABLE_ELEMENTS.includes(element as PathfinderElement) && effectiveKColumn) {
                 const kValue = row[effectiveKColumn];
-                anomalyClass = getPathfinderClassNormalized(element, elementValue, kValue);
+                anomalyClass = getPathfinderClassNormalized(element as PathfinderElement, elementValue, kValue);
             } else {
-                anomalyClass = getPathfinderClass(element, elementValue);
+                anomalyClass = getPathfinderClass(element as PathfinderElement, elementValue);
             }
 
             if (anomalyClass !== 'nodata' && !visibleClasses.includes(anomalyClass)) continue;
@@ -691,8 +799,8 @@ export const PathfinderMap: React.FC<PathfinderMapProps> = ({ plotId }) => {
     };
 
     // Get probability plot data for an element
-    const getProbabilityPlotData = (element: PathfinderElement) => {
-        const elementColumn = getElementColumn(element);
+    const getProbabilityPlotData = (element: string) => {
+        const elementColumn = getActiveElementColumn(element);
         if (!elementColumn || !displayData.length) {
             return { trace: null, thresholdLines: [] };
         }
@@ -716,7 +824,12 @@ export const PathfinderMap: React.FC<PathfinderMapProps> = ({ plotId }) => {
 
         // Color each point by anomaly class
         const colors = values.map(val => {
-            const cls = getPathfinderClass(element, val);
+            if (mapMode === 'extended') {
+                const bg = getExtendedBackground(element);
+                const cls = bg !== null ? getElementAnomalyClass(val, bg) : 'nodata';
+                return ANOMALY_COLORS[cls];
+            }
+            const cls = getPathfinderClass(element as PathfinderElement, val);
             return ANOMALY_COLORS[cls];
         });
 
@@ -736,20 +849,36 @@ export const PathfinderMap: React.FC<PathfinderMapProps> = ({ plotId }) => {
         };
 
         // Threshold lines
-        const thresholds = ANOMALY_THRESHOLDS[element];
-        const thresholdLines = [
-            { value: thresholds.background, color: ANOMALY_COLORS['2x'], label: '2x' },
-            { value: thresholds.x2, color: ANOMALY_COLORS['3x'], label: '3x' },
-            { value: thresholds.x3, color: ANOMALY_COLORS['5x'], label: '5x' },
-            { value: thresholds.x5, color: ANOMALY_COLORS['10x'], label: '10x' }
-        ];
+        let thresholdLines: { value: number; color: string; label: string }[];
+        if (mapMode === 'extended') {
+            const bg = getExtendedBackground(element);
+            if (bg !== null) {
+                const t = generateAnomalyThresholds(bg);
+                thresholdLines = [
+                    { value: t.background, color: ANOMALY_COLORS['2x'], label: '2x' },
+                    { value: t.x2, color: ANOMALY_COLORS['3x'], label: '3x' },
+                    { value: t.x3, color: ANOMALY_COLORS['5x'], label: '5x' },
+                    { value: t.x5, color: ANOMALY_COLORS['10x'], label: '10x' }
+                ];
+            } else {
+                thresholdLines = [];
+            }
+        } else {
+            const thresholds = ANOMALY_THRESHOLDS[element as PathfinderElement];
+            thresholdLines = [
+                { value: thresholds.background, color: ANOMALY_COLORS['2x'], label: '2x' },
+                { value: thresholds.x2, color: ANOMALY_COLORS['3x'], label: '3x' },
+                { value: thresholds.x3, color: ANOMALY_COLORS['5x'], label: '5x' },
+                { value: thresholds.x5, color: ANOMALY_COLORS['10x'], label: '10x' }
+            ];
+        }
 
         return { trace, thresholdLines, minVal: values[0], maxVal: values[values.length - 1] };
     };
 
     // Calculate grid columns based on number of selected elements
     const getGridCols = () => {
-        const count = selectedElements.length;
+        const count = activeElements.length;
         if (count <= 1) return 12;
         if (count <= 2) return 6;
         if (count <= 4) return 6;
@@ -759,39 +888,45 @@ export const PathfinderMap: React.FC<PathfinderMapProps> = ({ plotId }) => {
 
     // Write pathfinder values (multiples of background) to the data table
     const handleWritePathfinderValues = useCallback(() => {
-        if (selectedElements.length === 0) {
-            setSnackbar({ open: true, message: 'No pathfinder elements selected', severity: 'error' });
+        if (activeElements.length === 0) {
+            setSnackbar({ open: true, message: 'No elements selected', severity: 'error' });
             return;
         }
 
         let columnsAdded = 0;
 
-        for (const element of selectedElements) {
-            const elementColumn = getElementColumn(element);
+        for (const element of activeElements) {
+            const elementColumn = getActiveElementColumn(element);
             if (!elementColumn) continue;
 
-            const thresholds = ANOMALY_THRESHOLDS[element];
-            const backgroundValue = thresholds.background;
-
-            // Create column name: Element_PF(backgroundValue)
-            const newColumnName = `${element}_PF(${backgroundValue})`;
-
-            // Check if column already exists
-            if (columns.some(c => c.name === newColumnName)) {
-                continue; // Skip if already exists
+            let backgroundValue: number;
+            let suffix: string;
+            if (mapMode === 'extended') {
+                const bg = getExtendedBackground(element);
+                if (bg === null) continue;
+                backgroundValue = bg;
+                const stdLabel = referenceStandard === 'custom' ? 'custom' : referenceStandard.split('-')[0].toUpperCase();
+                suffix = `${stdLabel}(${backgroundValue})`;
+            } else {
+                const thresholds = ANOMALY_THRESHOLDS[element as PathfinderElement];
+                backgroundValue = thresholds.background;
+                suffix = `PF(${backgroundValue})`;
             }
 
-            // Calculate values: element_value / background_threshold
+            const newColumnName = `${element}_${suffix}`;
+
+            if (columns.some(c => c.name === newColumnName)) {
+                continue;
+            }
+
             const values = data.map(row => {
                 const val = row[elementColumn];
                 if (val == null || isNaN(val) || val <= 0) {
                     return null;
                 }
-                // Return the multiple of background (e.g., 8 means 8x background)
                 return val / backgroundValue;
             });
 
-            // Add the column
             addColumn(newColumnName, values, 'numeric', 'Pathfinder', 'pathfinder' as any);
             columnsAdded++;
         }
@@ -799,7 +934,7 @@ export const PathfinderMap: React.FC<PathfinderMapProps> = ({ plotId }) => {
         if (columnsAdded > 0) {
             setSnackbar({
                 open: true,
-                message: `Added ${columnsAdded} pathfinder columns (value ÷ background threshold)`,
+                message: `Added ${columnsAdded} anomaly columns (value ÷ background)`,
                 severity: 'success'
             });
         } else {
@@ -809,10 +944,10 @@ export const PathfinderMap: React.FC<PathfinderMapProps> = ({ plotId }) => {
                 severity: 'info'
             });
         }
-    }, [selectedElements, data, columns, addColumn, getElementColumn]);
+    }, [activeElements, data, columns, addColumn, mapMode, referenceStandard, customBackgrounds]);
 
     // Export element card (map + probability plot) as PNG
-    const handleExportElementCard = useCallback(async (element: PathfinderElement, cardRef: HTMLDivElement | null) => {
+    const handleExportElementCard = useCallback(async (element: string, cardRef: HTMLDivElement | null) => {
         if (!cardRef) return;
 
         try {
@@ -842,12 +977,12 @@ export const PathfinderMap: React.FC<PathfinderMapProps> = ({ plotId }) => {
     }, []);
 
     // Refs for element cards
-    const elementCardRefs = useRef<Map<PathfinderElement, HTMLDivElement | null>>(new Map());
+    const elementCardRefs = useRef<Map<string, HTMLDivElement | null>>(new Map());
 
     // Load pathfinders to QGIS
     const handleLoadToQgis = async () => {
-        if (selectedElements.length === 0) {
-            setSnackbar({ open: true, message: 'No pathfinder elements selected', severity: 'error' });
+        if (activeElements.length === 0) {
+            setSnackbar({ open: true, message: 'No elements selected', severity: 'error' });
             return;
         }
 
@@ -863,7 +998,7 @@ export const PathfinderMap: React.FC<PathfinderMapProps> = ({ plotId }) => {
 
             // Then send the pathfinder configuration
             const config = {
-                elements: selectedElements,
+                elements: activeElements,
                 xField: xAxis,
                 yField: yAxis,
                 zField: is3D ? zAxis : undefined,
@@ -894,28 +1029,33 @@ export const PathfinderMap: React.FC<PathfinderMapProps> = ({ plotId }) => {
             {/* Header */}
             <Box sx={{ mb: 2, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                 <Box>
-                    <Typography variant="h6">Pathfinder Map</Typography>
+                    <Typography variant="h6">
+                        {mapMode === 'pathfinder' ? 'Pathfinder Map' : 'Element Anomaly Map'}
+                    </Typography>
                     <Typography variant="caption" color="text.secondary">
-                        Based on Dr. Scott Halley's pathfinder chemistry methodology
+                        {mapMode === 'pathfinder'
+                            ? "Based on Dr. Scott Halley's pathfinder chemistry methodology"
+                            : `Background: ${BACKGROUND_STANDARDS.find(s => s.id === referenceStandard)?.name || 'Custom'}`
+                        }
                     </Typography>
                 </Box>
                 <Box sx={{ display: 'flex', gap: 1 }}>
-                    <Tooltip title="Add pathfinder values to data table (value ÷ background)">
+                    <Tooltip title="Add anomaly multiples to data table (value ÷ background)">
                         <IconButton
                             onClick={handleWritePathfinderValues}
                             size="small"
                             color="primary"
-                            disabled={selectedElements.length === 0}
+                            disabled={activeElements.length === 0}
                         >
                             <TableChart />
                         </IconButton>
                     </Tooltip>
-                    <Tooltip title="Load active pathfinders to QGIS">
+                    <Tooltip title="Load active elements to QGIS">
                         <IconButton
                             onClick={handleLoadToQgis}
                             size="small"
                             color="success"
-                            disabled={qgisLoading || selectedElements.length === 0}
+                            disabled={qgisLoading || activeElements.length === 0}
                         >
                             <MapIcon />
                         </IconButton>
@@ -925,21 +1065,23 @@ export const PathfinderMap: React.FC<PathfinderMapProps> = ({ plotId }) => {
                             onClick={() => setPublicationDialogOpen(true)}
                             size="small"
                             color="secondary"
-                            disabled={selectedElements.length === 0 || !xAxis || !yAxis}
+                            disabled={activeElements.length === 0 || !xAxis || !yAxis}
                         >
                             <MenuBook />
                         </IconButton>
                     </Tooltip>
-                    <Tooltip title="View Crustal Abundance Thresholds">
+                    <Tooltip title="View Thresholds">
                         <IconButton onClick={() => setInfoDialogOpen(true)} size="small" color="info">
                             <Info />
                         </IconButton>
                     </Tooltip>
-                    <Tooltip title="Configure Column Mappings">
-                        <IconButton onClick={() => setMappingDialogOpen(true)} size="small" color="primary">
-                            <Settings />
-                        </IconButton>
-                    </Tooltip>
+                    {mapMode === 'pathfinder' && (
+                        <Tooltip title="Configure Column Mappings">
+                            <IconButton onClick={() => setMappingDialogOpen(true)} size="small" color="primary">
+                                <Settings />
+                            </IconButton>
+                        </Tooltip>
+                    )}
                     <IconButton onClick={() => setControlsExpanded(!controlsExpanded)} size="small">
                         {controlsExpanded ? <ExpandLess /> : <ExpandMore />}
                     </IconButton>
@@ -1144,49 +1286,201 @@ export const PathfinderMap: React.FC<PathfinderMapProps> = ({ plotId }) => {
                         </Alert>
                     )}
 
-                    {/* Element Selection */}
+                    {/* Mode Toggle */}
                     <Box sx={{ mb: 2 }}>
-                        <Typography variant="subtitle2" gutterBottom>
-                            Pathfinder Elements ({selectedElements.length}/{availableElements.length} selected)
-                            <Typography component="span" variant="caption" color="text.secondary" sx={{ ml: 1 }}>
-                                (Click ⚙ to configure column mappings)
-                            </Typography>
-                        </Typography>
-                        <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5, mb: 1 }}>
-                            {PATHFINDER_ELEMENTS.map(element => {
-                                const isAvailable = availableElements.includes(element);
-                                const isSelected = selectedElements.includes(element);
-                                const mappedColumn = getElementColumn(element);
-                                return (
-                                    <Tooltip
-                                        key={element}
-                                        title={mappedColumn ? `Column: ${mappedColumn}` : 'No column mapped'}
-                                    >
-                                        <Chip
-                                            label={element}
-                                            size="small"
-                                            color={isSelected ? 'primary' : 'default'}
-                                            variant={isSelected ? 'filled' : 'outlined'}
-                                            disabled={!isAvailable}
-                                            onClick={() => isAvailable && toggleElement(element)}
-                                            sx={{ opacity: isAvailable ? 1 : 0.4 }}
-                                        />
-                                    </Tooltip>
-                                );
-                            })}
-                        </Box>
-                        <Box sx={{ display: 'flex', gap: 1 }}>
-                            <Button size="small" startIcon={<SelectAll />} onClick={() => setSelectedElements([...availableElements])}>
-                                Select All
-                            </Button>
-                            <Button size="small" startIcon={<Clear />} onClick={() => setSelectedElements([])}>
-                                Clear
-                            </Button>
-                        </Box>
+                        <ToggleButtonGroup
+                            value={mapMode}
+                            exclusive
+                            onChange={(_, val) => val && setMapMode(val)}
+                            size="small"
+                        >
+                            <ToggleButton value="pathfinder">Pathfinder (Halley)</ToggleButton>
+                            <ToggleButton value="extended">Extended Elements</ToggleButton>
+                        </ToggleButtonGroup>
                     </Box>
 
-                    {/* Normalization Options */}
-                    <Box sx={{ mb: 2 }}>
+                    {/* Element Selection */}
+                    {mapMode === 'pathfinder' ? (
+                        <Box sx={{ mb: 2 }}>
+                            <Typography variant="subtitle2" gutterBottom>
+                                Pathfinder Elements ({selectedElements.length}/{availableElements.length} selected)
+                                <Typography component="span" variant="caption" color="text.secondary" sx={{ ml: 1 }}>
+                                    (Click ⚙ to configure column mappings)
+                                </Typography>
+                            </Typography>
+                            <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5, mb: 1 }}>
+                                {PATHFINDER_ELEMENTS.map(element => {
+                                    const isAvailable = availableElements.includes(element);
+                                    const isSelected = selectedElements.includes(element);
+                                    const mappedColumn = getElementColumn(element);
+                                    return (
+                                        <Tooltip
+                                            key={element}
+                                            title={mappedColumn ? `Column: ${mappedColumn}` : 'No column mapped'}
+                                        >
+                                            <Chip
+                                                label={element}
+                                                size="small"
+                                                color={isSelected ? 'primary' : 'default'}
+                                                variant={isSelected ? 'filled' : 'outlined'}
+                                                disabled={!isAvailable}
+                                                onClick={() => isAvailable && toggleElement(element)}
+                                                sx={{ opacity: isAvailable ? 1 : 0.4 }}
+                                            />
+                                        </Tooltip>
+                                    );
+                                })}
+                            </Box>
+                            <Box sx={{ display: 'flex', gap: 1 }}>
+                                <Button size="small" startIcon={<SelectAll />} onClick={() => setSelectedElements([...availableElements])}>
+                                    Select All
+                                </Button>
+                                <Button size="small" startIcon={<Clear />} onClick={() => setSelectedElements([])}>
+                                    Clear
+                                </Button>
+                            </Box>
+                        </Box>
+                    ) : (
+                        <Box sx={{ mb: 2 }}>
+                            {/* Reference Standard Selection */}
+                            <Box sx={{ mb: 1.5, display: 'flex', gap: 2, alignItems: 'center' }}>
+                                <FormControl size="small" sx={{ minWidth: 240 }}>
+                                    <InputLabel>Reference Standard</InputLabel>
+                                    <Select
+                                        value={referenceStandard}
+                                        onChange={(e) => setReferenceStandard(e.target.value as ReferenceStandardId)}
+                                        label="Reference Standard"
+                                    >
+                                        {BACKGROUND_STANDARDS.map(std => (
+                                            <MenuItem key={std.id} value={std.id}>
+                                                {std.name} ({std.reference})
+                                            </MenuItem>
+                                        ))}
+                                        <MenuItem value="custom">Custom Background Values</MenuItem>
+                                    </Select>
+                                </FormControl>
+                                {referenceStandard === 'custom' && (
+                                    <Button
+                                        size="small"
+                                        onClick={() => {
+                                            // Pre-fill custom backgrounds from UCC
+                                            const uccBg: Record<string, number> = {};
+                                            for (const el of selectedExtendedElements) {
+                                                const entry = getBackgroundValue('ucc-rudnick-gao-2003', el);
+                                                if (entry) uccBg[el] = entry.value;
+                                            }
+                                            setCustomBackgrounds({ ...customBackgrounds, ...uccBg });
+                                        }}
+                                    >
+                                        Reset to UCC
+                                    </Button>
+                                )}
+                            </Box>
+
+                            <Typography variant="subtitle2" gutterBottom>
+                                Elements ({selectedExtendedElements.length} selected)
+                            </Typography>
+
+                            {/* Grouped element checkboxes */}
+                            {Object.entries(EXTENDED_ELEMENT_CATEGORIES).map(([catKey, group]) => {
+                                const groupElements = group.elements as readonly string[];
+                                const availableInGroup = groupElements.filter(el => availableExtendedElements.includes(el));
+                                if (availableInGroup.length === 0) return null;
+                                const selectedInGroup = availableInGroup.filter(el => selectedExtendedElements.includes(el));
+                                const allSelected = selectedInGroup.length === availableInGroup.length;
+
+                                return (
+                                    <Box key={catKey} sx={{ mb: 1 }}>
+                                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                                            <Checkbox
+                                                size="small"
+                                                checked={allSelected && availableInGroup.length > 0}
+                                                indeterminate={selectedInGroup.length > 0 && !allSelected}
+                                                onChange={() => {
+                                                    if (allSelected) {
+                                                        setSelectedExtendedElements(
+                                                            selectedExtendedElements.filter(el => !availableInGroup.includes(el))
+                                                        );
+                                                    } else {
+                                                        const newSet = new Set([...selectedExtendedElements, ...availableInGroup]);
+                                                        setSelectedExtendedElements([...newSet]);
+                                                    }
+                                                }}
+                                            />
+                                            <Typography variant="caption" fontWeight="bold">
+                                                {group.label} ({selectedInGroup.length}/{availableInGroup.length})
+                                            </Typography>
+                                        </Box>
+                                        <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5, ml: 3 }}>
+                                            {(group.elements as readonly string[]).map(element => {
+                                                const isAvailable = availableExtendedElements.includes(element);
+                                                const isSelected = selectedExtendedElements.includes(element);
+                                                const col = getExtendedElementColumn(element);
+                                                return (
+                                                    <Tooltip key={element} title={col ? `Column: ${col}` : 'No column found'}>
+                                                        <Chip
+                                                            label={element}
+                                                            size="small"
+                                                            color={isSelected ? 'primary' : 'default'}
+                                                            variant={isSelected ? 'filled' : 'outlined'}
+                                                            disabled={!isAvailable}
+                                                            onClick={() => {
+                                                                if (!isAvailable) return;
+                                                                if (isSelected) {
+                                                                    setSelectedExtendedElements(selectedExtendedElements.filter(e => e !== element));
+                                                                } else {
+                                                                    setSelectedExtendedElements([...selectedExtendedElements, element]);
+                                                                }
+                                                            }}
+                                                            sx={{ opacity: isAvailable ? 1 : 0.4 }}
+                                                        />
+                                                    </Tooltip>
+                                                );
+                                            })}
+                                        </Box>
+                                        {/* Custom background inputs when in custom mode */}
+                                        {referenceStandard === 'custom' && selectedInGroup.length > 0 && (
+                                            <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1, ml: 3, mt: 0.5 }}>
+                                                {selectedInGroup.map(el => {
+                                                    const bgEntry = getBackgroundValue('ucc-rudnick-gao-2003', el);
+                                                    return (
+                                                        <TextField
+                                                            key={el}
+                                                            label={`${el} bg (${bgEntry?.unit || 'ppm'})`}
+                                                            type="number"
+                                                            size="small"
+                                                            sx={{ width: 120 }}
+                                                            value={customBackgrounds[el] ?? ''}
+                                                            onChange={(e) => {
+                                                                const val = parseFloat(e.target.value);
+                                                                setCustomBackgrounds({
+                                                                    ...customBackgrounds,
+                                                                    [el]: isNaN(val) ? 0 : val
+                                                                });
+                                                            }}
+                                                            inputProps={{ step: 'any', min: 0 }}
+                                                        />
+                                                    );
+                                                })}
+                                            </Box>
+                                        )}
+                                    </Box>
+                                );
+                            })}
+
+                            <Box sx={{ display: 'flex', gap: 1, mt: 1 }}>
+                                <Button size="small" startIcon={<SelectAll />} onClick={() => setSelectedExtendedElements([...availableExtendedElements])}>
+                                    Select All
+                                </Button>
+                                <Button size="small" startIcon={<Clear />} onClick={() => setSelectedExtendedElements([])}>
+                                    Clear
+                                </Button>
+                            </Box>
+                        </Box>
+                    )}
+
+                    {/* Normalization Options (pathfinder mode only) */}
+                    {mapMode === 'pathfinder' && <Box sx={{ mb: 2 }}>
                         <FormControl component="fieldset">
                             <FormLabel component="legend" sx={{ fontSize: '0.875rem' }}>
                                 Normalization
@@ -1240,7 +1534,7 @@ export const PathfinderMap: React.FC<PathfinderMapProps> = ({ plotId }) => {
                                 </Select>
                             </FormControl>
                         </Box>
-                    </Box>
+                    </Box>}
 
                     {/* Class Visibility */}
                     <Box>
@@ -1341,18 +1635,20 @@ export const PathfinderMap: React.FC<PathfinderMapProps> = ({ plotId }) => {
             )}
 
             {/* Plot Grid */}
-            {!xAxis || !yAxis || selectedElements.length === 0 ? (
+            {!xAxis || !yAxis || activeElements.length === 0 ? (
                 <Typography color="text.secondary">
-                    Select X-axis, Y-axis, and at least one pathfinder element to display maps
+                    Select X-axis, Y-axis, and at least one element to display maps
                 </Typography>
             ) : (
                 <Grid container spacing={2}>
-                    {selectedElements.map(element => {
+                    {activeElements.map(element => {
                         const { traces, validCount, totalCount } = getPlotDataForElement(element);
                         const gridCols = getGridCols();
-                        const elementColumn = getElementColumn(element);
+                        const elementColumn = getActiveElementColumn(element);
                         const probData = showProbabilityPlots ? getProbabilityPlotData(element) : null;
-                        const thresholds = ANOMALY_THRESHOLDS[element];
+                        const thresholds = mapMode === 'extended'
+                            ? (() => { const bg = getExtendedBackground(element); return bg ? generateAnomalyThresholds(bg) : null; })()
+                            : ANOMALY_THRESHOLDS[element as PathfinderElement];
 
                         return (
                             <Grid item xs={12} sm={gridCols} key={element}>
@@ -1463,10 +1759,14 @@ export const PathfinderMap: React.FC<PathfinderMapProps> = ({ plotId }) => {
                                     <Box sx={{ textAlign: 'center', py: 0.5, borderTop: 1, borderColor: 'divider' }}>
                                         <Typography variant="caption" color="text.secondary">
                                             n = {validCount.toLocaleString()} / {totalCount.toLocaleString()}
-                                            {' | '}
-                                            Background: ≤{thresholds.background} ppm
-                                            {' | '}
-                                            10x: &gt;{thresholds.x5} ppm
+                                            {thresholds && (
+                                                <>
+                                                    {' | '}
+                                                    Background: &le;{thresholds.background} {mapMode === 'extended' ? (getBackgroundValue(referenceStandard === 'custom' ? 'ucc-rudnick-gao-2003' : referenceStandard, element)?.unit || 'ppm') : 'ppm'}
+                                                    {' | '}
+                                                    10x: &gt;{thresholds.x5} {mapMode === 'extended' ? (getBackgroundValue(referenceStandard === 'custom' ? 'ucc-rudnick-gao-2003' : referenceStandard, element)?.unit || 'ppm') : 'ppm'}
+                                                </>
+                                            )}
                                         </Typography>
                                     </Box>
                                 </Paper>
@@ -1476,65 +1776,101 @@ export const PathfinderMap: React.FC<PathfinderMapProps> = ({ plotId }) => {
                 </Grid>
             )}
 
-            {/* Info Dialog - Crustal Abundance Thresholds */}
+            {/* Info Dialog - Thresholds */}
             <Dialog open={infoDialogOpen} onClose={() => setInfoDialogOpen(false)} maxWidth="md" fullWidth>
                 <DialogTitle>
-                    Pathfinder Element Thresholds
+                    {mapMode === 'pathfinder' ? 'Pathfinder Element Thresholds' : 'Element Anomaly Thresholds'}
                     <Typography variant="subtitle2" color="text.secondary">
-                        Based on Dr. Scott Halley's pathfinder chemistry methodology
+                        {mapMode === 'pathfinder'
+                            ? "Based on Dr. Scott Halley's pathfinder chemistry methodology"
+                            : `Reference: ${BACKGROUND_STANDARDS.find(s => s.id === referenceStandard)?.reference || 'Custom values'}`
+                        }
                     </Typography>
                 </DialogTitle>
                 <DialogContent dividers>
                     <Typography variant="body2" paragraph>
-                        Points are classified as multiples of average crustal abundance.
-                        A coherent footprint (multi-point anomaly) of ≥10x crustal abundance is a significant anomaly.
+                        {mapMode === 'pathfinder'
+                            ? 'Points are classified as multiples of average crustal abundance. A coherent footprint (multi-point anomaly) of \u226510x crustal abundance is a significant anomaly.'
+                            : 'Points are classified as strict multiples of the selected reference background value: 1x (background), 2x, 3x, 5x, and \u226510x.'
+                        }
                     </Typography>
                     <Table size="small">
                         <TableHead>
                             <TableRow>
                                 <TableCell><strong>Element</strong></TableCell>
-                                <TableCell align="right"><strong>Crustal (ppm)</strong></TableCell>
+                                <TableCell align="right"><strong>{mapMode === 'pathfinder' ? 'Crustal (ppm)' : 'Background'}</strong></TableCell>
                                 <TableCell align="right" sx={{ bgcolor: ANOMALY_COLORS.background, color: 'white' }}>Background</TableCell>
                                 <TableCell align="right" sx={{ bgcolor: ANOMALY_COLORS['2x'], color: 'white' }}>2x</TableCell>
                                 <TableCell align="right" sx={{ bgcolor: ANOMALY_COLORS['3x'], color: 'black' }}>3x</TableCell>
                                 <TableCell align="right" sx={{ bgcolor: ANOMALY_COLORS['5x'], color: 'black' }}>5x</TableCell>
                                 <TableCell align="right" sx={{ bgcolor: ANOMALY_COLORS['10x'], color: 'white' }}>10x</TableCell>
-                                <TableCell><strong>Notes</strong></TableCell>
+                                {mapMode === 'pathfinder' && <TableCell><strong>Notes</strong></TableCell>}
                             </TableRow>
                         </TableHead>
                         <TableBody>
-                            {PATHFINDER_ELEMENTS.map(element => {
-                                const thresh = ANOMALY_THRESHOLDS[element];
-                                const isHostRockDependent = HOST_ROCK_DEPENDENT_ELEMENTS.includes(element);
-                                const supportsScNorm = SC_NORMALIZABLE_ELEMENTS.includes(element);
-                                const supportsKNorm = K_NORMALIZABLE_ELEMENTS.includes(element);
-                                return (
-                                    <TableRow key={element}>
-                                        <TableCell><strong>{element}</strong></TableCell>
-                                        <TableCell align="right">{CRUSTAL_ABUNDANCE[element]}</TableCell>
-                                        <TableCell align="right">0-{thresh.background}</TableCell>
-                                        <TableCell align="right">{thresh.background}-{thresh.x2}</TableCell>
-                                        <TableCell align="right">{thresh.x2}-{thresh.x3}</TableCell>
-                                        <TableCell align="right">{thresh.x3}-{thresh.x5}</TableCell>
-                                        <TableCell align="right">&gt;{thresh.x5}</TableCell>
-                                        <TableCell>
-                                            {isHostRockDependent && <Chip label="Host-rock dependent" size="small" sx={{ mr: 0.5 }} />}
-                                            {supportsScNorm && <Chip label="Sc norm" size="small" color="info" sx={{ mr: 0.5 }} />}
-                                            {supportsKNorm && <Chip label="K norm" size="small" color="secondary" />}
-                                        </TableCell>
-                                    </TableRow>
-                                );
-                            })}
+                            {mapMode === 'pathfinder' ? (
+                                PATHFINDER_ELEMENTS.map(element => {
+                                    const thresh = ANOMALY_THRESHOLDS[element];
+                                    const isHostRockDependent = HOST_ROCK_DEPENDENT_ELEMENTS.includes(element);
+                                    const supportsScNorm = SC_NORMALIZABLE_ELEMENTS.includes(element);
+                                    const supportsKNorm = K_NORMALIZABLE_ELEMENTS.includes(element);
+                                    return (
+                                        <TableRow key={element}>
+                                            <TableCell><strong>{element}</strong></TableCell>
+                                            <TableCell align="right">{CRUSTAL_ABUNDANCE[element]}</TableCell>
+                                            <TableCell align="right">0-{thresh.background}</TableCell>
+                                            <TableCell align="right">{thresh.background}-{thresh.x2}</TableCell>
+                                            <TableCell align="right">{thresh.x2}-{thresh.x3}</TableCell>
+                                            <TableCell align="right">{thresh.x3}-{thresh.x5}</TableCell>
+                                            <TableCell align="right">&gt;{thresh.x5}</TableCell>
+                                            <TableCell>
+                                                {isHostRockDependent && <Chip label="Host-rock dependent" size="small" sx={{ mr: 0.5 }} />}
+                                                {supportsScNorm && <Chip label="Sc norm" size="small" color="info" sx={{ mr: 0.5 }} />}
+                                                {supportsKNorm && <Chip label="K norm" size="small" color="secondary" />}
+                                            </TableCell>
+                                        </TableRow>
+                                    );
+                                })
+                            ) : (
+                                selectedExtendedElements.map(element => {
+                                    const bg = getExtendedBackground(element);
+                                    if (bg === null) return null;
+                                    const t = generateAnomalyThresholds(bg);
+                                    const entry = getBackgroundValue(referenceStandard === 'custom' ? 'ucc-rudnick-gao-2003' : referenceStandard, element);
+                                    const unit = entry?.unit || 'ppm';
+                                    return (
+                                        <TableRow key={element}>
+                                            <TableCell><strong>{element}</strong></TableCell>
+                                            <TableCell align="right">{bg} {unit}</TableCell>
+                                            <TableCell align="right">0-{t.background}</TableCell>
+                                            <TableCell align="right">{t.background}-{t.x2}</TableCell>
+                                            <TableCell align="right">{t.x2}-{t.x3}</TableCell>
+                                            <TableCell align="right">{t.x3}-{t.x5}</TableCell>
+                                            <TableCell align="right">&gt;{t.x5}</TableCell>
+                                        </TableRow>
+                                    );
+                                })
+                            )}
                         </TableBody>
                     </Table>
-                    <Box sx={{ mt: 2 }}>
-                        <Typography variant="subtitle2" gutterBottom>Normalization Notes:</Typography>
-                        <Typography variant="body2" color="text.secondary">
-                            • <strong>Sc normalization:</strong> Zn, Cu, In can be normalized to Sc for variable host-rock compositions (mafic influence)<br/>
-                            • <strong>K normalization:</strong> Cs, Tl can be normalized to K for variable host-rock compositions (felsic/alkali influence)<br/>
-                            • <strong>Host-rock dependent:</strong> Pb, Zn, Cu, In, Li, Cs, Tl ranges vary strongly with lithology
-                        </Typography>
-                    </Box>
+                    {mapMode === 'pathfinder' && (
+                        <Box sx={{ mt: 2 }}>
+                            <Typography variant="subtitle2" gutterBottom>Normalization Notes:</Typography>
+                            <Typography variant="body2" color="text.secondary">
+                                • <strong>Sc normalization:</strong> Zn, Cu, In can be normalized to Sc for variable host-rock compositions (mafic influence)<br/>
+                                • <strong>K normalization:</strong> Cs, Tl can be normalized to K for variable host-rock compositions (felsic/alkali influence)<br/>
+                                • <strong>Host-rock dependent:</strong> Pb, Zn, Cu, In, Li, Cs, Tl ranges vary strongly with lithology
+                            </Typography>
+                        </Box>
+                    )}
+                    {mapMode === 'extended' && (
+                        <Box sx={{ mt: 2 }}>
+                            <Typography variant="body2" color="text.secondary">
+                                Thresholds are strict multiples of the background value.
+                                {referenceStandard !== 'custom' && ` Source: ${BACKGROUND_STANDARDS.find(s => s.id === referenceStandard)?.description}`}
+                            </Typography>
+                        </Box>
+                    )}
                 </DialogContent>
                 <DialogActions>
                     <Button onClick={() => setInfoDialogOpen(false)}>Close</Button>
@@ -1633,11 +1969,11 @@ export const PathfinderMap: React.FC<PathfinderMapProps> = ({ plotId }) => {
             <PathfinderPublicationDialog
                 open={publicationDialogOpen}
                 onClose={() => setPublicationDialogOpen(false)}
-                elements={selectedElements}
+                elements={activeElements as PathfinderElement[]}
                 data={data}
                 xAxis={xAxis}
                 yAxis={yAxis}
-                getElementColumn={getElementColumn}
+                getElementColumn={getActiveElementColumn as (element: PathfinderElement) => string | null}
                 mapViewStyle={mapViewStyle}
                 basemapOpacity={basemapOpacity}
                 transformedCoords={transformedCoords}

@@ -6,6 +6,7 @@ import { useAppStore } from '../../store/appStore';
 import { useAttributeStore } from '../../store/attributeStore';
 import { getStyleArrays, getStyleArraysColumnar, sortColumnsByPriority } from '../../utils/attributeUtils';
 import { MultiColumnSelector } from '../../components/MultiColumnSelector';
+import { ExpandablePlotWrapper } from '../../components/ExpandablePlotWrapper';
 
 interface Stats {
     count: number;
@@ -470,6 +471,7 @@ export const SummaryStats: React.FC = () => {
 
                                     return (
                                         <Paper key={col} sx={{ p: 2 }}>
+                                            <ExpandablePlotWrapper>
                                             <Plot
                                                 data={traces}
                                                 layout={{
@@ -487,6 +489,7 @@ export const SummaryStats: React.FC = () => {
                                                 style={{ width: '100%' }}
                                                 useResizeHandler={true}
                                             />
+                                            </ExpandablePlotWrapper>
                                         </Paper>
                                     );
                                 })}

@@ -5,7 +5,7 @@ import { useAppStore } from '../../store/appStore';
 import { useShallow } from 'zustand/react/shallow';
 import { ExpandablePlotWrapper } from '../../components/ExpandablePlotWrapper';
 import { useAttributeStore } from '../../store/attributeStore';
-import { getStyleArrays, getStyleArraysColumnar, sortColumnsByPriority } from '../../utils/attributeUtils';
+import { getStyleArrays, getStyleArraysColumnar, sortColumnsByPriority, shapeToPlotlySymbol, applyOpacityToColor } from '../../utils/attributeUtils';
 import { getPlotConfig, EXPORT_FONT_SIZES } from '../../utils/plotConfig';
 import { MultiColumnSelector } from '../../components/MultiColumnSelector';
 
@@ -22,13 +22,15 @@ export const ProbabilityPlot: React.FC = () => {
     const getColumn = useAppStore(s => s.getColumn);
     const columnFilter = useAppStore(s => s.columnFilter);
     const filteredColumns = useMemo(() => getFilteredColumns(), [columns, columnFilter, getFilteredColumns]);
-    useAttributeStore(useShallow(s => ({
+    const { color: attrColor, shape: attrShape, size: attrSize, filter: attrFilter,
+        customEntries, emphasis, globalOpacity } = useAttributeStore(useShallow(s => ({
         color: s.color, shape: s.shape, size: s.size, filter: s.filter,
         customEntries: s.customEntries, emphasis: s.emphasis, globalOpacity: s.globalOpacity,
     })));
     const [selectedColumns, setSelectedColumns] = useState<string[]>([]);
     const [plotType, setPlotType] = useState<'probability' | 'cumulative'>('probability');
     const [xAxisType, setXAxisType] = useState<'nscore' | 'probability'>('nscore');
+    const [valueScale, setValueScale] = useState<'linear' | 'log'>('linear');
 
     const numericColumns = useMemo(() => sortColumnsByPriority(
         filteredColumns.filter(c => c.type === 'numeric' || c.type === 'float' || c.type === 'integer')
@@ -44,7 +46,7 @@ export const ProbabilityPlot: React.FC = () => {
         return columnarRowCount > 0
             ? getStyleArraysColumnar(data.length, (name) => getColumn(name))
             : getStyleArrays(data);
-    }, [data, columnarRowCount, getColumn]);
+    }, [data, columnarRowCount, getColumn, attrColor, attrShape, attrSize, attrFilter, customEntries, emphasis, globalOpacity]);
 
     const handlePlotTypeChange = (_: React.MouseEvent<HTMLElement>, newType: 'probability' | 'cumulative' | null) => {
         if (newType !== null) {
@@ -60,21 +62,31 @@ export const ProbabilityPlot: React.FC = () => {
 
     // Calculate normal probability plot data for a single column
     const getColumnPlotData = (columnName: string) => {
-        // Get values, colors, and sort - only include visible data points
-        const valuesWithColors: { value: number; color: string }[] = [];
+        // Get values and styles, sort - only include visible data points
+        const valuesWithStyles: { value: number; color: string; shape: string; size: number; opacity: number }[] = [];
         for (let i = 0; i < data.length; i++) {
             if (styleArrays.visible[i]) {
                 const v = data[i][columnName];
                 if (v != null && !isNaN(v)) {
-                    valuesWithColors.push({ value: Number(v), color: styleArrays.colors[i] });
+                    const numV = Number(v);
+                    if (valueScale === 'log' && numV <= 0) continue;
+                    valuesWithStyles.push({
+                        value: numV,
+                        color: styleArrays.colors[i],
+                        shape: styleArrays.shapes[i],
+                        size: styleArrays.sizes[i],
+                        opacity: styleArrays.opacity[i],
+                    });
                 }
             }
         }
 
         // Sort by value
-        valuesWithColors.sort((a, b) => a.value - b.value);
-        const sorted = valuesWithColors.map(v => v.value);
-        const colors = valuesWithColors.map(v => v.color);
+        valuesWithStyles.sort((a, b) => a.value - b.value);
+        const sorted = valuesWithStyles.map(v => v.value);
+        const colors = valuesWithStyles.map(v => applyOpacityToColor(v.color, v.opacity));
+        const shapes = valuesWithStyles.map(v => shapeToPlotlySymbol(v.shape));
+        const sizes = valuesWithStyles.map(v => v.size);
         const n = sorted.length;
 
         if (plotType === 'probability') {
@@ -91,7 +103,7 @@ export const ProbabilityPlot: React.FC = () => {
                 y: sorted,
                 mode: 'markers',
                 type: 'scatter',
-                marker: { size: 6, color: colors, line: { width: 0 } },
+                marker: { size: sizes, color: colors, symbol: shapes, line: { width: 0 } },
                 name: columnName
             };
         } else {
@@ -104,7 +116,7 @@ export const ProbabilityPlot: React.FC = () => {
                 mode: 'lines+markers',
                 type: 'scatter',
                 line: { color: colors[0] || '#1976d2', width: 2 },
-                marker: { size: 4, color: colors, line: { width: 0 } },
+                marker: { size: sizes, color: colors, symbol: shapes, line: { width: 0 } },
                 name: columnName
             };
         }
@@ -163,6 +175,16 @@ export const ProbabilityPlot: React.FC = () => {
                         <ToggleButton value="probability">Probability (%)</ToggleButton>
                     </ToggleButtonGroup>
                 )}
+
+                <ToggleButtonGroup
+                    value={valueScale}
+                    exclusive
+                    onChange={(_, v) => { if (v !== null) setValueScale(v); }}
+                    size="small"
+                >
+                    <ToggleButton value="linear">Linear</ToggleButton>
+                    <ToggleButton value="log">Log</ToggleButton>
+                </ToggleButtonGroup>
             </Box>
 
             {selectedColumns.length > 0 && data.length > 0 ? (
@@ -196,7 +218,8 @@ export const ProbabilityPlot: React.FC = () => {
                                                             font: { size: EXPORT_FONT_SIZES.axisTitle }
                                                         },
                                                         tickfont: { size: EXPORT_FONT_SIZES.tickLabels },
-                                                        gridcolor: '#e0e0e0'
+                                                        gridcolor: '#e0e0e0',
+                                                        ...(plotType === 'cumulative' && valueScale === 'log' ? { type: 'log' as const } : {})
                                                     },
                                                     yaxis: {
                                                         title: {
@@ -204,7 +227,8 @@ export const ProbabilityPlot: React.FC = () => {
                                                             font: { size: EXPORT_FONT_SIZES.axisTitle }
                                                         },
                                                         tickfont: { size: EXPORT_FONT_SIZES.tickLabels },
-                                                        gridcolor: '#e0e0e0'
+                                                        gridcolor: '#e0e0e0',
+                                                        ...(plotType === 'probability' && valueScale === 'log' ? { type: 'log' as const } : {})
                                                     },
                                                     plot_bgcolor: '#fafafa',
                                                     hovermode: 'closest',

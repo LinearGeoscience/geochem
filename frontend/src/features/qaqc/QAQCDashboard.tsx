@@ -44,6 +44,7 @@ import {
 import { useQAQCStore } from '../../store/qaqcStore';
 import { useAppStore } from '../../store/appStore';
 import { useProjectStore } from '../../store/projectStore';
+import { ExpandablePlotWrapper } from '../../components/ExpandablePlotWrapper';
 
 interface QAQCDashboardProps {
   onNavigate?: (view: 'manager' | 'control-chart' | 'duplicates' | 'blanks') => void;
@@ -456,6 +457,7 @@ export const QAQCDashboard: React.FC<QAQCDashboardProps> = ({ onNavigate }) => {
           <Typography variant="h6" gutterBottom>
             Element Pass Rates
           </Typography>
+          <ExpandablePlotWrapper>
           <Plot
             data={elementChartData.traces}
             layout={elementChartData.layout}
@@ -463,6 +465,7 @@ export const QAQCDashboard: React.FC<QAQCDashboardProps> = ({ onNavigate }) => {
             style={{ width: '100%' }}
             useResizeHandler={true}
           />
+          </ExpandablePlotWrapper>
         </Paper>
       )}
 
@@ -475,6 +478,7 @@ export const QAQCDashboard: React.FC<QAQCDashboardProps> = ({ onNavigate }) => {
               <Typography variant="h6" gutterBottom>
                 Grade Distribution
               </Typography>
+              <ExpandablePlotWrapper>
               <Plot
                 data={gradeChartData.traces}
                 layout={gradeChartData.layout}
@@ -482,6 +486,7 @@ export const QAQCDashboard: React.FC<QAQCDashboardProps> = ({ onNavigate }) => {
                 style={{ width: '100%' }}
                 useResizeHandler={true}
               />
+              </ExpandablePlotWrapper>
             </Paper>
           </Grid>
         )}

@@ -55,6 +55,7 @@ export const getPlotConfig = (options?: {
         displayModeBar,
         displaylogo: false,
         responsive,
+        scrollZoom: true,
         toImageButtonOptions: {
             format: 'png',
             filename,
@@ -119,6 +120,7 @@ export const getMinimalPlotConfig = (responsive: boolean = false): Partial<Confi
     displayModeBar: false,
     displaylogo: false,
     responsive,
+    scrollZoom: true,
 });
 
 /**
@@ -128,6 +130,7 @@ export const getDownholePlotConfig = (filename: string = 'downhole_plot'): Parti
     displayModeBar: true,
     displaylogo: false,
     responsive: false,
+    scrollZoom: true,
     toImageButtonOptions: {
         format: 'png',
         filename,

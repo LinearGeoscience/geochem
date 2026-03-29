@@ -15,6 +15,7 @@ const PLOT_TYPES = [
     { value: 'clr', label: 'CLR Biplot' },
     { value: 'classification', label: 'Classification' },
     { value: 'pathfinder', label: 'Pathfinder' },
+    { value: 'contour', label: 'Contour Map' },
 ] as const;
 
 type PlotTypeValue = typeof PLOT_TYPES[number]['value'];

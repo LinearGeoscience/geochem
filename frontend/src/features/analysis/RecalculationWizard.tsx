@@ -53,6 +53,8 @@ import { ELEMENT_OXIDE_CONVERSIONS, UNIT_CONVERSIONS } from '../../utils/calcula
 import { OXIDE_MAPPINGS } from '../../utils/calculations/elementNameNormalizer';
 import { computeFeRamp } from '../../utils/calculations/barnesRecalculation';
 import { clrTransform } from '../../utils/logratioTransforms';
+import { useAuditStore } from '../../store/auditStore';
+import { TRANSFORMATION_METADATA } from '../../types/transformationMetadata';
 
 const STEPS = [
     'Column Assignment',
@@ -932,6 +934,37 @@ const StepOutput: React.FC = () => {
             if (lastGroupId) {
                 setColumnFilter(`group:${lastGroupId}`);
             }
+
+            // Audit: record Barnes recalculation
+            const outputSets: string[] = [];
+            if (addAnhydrous) outputSets.push('anhydrous');
+            if (addRecalculated) outputSets.push('recalculated');
+            if (addDiagnostics) outputSets.push('diagnostics');
+            if (addCLR) outputSets.push('CLR');
+            const allOutputCols: string[] = [];
+            if (addAnhydrous) allOutputCols.push(...Object.keys(results.anhydrousColumns));
+            if (addRecalculated) allOutputCols.push(...Object.keys(results.recalculatedColumns));
+            if (addDiagnostics) allOutputCols.push(...Object.keys(results.diagnosticColumns));
+            if (addCLR) allOutputCols.push(...Object.keys(results.recalculatedColumns).map(n => `${n}_CLR`));
+
+            const barnesMeta = TRANSFORMATION_METADATA.barnes;
+            useAuditStore.getState().recordAudit({
+                category: 'recalculation',
+                operation: 'Barnes Recalculation',
+                description: `Applied Barnes recalculation (suite: ${config.feRampConfig.suiteType}). Output sets: ${outputSets.join(', ')}. ${allOutputCols.length} columns added.`,
+                mathFormula: barnesMeta.formulaDisplay,
+                reference: barnesMeta.references.join('; '),
+                parameters: {
+                    suiteType: config.feRampConfig.suiteType,
+                    feRamp: { mgoLow: config.feRampConfig.mgoLow, mgoHigh: config.feRampConfig.mgoHigh, liquidRatio: config.feRampConfig.liquidRatio },
+                    sulfideCorrection: config.sulfideConfig.method,
+                    volatileHandling: config.volatileConfig.useLoiAsVolatile ? 'LOI' : 'H2O+CO2',
+                    outputSets,
+                },
+                outputColumns: allOutputCols,
+                rowsAffected: data.length,
+            });
+
             setIsAdded(true);
         } finally {
             setIsAdding(false);

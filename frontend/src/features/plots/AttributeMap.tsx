@@ -1,6 +1,6 @@
 import React, { useState, useRef, useCallback, useEffect, useMemo } from 'react';
-import { Box, Paper, FormControl, InputLabel, Select, MenuItem, Grid, Typography, IconButton, Collapse, Alert, CircularProgress, TextField, Autocomplete, Slider } from '@mui/material';
-import { ExpandMore, ExpandLess } from '@mui/icons-material';
+import { Box, Paper, FormControl, InputLabel, Select, MenuItem, Grid, Typography, IconButton, Collapse, Alert, CircularProgress, TextField, Autocomplete, Slider, ToggleButtonGroup, ToggleButton, Chip } from '@mui/material';
+import { ExpandMore, ExpandLess, ZoomIn, PanTool, Gesture, HighlightAlt } from '@mui/icons-material';
 import { MultiColumnSelector } from '../../components/MultiColumnSelector';
 import { useAppStore } from '../../store/appStore';
 import { useShallow } from 'zustand/react/shallow';
@@ -11,6 +11,7 @@ import { getStyleArrays, getStyleArraysColumnar, shapeToPlotlySymbol, applyOpaci
 import { buildCustomData, buildCustomDataColumnar, buildMapHoverTemplate } from '../../utils/tooltipUtils';
 import { getPlotConfig } from '../../utils/plotConfig';
 import { transformArrayToWGS84, ensureProjectionRegistered, calculateMapBounds } from '../../utils/coordinateUtils';
+import { useSelectionHandler } from '../../hooks/useSelectionHandler';
 
 type MapViewStyle = 'normal' | 'osm' | 'satellite' | 'hybrid';
 
@@ -201,7 +202,7 @@ interface AttributeMapProps {
 }
 
 export const AttributeMap: React.FC<AttributeMapProps> = ({ plotId }) => {
-    const { data, columns, lockAxes, sampleIndices, columnarRowCount } = useAppStore(useShallow(s => ({ data: s.data, columns: s.columns, lockAxes: s.lockAxes, sampleIndices: s.sampleIndices, columnarRowCount: s.columnarData.rowCount })));
+    const { data, columns, lockAxes, lockFullExtent, sampleIndices, columnarRowCount } = useAppStore(useShallow(s => ({ data: s.data, columns: s.columns, lockAxes: s.lockAxes, lockFullExtent: s.lockFullExtent, sampleIndices: s.sampleIndices, columnarRowCount: s.columnarData.rowCount })));
     const getPlotSettings = useAppStore(s => s.getPlotSettings);
     const updatePlotSettings = useAppStore(s => s.updatePlotSettings);
     const getFilteredColumns = useAppStore(s => s.getFilteredColumns);
@@ -220,6 +221,9 @@ export const AttributeMap: React.FC<AttributeMapProps> = ({ plotId }) => {
     const displayData = useMemo(() => getDisplayData(), [data, sampleIndices]);
     const displayIndices = useMemo(() => getDisplayIndices(), [data, sampleIndices]);
 
+    // Selection handler
+    const { handleSelected, handleDeselect, selectedIndices } = useSelectionHandler();
+
     // Get stored settings or defaults
     const storedSettings = getPlotSettings(plotId);
 
@@ -227,6 +231,7 @@ export const AttributeMap: React.FC<AttributeMapProps> = ({ plotId }) => {
     const [yAxis, setYAxisLocal] = useState<string>(storedSettings.yAxis || '');
     const [attributes, setAttributesLocal] = useState<string[]>(storedSettings.attributes || []);
     const [controlsExpanded, setControlsExpandedLocal] = useState(storedSettings.controlsExpanded ?? true);
+    const [dragMode, setDragModeLocal] = useState<string>(storedSettings.dragMode ?? 'zoom');
 
     // Map view settings - combines basemap toggle and style into one
     // Migrate from old settings format
@@ -265,6 +270,10 @@ export const AttributeMap: React.FC<AttributeMapProps> = ({ plotId }) => {
         setControlsExpandedLocal(expanded);
         updatePlotSettings(plotId, { controlsExpanded: expanded });
     };
+    const setDragMode = (mode: string) => {
+        setDragModeLocal(mode);
+        updatePlotSettings(plotId, { dragMode: mode });
+    };
 
     // Map view setting wrapper
     const setMapViewStyle = (style: MapViewStyle) => {
@@ -284,6 +293,21 @@ export const AttributeMap: React.FC<AttributeMapProps> = ({ plotId }) => {
         setBasemapOpacityLocal(opacity);
         updatePlotSettings(plotId, { basemapOpacity: opacity });
     };
+
+    // Full data ranges for lockFullExtent mode
+    const fullMapRanges = useMemo(() => {
+        if (!lockFullExtent || !xAxis || !yAxis) return null;
+        let xMin = Infinity, xMax = -Infinity;
+        let yMin = Infinity, yMax = -Infinity;
+        for (const row of data) {
+            const x = row[xAxis], y = row[yAxis];
+            if (x != null && !isNaN(x)) { if (x < xMin) xMin = x; if (x > xMax) xMax = x; }
+            if (y != null && !isNaN(y)) { if (y < yMin) yMin = y; if (y > yMax) yMax = y; }
+        }
+        return xMin < xMax && yMin < yMax
+            ? { x: [xMin, xMax] as [number, number], y: [yMin, yMax] as [number, number] }
+            : null;
+    }, [lockFullExtent, data, xAxis, yAxis]);
 
     // Cache axis ranges when locked
     const axisRangesRef = useRef<AxisRangeCache>({});
@@ -483,21 +507,26 @@ export const AttributeMap: React.FC<AttributeMapProps> = ({ plotId }) => {
         // Original XY layout
         return {
             ...baseLayout,
+            dragmode: dragMode as any,
             xaxis: {
                 title: { text: d(xAxis), font: { size: 11 } },
                 scaleanchor: 'y',
                 scaleratio: 1,
-                ...(lockAxes && axisRangesRef.current[attributeName]?.xRange
-                    ? { range: axisRangesRef.current[attributeName].xRange, autorange: false }
-                    : {})
+                ...(lockFullExtent && fullMapRanges
+                    ? { range: fullMapRanges.x, autorange: false }
+                    : lockAxes && axisRangesRef.current[attributeName]?.xRange
+                        ? { range: axisRangesRef.current[attributeName].xRange, autorange: false }
+                        : {})
             },
             yaxis: {
                 title: { text: d(yAxis), font: { size: 11 } },
-                ...(lockAxes && axisRangesRef.current[attributeName]?.yRange
-                    ? { range: axisRangesRef.current[attributeName].yRange, autorange: false }
-                    : {})
+                ...(lockFullExtent && fullMapRanges
+                    ? { range: fullMapRanges.y, autorange: false }
+                    : lockAxes && axisRangesRef.current[attributeName]?.yRange
+                        ? { range: axisRangesRef.current[attributeName].yRange, autorange: false }
+                        : {})
             },
-            uirevision: lockAxes ? 'locked' : Date.now()
+            uirevision: (lockAxes || lockFullExtent) ? 'locked' : Date.now()
         };
     };
 
@@ -585,6 +614,29 @@ export const AttributeMap: React.FC<AttributeMapProps> = ({ plotId }) => {
                         </>
                     )}
                 </Box>
+                {/* Drag mode & selection controls (non-basemap only) */}
+                {!basemapEnabled && (
+                    <Box sx={{ mb: 2, display: 'flex', gap: 2, alignItems: 'center' }}>
+                        <ToggleButtonGroup
+                            value={dragMode}
+                            exclusive
+                            onChange={(_, v) => v && setDragMode(v)}
+                            size="small"
+                        >
+                            <ToggleButton value="zoom" title="Zoom"><ZoomIn fontSize="small" /></ToggleButton>
+                            <ToggleButton value="pan" title="Pan"><PanTool fontSize="small" /></ToggleButton>
+                            <ToggleButton value="lasso" title="Lasso Select"><Gesture fontSize="small" /></ToggleButton>
+                            <ToggleButton value="select" title="Box Select"><HighlightAlt fontSize="small" /></ToggleButton>
+                        </ToggleButtonGroup>
+                        {selectedIndices.length > 0 && (
+                            <Chip
+                                label={`${selectedIndices.length} selected`}
+                                size="small"
+                                onDelete={handleDeselect}
+                            />
+                        )}
+                    </Box>
+                )}
                 {basemapEnabled && projectionError && (
                     <Alert severity="error" sx={{ mb: 2 }}>{projectionError}</Alert>
                 )}
@@ -595,7 +647,27 @@ export const AttributeMap: React.FC<AttributeMapProps> = ({ plotId }) => {
                 )}
             </Collapse>
             {!xAxis || !yAxis || attributes.length === 0 ? (<Typography color="text.secondary">Select X-axis, Y-axis, and attributes to display maps</Typography>) : (
-                <Grid container spacing={2}>{attributes.map((attributeName) => (<Grid item xs={12} sm={6} lg={4} key={attributeName}><Paper sx={{ p: 1 }}><ExpandablePlotWrapper><Plot data={getPlotDataForAttribute(attributeName)} layout={getLayoutForAttribute(attributeName)} config={getPlotConfig({ filename: `map_${attributeName}` })} style={{ width: '100%' }} useResizeHandler={true} onRelayout={(e) => handleRelayout(attributeName, e)} /></ExpandablePlotWrapper></Paper></Grid>))}</Grid>)}
+                <Grid container spacing={2}>
+                    {attributes.map((attributeName) => (
+                        <Grid item xs={12} sm={6} lg={4} key={attributeName}>
+                            <Paper sx={{ p: 1 }}>
+                                <ExpandablePlotWrapper>
+                                    <Plot
+                                        data={getPlotDataForAttribute(attributeName)}
+                                        layout={getLayoutForAttribute(attributeName)}
+                                        config={getPlotConfig({ filename: `map_${attributeName}` })}
+                                        style={{ width: '100%' }}
+                                        useResizeHandler={true}
+                                        onRelayout={(e) => handleRelayout(attributeName, e)}
+                                        onSelected={!basemapEnabled ? handleSelected : undefined}
+                                        onDeselect={!basemapEnabled ? handleDeselect : undefined}
+                                    />
+                                </ExpandablePlotWrapper>
+                            </Paper>
+                        </Grid>
+                    ))}
+                </Grid>
+            )}
         </Box>
     );
 };

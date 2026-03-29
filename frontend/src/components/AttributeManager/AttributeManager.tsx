@@ -10,7 +10,7 @@ import {
     CircularProgress,
     Chip,
 } from '@mui/material';
-import { Palette, Category, FormatSize, FilterList, Lock, LockOpen, Share, Brush } from '@mui/icons-material';
+import { Palette, Category, FormatSize, FilterList, Lock, LockOpen, Share, Brush, ZoomOutMap } from '@mui/icons-material';
 import { useAttributeStore, AttributeType } from '../../store/attributeStore';
 import { useAppStore } from '../../store/appStore';
 import { AttributeGrid } from './AttributeGrid';
@@ -146,7 +146,7 @@ export const AttributeManager: React.FC = () => {
         setPaintMode,
     } = useAttributeStore();
 
-    const { lockAxes, setLockAxes } = useAppStore();
+    const { lockAxes, setLockAxes, lockFullExtent, setLockFullExtent } = useAppStore();
     const [isSyncing, setIsSyncing] = useState(false);
     const [syncStatus, setSyncStatus] = useState<'idle' | 'success' | 'error'>('idle');
 
@@ -217,6 +217,16 @@ export const AttributeManager: React.FC = () => {
                             sx={{ ml: 1 }}
                         >
                             {lockAxes ? <Lock fontSize="small" /> : <LockOpen fontSize="small" />}
+                        </IconButton>
+                    </Tooltip>
+                    <Tooltip title={lockFullExtent ? "Unlock full data extent" : "Lock to full data extent"}>
+                        <IconButton
+                            size="small"
+                            onClick={() => setLockFullExtent(!lockFullExtent)}
+                            color={lockFullExtent ? "primary" : "default"}
+                            sx={{ ml: 0.5 }}
+                        >
+                            <ZoomOutMap fontSize="small" />
                         </IconButton>
                     </Tooltip>
                     <Tooltip title="Sync styles to QGIS plugin">

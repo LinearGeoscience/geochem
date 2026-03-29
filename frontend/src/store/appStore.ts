@@ -2,6 +2,7 @@ import { create } from 'zustand';
 import { dataApi, qgisApi } from '../services/api';
 import { AttributeState, createAttributeSlice } from './attributeSlice';
 import { useAttributeStore } from './attributeStore';
+import { useAuditStore } from './auditStore';
 import { ColumnGeochemMapping } from '../types/associations';
 import {
     createGeochemMappings,
@@ -58,7 +59,7 @@ export interface TransformationGroup {
     columnNames: string[];
 }
 
-type PlotType = 'scatter' | 'ternary' | 'spider' | 'map' | 'map3d' | 'downhole' | 'histogram' | 'clr' | 'classification' | 'pathfinder';
+type PlotType = 'scatter' | 'ternary' | 'spider' | 'map' | 'map3d' | 'downhole' | 'histogram' | 'clr' | 'classification' | 'pathfinder' | 'contour';
 
 // Sampling types
 export interface SamplingConfig {
@@ -122,6 +123,8 @@ interface AppState {
     // Plot settings
     lockAxes: boolean;
     setLockAxes: (locked: boolean) => void;
+    lockFullExtent: boolean;
+    setLockFullExtent: (locked: boolean) => void;
 
     // Analysis state
     statsSelectedColumns: string[];
@@ -284,6 +287,7 @@ export const useAppStore = create<CombinedState>()((set, get, api) => ({
     activePlotId: null,
     selectedIndices: [],
     lockAxes: false,
+    lockFullExtent: false,
 
     // Sampling defaults
     samplingConfig: {
@@ -322,6 +326,7 @@ export const useAppStore = create<CombinedState>()((set, get, api) => ({
 
     setCurrentView: (view) => set({ currentView: view }),
     setLockAxes: (locked) => set({ lockAxes: locked }),
+    setLockFullExtent: (locked) => set({ lockFullExtent: locked }),
 
     addPlot: (type) => {
         const id = Math.random().toString(36).substr(2, 9);
@@ -361,9 +366,12 @@ export const useAppStore = create<CombinedState>()((set, get, api) => ({
     },
 
     assignClassToSelection: (columnName, className) => {
+        const { selectedIndices } = get();
+        if (selectedIndices.length === 0) return;
+        const affectedCount = selectedIndices.length;
+
         set((state) => {
-            const { data, selectedIndices, columns, columnarData } = state;
-            if (selectedIndices.length === 0) return {};
+            const { data, columns, columnarData } = state;
 
             // Direct property set — avoids spreading all props per row
             const selectedSet = new Set(selectedIndices);
@@ -390,6 +398,15 @@ export const useAppStore = create<CombinedState>()((set, get, api) => ({
                 columns: newColumns,
                 columnarData: { ...columnarData, columns: newColumnarColumns },
             };
+        });
+
+        useAuditStore.getState().recordAudit({
+            category: 'classification',
+            operation: 'Assign Class to Selection',
+            description: `Assigned class "${className}" to ${affectedCount} selected rows in column "${columnName}"`,
+            parameters: { className, columnName },
+            outputColumns: [columnName],
+            rowsAffected: affectedCount,
         });
     },
 
@@ -558,6 +575,16 @@ export const useAppStore = create<CombinedState>()((set, get, api) => ({
                 streamingStatus: null
             });
 
+            // Record audit
+            useAuditStore.getState().recordAudit({
+                category: 'import',
+                operation: 'File Import',
+                description: `Imported file "${file.name}" with ${data.length.toLocaleString()} rows and ${filteredColumnInfo.length} columns`,
+                parameters: { fileName: file.name },
+                outputColumns: filteredColumnInfo.map(c => c.name),
+                rowsAffected: data.length,
+            });
+
             // Auto-sync to QGIS
             get().syncToQgis();
 
@@ -635,6 +662,16 @@ export const useAppStore = create<CombinedState>()((set, get, api) => ({
                 streamingStatus: null
             });
 
+            // Record audit
+            useAuditStore.getState().recordAudit({
+                category: 'import',
+                operation: 'Drillhole Import',
+                description: `Imported drillhole data from collar "${collar.name}", survey "${survey.name}", assay "${assay.name}" with ${data.length.toLocaleString()} intervals and ${filteredColumnInfo.length} columns`,
+                parameters: { collarFile: collar.name, surveyFile: survey.name, assayFile: assay.name },
+                outputColumns: filteredColumnInfo.map(c => c.name),
+                rowsAffected: data.length,
+            });
+
             // Auto-sync to QGIS
             get().syncToQgis();
 
@@ -684,6 +721,7 @@ export const useAppStore = create<CombinedState>()((set, get, api) => ({
     },
 
     updateColumnType: (column: string, newType: string, treatNegativeAsZero: boolean = true) => {
+        let rowCount = 0;
         set((state) => {
             // Direct property set — avoids spreading all props per row
             const newData = state.data.map(row => {
@@ -717,11 +755,24 @@ export const useAppStore = create<CombinedState>()((set, get, api) => ({
             }
 
             console.log(`[updateColumnType] Column "${column}" converted to ${newType}`);
+            rowCount = newData.length;
+
             return { data: newData, columns: newColumns, columnarData: { ...state.columnarData, columns: newColumnarColumns } };
+        });
+
+        useAuditStore.getState().recordAudit({
+            category: 'column-operation',
+            operation: 'Column Type Change',
+            description: `Changed column "${column}" type to ${newType}`,
+            parameters: { newType, treatNegativeAsZero },
+            inputColumns: [column],
+            outputColumns: [column],
+            rowsAffected: rowCount,
         });
     },
 
     updateColumnTypes: (columnNames: string[], newType: string, treatNegativeAsZero: boolean = true) => {
+        let rowCount = 0;
         set((state) => {
             // Direct property set — avoids spreading all props per row
             const newData = state.data.map(row => {
@@ -759,7 +810,19 @@ export const useAppStore = create<CombinedState>()((set, get, api) => ({
             }
 
             console.log(`[updateColumnTypes] ${columnNames.length} columns converted to ${newType}`);
+            rowCount = newData.length;
+
             return { data: newData, columns: newColumns, columnarData: { ...state.columnarData, columns: newColumnarColumns } };
+        });
+
+        useAuditStore.getState().recordAudit({
+            category: 'column-operation',
+            operation: 'Batch Column Type Change',
+            description: `Changed ${columnNames.length} columns to ${newType}`,
+            parameters: { newType, treatNegativeAsZero },
+            inputColumns: columnNames,
+            outputColumns: columnNames,
+            rowsAffected: rowCount,
         });
     },
 
@@ -832,6 +895,14 @@ export const useAppStore = create<CombinedState>()((set, get, api) => ({
                 samplingError: null,
             });
             console.log(`[computeSample] Sample: ${result.sample_size}/${result.total_rows} rows (${result.outlier_count} outliers preserved)`);
+
+            useAuditStore.getState().recordAudit({
+                category: 'sampling',
+                operation: 'Data Sampling',
+                description: `Computed ${samplingConfig.method} sample: ${result.sample_size.toLocaleString()} of ${result.total_rows.toLocaleString()} rows (${((result.sample_size / result.total_rows) * 100).toFixed(1)}%). ${result.outlier_count} outliers preserved.`,
+                parameters: { method: samplingConfig.method, sampleSize: samplingConfig.sampleSize, iqrMultiplier: samplingConfig.iqrMultiplier },
+                rowsAffected: result.sample_size,
+            });
         } catch (err: any) {
             console.error('[computeSample] Failed:', err);
             const detail = err?.response?.data?.detail || err?.message || 'Sampling failed';

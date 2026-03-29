@@ -39,9 +39,12 @@ import {
     Settings,
     Schedule,
     CheckCircle,
+    Description,
 } from '@mui/icons-material';
 import { useProjectStore, autosaveManager, PROJECT_FILE_EXTENSION } from '../store/projectStore';
 import { useAppStore } from '../store/appStore';
+import { useAuditStore } from '../store/auditStore';
+import { generateProvenanceReport } from '../utils/generateProvenanceReport';
 
 interface ProjectManagerProps {
     variant?: 'menu' | 'toolbar' | 'statusbar';
@@ -71,6 +74,9 @@ export const ProjectManager: React.FC<ProjectManagerProps> = ({ variant = 'toolb
     // Live data counts for status bar (not stale metadata)
     const liveRowCount = useAppStore(state => state.data.length);
     const liveColumnCount = useAppStore(state => state.columns.length);
+
+    // Audit entries for provenance report
+    const auditEntries = useAuditStore(state => state.entries);
 
     // Check if File System Access API is supported (Chromium browsers)
     const hasFileSystemAccess = 'showSaveFilePicker' in window;
@@ -190,6 +196,27 @@ export const ProjectManager: React.FC<ProjectManagerProps> = ({ variant = 'toolb
     const handleLoadRecent = async () => {
         setRecentProjectsOpen(false);
         await loadProjectFromFile();
+    };
+
+    const handleExportProvenance = () => {
+        handleMenuClose();
+        const projectName = currentProject?.name || 'Untitled';
+        const report = generateProvenanceReport(auditEntries, {
+            projectName,
+            rowCount: liveRowCount,
+            columnCount: liveColumnCount,
+            originalDataSource: currentProject?.originalDataPath,
+        });
+        const blob = new Blob([report], { type: 'text/plain' });
+        const dateStr = new Date().toISOString().slice(0, 10);
+        const safeName = projectName.replace(/[^a-z0-9]/gi, '_');
+        const link = document.createElement('a');
+        link.href = URL.createObjectURL(blob);
+        link.download = `${safeName}_provenance_${dateStr}.txt`;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        URL.revokeObjectURL(link.href);
     };
 
     const formatLastSaved = (isoDate: string | null) => {
@@ -332,6 +359,9 @@ export const ProjectManager: React.FC<ProjectManagerProps> = ({ variant = 'toolb
                     <MenuItem onClick={() => { handleMenuClose(); setSettingsOpen(true); }}>
                         <Settings sx={{ mr: 1 }} /> Project Settings
                     </MenuItem>
+                    <MenuItem onClick={handleExportProvenance} disabled={auditEntries.length === 0}>
+                        <Description sx={{ mr: 1 }} /> Export Provenance Report
+                    </MenuItem>
                     {recentProjects.length > 0 && (
                         <>
                             <Divider />
@@ -410,6 +440,19 @@ export const ProjectManager: React.FC<ProjectManagerProps> = ({ variant = 'toolb
                 <IconButton size="small" color="inherit" onClick={() => setSettingsOpen(true)}>
                     <Settings fontSize="small" />
                 </IconButton>
+                <Tooltip title="Export Provenance Report">
+                    <span>
+                        <Button
+                            size="small"
+                            color="inherit"
+                            startIcon={<Description />}
+                            onClick={handleExportProvenance}
+                            disabled={auditEntries.length === 0}
+                        >
+                            Provenance
+                        </Button>
+                    </span>
+                </Tooltip>
                 {recentProjects.length > 0 && (
                     <Button
                         size="small"

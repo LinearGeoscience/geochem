@@ -7,7 +7,7 @@
  * 3. Results visualization (Scree Plot, Sorted Loading Matrix, Ranked Eigenvector Plots)
  */
 
-import React, { useState, useMemo, useCallback, useEffect } from 'react';
+import React, { useState, useRef, useMemo, useCallback, useEffect } from 'react';
 import {
   Box,
   Paper,
@@ -17,6 +17,8 @@ import {
   Step,
   StepLabel,
   FormControl,
+  FormControlLabel,
+  Switch,
   InputLabel,
   Select,
   MenuItem,
@@ -28,7 +30,11 @@ import {
   Grid,
   Chip,
   Snackbar,
+  Tooltip,
 } from '@mui/material';
+import FilterListIcon from '@mui/icons-material/FilterList';
+import { useTheme } from '@mui/material/styles';
+import useMediaQuery from '@mui/material/useMediaQuery';
 import CloseIcon from '@mui/icons-material/Close';
 import { useAppStore } from '../../store/appStore';
 import { useShallow } from 'zustand/react/shallow';
@@ -84,11 +90,17 @@ export const PCAWorkflow: React.FC = () => {
     geochemMappings: s.geochemMappings,
   })));
   const getFilteredColumns = useAppStore(s => s.getFilteredColumns);
-  const getColumn = useAppStore(s => s.getColumn);
+  const getDisplayData = useAppStore(s => s.getDisplayData);
+  const getDisplayIndices = useAppStore(s => s.getDisplayIndices);
+  const getDisplayColumn = useAppStore(s => s.getDisplayColumn);
+  const sampleIndices = useAppStore(s => s.sampleIndices);
   const addColumn = useAppStore(s => s.addColumn);
   const columnFilter = useAppStore(s => s.columnFilter);
   const filteredColumns = useMemo(() => getFilteredColumns(), [columns, columnFilter, getFilteredColumns]);
   const attributeColor = useAttributeStore((s) => s.color);
+  const attributeShape = useAttributeStore((s) => s.shape);
+  const attributeFilter = useAttributeStore((s) => s.filter);
+  const valueFilter = useAttributeStore((s) => s.valueFilter);
   const setAttributeField = useAttributeStore(s => s.setField);
   const setAttributeEntries = useAttributeStore(s => s.setEntries);
 
@@ -109,7 +121,17 @@ export const PCAWorkflow: React.FC = () => {
   const [activeStep, setActiveStep] = useState(0);
   const [nComponents, setNComponents] = useState(8);
   const [resultsTab, setResultsTab] = useState(0);
-  const [expandedElement, setExpandedElement] = useState<string | null>(null);
+  const [expandedRow, setExpandedRow] = useState<number | null>(null);
+  const [useFilteredData, setUseFilteredData] = useState(false);
+
+  // Track which original indices were used in the last PCA run (for score mapping)
+  const pcaIndicesRef = useRef<number[] | null>(null);
+
+  // Compute columns per row based on breakpoint for row-based expansion
+  const theme = useTheme();
+  const isSmDown = useMediaQuery(theme.breakpoints.down('md'));
+  const isXsDown = useMediaQuery(theme.breakpoints.down('sm'));
+  const columnsPerRow = isXsDown ? 1 : isSmDown ? 2 : 3;
   const [snackbar, setSnackbar] = useState<{ open: boolean; message: string; severity: 'success' | 'info' | 'warning' }>({
     open: false, message: '', severity: 'success',
   });
@@ -131,10 +153,44 @@ export const PCAWorkflow: React.FC = () => {
     };
   }, [attributeColor]);
 
+  // Display data accounts for sampling; displayIndices maps back to original rows
+  const displayData = useMemo(() => getDisplayData(), [data, sampleIndices]);
+  const displayIndices = useMemo(() => getDisplayIndices(), [data, sampleIndices]);
+
   // Get style arrays for probability plots (respects visibility and coloring)
   const styleArrays = useMemo(() => columnarRowCount > 0
-    ? getStyleArraysColumnar(data.length, (name) => getColumn(name))
-    : getStyleArrays(data), [data, columnarRowCount, getColumn]);
+    ? getStyleArraysColumnar(displayData.length, (name) => getDisplayColumn(name), displayIndices ?? undefined)
+    : getStyleArrays(displayData, displayIndices ?? undefined), [displayData, displayIndices, columnarRowCount, getDisplayColumn]);
+
+  // Compute visible sample count and indices for filtered PCA
+  const visibleCount = useMemo(() => {
+    let count = 0;
+    for (let i = 0; i < styleArrays.visible.length; i++) {
+      if (styleArrays.visible[i]) count++;
+    }
+    return count;
+  }, [styleArrays.visible]);
+
+  const hasActiveFilters = useMemo(() => {
+    const descriptions: string[] = [];
+    // Check categorical filter field
+    if (attributeFilter.field && attributeFilter.entries.some(e => !e.visible)) {
+      descriptions.push(attributeFilter.field);
+    }
+    // Check color entries with hidden items
+    if (attributeColor.field && attributeColor.entries.some(e => !e.visible)) {
+      descriptions.push(`${attributeColor.field} (colour)`);
+    }
+    // Check shape entries with hidden items
+    if (attributeShape.field && attributeShape.entries.some(e => !e.visible)) {
+      descriptions.push(`${attributeShape.field} (shape)`);
+    }
+    // Check value filter
+    if (valueFilter.enabled) {
+      descriptions.push(`Value range${valueFilter.column ? ` (${valueFilter.column})` : ''}`);
+    }
+    return descriptions;
+  }, [attributeFilter, attributeColor, attributeShape, valueFilter]);
 
   // Get numeric columns from filtered set (respects RAW/CLR filter)
   const numericColumns = useMemo(
@@ -168,6 +224,13 @@ export const PCAWorkflow: React.FC = () => {
     }
     return set;
   }, [numericColumns, geochemMappings]);
+
+  // Filter elementQualityInfo to only include elements present in current numericColumns (respects column filter)
+  const filteredQualityInfo = useMemo(() => {
+    if (elementQualityInfo.length === 0) return [];
+    const numericNames = new Set(numericColumns.map(c => c.name));
+    return elementQualityInfo.filter(info => numericNames.has(info.element));
+  }, [elementQualityInfo, numericColumns]);
 
   // After quality assessment auto-selects elements, filter out non-element columns
   useEffect(() => {
@@ -244,33 +307,34 @@ export const PCAWorkflow: React.FC = () => {
   );
 
   const handleSelectAllGoodQuality = useCallback(() => {
-    const goodElements = elementQualityInfo
+    const goodElements = filteredQualityInfo
       .filter((q) => q.isAcceptable && !nonElementColumns.has(q.element))
       .map((q) => q.element);
     setPcaSelectedElements(goodElements);
-  }, [elementQualityInfo, nonElementColumns, setPcaSelectedElements]);
+  }, [filteredQualityInfo, nonElementColumns, setPcaSelectedElements]);
 
   const handleSelectAll = useCallback(() => {
-    setPcaSelectedElements(elementQualityInfo
+    setPcaSelectedElements(filteredQualityInfo
       .filter((q) => !nonElementColumns.has(q.element))
       .map((q) => q.element));
-  }, [elementQualityInfo, nonElementColumns, setPcaSelectedElements]);
+  }, [filteredQualityInfo, nonElementColumns, setPcaSelectedElements]);
 
   const handleClearSelection = useCallback(() => {
     setPcaSelectedElements([]);
   }, [setPcaSelectedElements]);
 
-  const handleExpandToggle = useCallback((element: string) => {
-    setExpandedElement((prev) => (prev === element ? null : element));
-  }, []);
+  const handleExpandToggle = useCallback((_element: string, index: number) => {
+    const rowIdx = Math.floor(index / columnsPerRow);
+    setExpandedRow((prev) => (prev === rowIdx ? null : rowIdx));
+  }, [columnsPerRow]);
 
   // Generate probability plot data for an element
   const getProbabilityPlotData = useCallback(
     (columnName: string) => {
       const valuesWithColors: { value: number; color: string }[] = [];
-      for (let i = 0; i < data.length; i++) {
+      for (let i = 0; i < displayData.length; i++) {
         if (styleArrays.visible[i]) {
-          const v = data[i][columnName];
+          const v = displayData[i][columnName];
           if (v != null && !isNaN(v)) {
             valuesWithColors.push({ value: Number(v), color: styleArrays.colors[i] });
           }
@@ -307,33 +371,65 @@ export const PCAWorkflow: React.FC = () => {
       alert('Please select at least 2 elements');
       return;
     }
-    runFullPCA(data, pcaSelectedElements, nComponents);
-  }, [data, pcaSelectedElements, nComponents, runFullPCA]);
+
+    if (useFilteredData) {
+      // Build filtered data and track original indices
+      const indices: number[] = [];
+      const filtered: Record<string, any>[] = [];
+      for (let i = 0; i < displayData.length; i++) {
+        if (styleArrays.visible[i]) {
+          const originalIdx = displayIndices ? displayIndices[i] : i;
+          indices.push(originalIdx);
+          filtered.push(displayData[i]);
+        }
+      }
+      pcaIndicesRef.current = indices;
+      runFullPCA(filtered, pcaSelectedElements, nComponents);
+    } else {
+      pcaIndicesRef.current = null;
+      runFullPCA(displayData, pcaSelectedElements, nComponents);
+    }
+  }, [displayData, displayIndices, pcaSelectedElements, nComponents, runFullPCA, useFilteredData, styleArrays.visible]);
 
   // Add PC scores to data
   const handleAddPCScores = useCallback(() => {
     if (!fullPcaResult) return;
 
     const numPCs = Math.min(nComponents, fullPcaResult.eigenvalues.length);
+    const indices = pcaIndicesRef.current;
 
     for (let i = 0; i < numPCs; i++) {
-      // Add positive PC scores
+      let pcValues: (number | null)[];
+      let negPcValues: (number | null)[];
+
+      if (indices) {
+        // Filtered PCA: map scores back to original row positions, NaN for excluded rows
+        pcValues = new Array(data.length).fill(NaN);
+        negPcValues = new Array(data.length).fill(NaN);
+        for (let j = 0; j < indices.length; j++) {
+          pcValues[indices[j]] = fullPcaResult.scores[j][i];
+          negPcValues[indices[j]] = -fullPcaResult.scores[j][i];
+        }
+      } else {
+        // Full dataset: 1:1 mapping
+        pcValues = fullPcaResult.scores.map((row) => row[i]);
+        negPcValues = fullPcaResult.scores.map((row) => -row[i]);
+      }
+
       const pcName = `PC${i + 1}`;
-      const pcValues = fullPcaResult.scores.map((row) => row[i]);
       addColumn(pcName, pcValues, 'numeric', 'PCA', 'pca' as any);
 
-      // Add negative PC scores
       const negPcName = `negPC${i + 1}`;
-      const negPcValues = fullPcaResult.scores.map((row) => -row[i]);
       addColumn(negPcName, negPcValues, 'numeric', 'PCA', 'pca' as any);
     }
 
+    const filterNote = indices ? ` (${indices.length} of ${data.length} samples)` : '';
     setSnackbar({
       open: true,
-      message: `Added ${numPCs * 2} columns (PC1-PC${numPCs} and negPC1-negPC${numPCs}) to the dataset`,
+      message: `Added ${numPCs * 2} columns (PC1-PC${numPCs} and negPC1-negPC${numPCs}) to the dataset${filterNote}`,
       severity: 'success',
     });
-  }, [fullPcaResult, nComponents, addColumn]);
+  }, [fullPcaResult, nComponents, addColumn, data.length]);
 
   // Step content rendering
   const renderStepContent = () => {
@@ -374,6 +470,22 @@ export const PCAWorkflow: React.FC = () => {
             This will analyze {numericColumns.length} numeric columns
           </Typography>
         </Box>
+      ) : filteredQualityInfo.length === 0 ? (
+        <Box sx={{ textAlign: 'center', py: 4 }}>
+          <Alert severity="info" sx={{ mb: 2 }}>
+            No assessed elements match the current column filter. Try changing the filter at the top of the page, or re-run the assessment for the current filter.
+          </Alert>
+          <Button
+            variant="contained"
+            onClick={handleAssessQuality}
+            disabled={isProcessing || numericColumns.length === 0}
+          >
+            {isProcessing ? <CircularProgress size={20} /> : 'Re-assess Element Quality'}
+          </Button>
+          <Typography variant="caption" display="block" sx={{ mt: 1 }}>
+            This will analyze {numericColumns.length} numeric columns in the current filter
+          </Typography>
+        </Box>
       ) : (
         <>
           <Box sx={{ display: 'flex', gap: 1, mb: 2, flexWrap: 'wrap', alignItems: 'center' }}>
@@ -387,21 +499,22 @@ export const PCAWorkflow: React.FC = () => {
               Clear
             </Button>
             <Chip
-              label={`${pcaSelectedElements.length} of ${elementQualityInfo.length} selected${nonElementColumns.size > 0 ? ` (${nonElementColumns.size} non-element excluded)` : ''}`}
+              label={`${pcaSelectedElements.length} of ${filteredQualityInfo.length} selected${nonElementColumns.size > 0 ? ` (${nonElementColumns.size} non-element excluded)` : ''}`}
               color="primary"
               variant="outlined"
             />
           </Box>
 
           <Grid container spacing={1}>
-            {elementQualityInfo.map((info) => {
-              const isExpanded = expandedElement === info.element;
+            {filteredQualityInfo.map((info, index) => {
+              const rowIndex = Math.floor(index / columnsPerRow);
+              const isExpanded = expandedRow === rowIndex;
               return (
               <Grid
                 item
                 xs={12}
-                sm={isExpanded ? 12 : 6}
-                md={isExpanded ? 12 : 4}
+                sm={6}
+                md={4}
                 key={info.element}
               >
                 <ExpandableElementRow
@@ -413,7 +526,7 @@ export const PCAWorkflow: React.FC = () => {
                   onToggle={handleToggleElement}
                   getPlotData={() => getProbabilityPlotData(info.element)}
                   isExpanded={isExpanded}
-                  onExpandToggle={handleExpandToggle}
+                  onExpandToggle={(el) => handleExpandToggle(el, index)}
                   isNonElement={nonElementColumns.has(info.element)}
                 />
               </Grid>
@@ -432,7 +545,10 @@ export const PCAWorkflow: React.FC = () => {
   );
 
   // Step 2: PCA Execution
-  const renderPCAExecution = () => (
+  const renderPCAExecution = () => {
+    const effectiveSampleCount = useFilteredData ? visibleCount : displayData.length;
+
+    return (
     <Box>
       <Typography variant="h6" gutterBottom>
         Step 2: CLR Transformation & PCA
@@ -440,6 +556,42 @@ export const PCAWorkflow: React.FC = () => {
       <Typography variant="body2" color="text.secondary" paragraph>
         The selected elements will be CLR-transformed and Classical PCA will be performed.
       </Typography>
+
+      {/* Data filter toggle */}
+      <Paper sx={{ p: 2, mb: 2, border: useFilteredData ? 2 : 1, borderColor: useFilteredData ? 'primary.main' : 'divider' }}>
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, flexWrap: 'wrap' }}>
+          <FilterListIcon color={useFilteredData ? 'primary' : 'disabled'} />
+          <Tooltip title="When enabled, PCA will only run on samples that are currently visible (respecting all active filters, colour/shape visibility, and value range filters)">
+            <FormControlLabel
+              control={
+                <Switch
+                  checked={useFilteredData}
+                  onChange={(e) => setUseFilteredData(e.target.checked)}
+                />
+              }
+              label="Use visible data only"
+            />
+          </Tooltip>
+          {useFilteredData && (
+            <Chip
+              label={`${visibleCount.toLocaleString()} of ${displayData.length.toLocaleString()} samples`}
+              color="primary"
+              size="small"
+              variant="outlined"
+            />
+          )}
+        </Box>
+        {useFilteredData && hasActiveFilters.length > 0 && (
+          <Typography variant="caption" color="text.secondary" sx={{ mt: 0.5, display: 'block', ml: 5.5 }}>
+            Active filters: {hasActiveFilters.join(', ')}
+          </Typography>
+        )}
+        {useFilteredData && hasActiveFilters.length === 0 && visibleCount === displayData.length && (
+          <Typography variant="caption" color="warning.main" sx={{ mt: 0.5, display: 'block', ml: 5.5 }}>
+            No filters are currently active — all samples will be used
+          </Typography>
+        )}
+      </Paper>
 
       <Grid container spacing={3}>
         <Grid item xs={12} md={6}>
@@ -489,7 +641,11 @@ export const PCAWorkflow: React.FC = () => {
                 <strong>Variables:</strong> {pcaSelectedElements.length}
               </div>
               <div>
-                <strong>Samples:</strong> {data.length}
+                <strong>Samples:</strong>{' '}
+                {useFilteredData
+                  ? <>{visibleCount.toLocaleString()} <Typography component="span" variant="body2" color="text.secondary">(of {displayData.length.toLocaleString()})</Typography></>
+                  : displayData.length.toLocaleString()
+                }
               </div>
               <div>
                 <strong>Components:</strong> {nComponents}
@@ -507,9 +663,9 @@ export const PCAWorkflow: React.FC = () => {
           variant="contained"
           size="large"
           onClick={handleRunPCA}
-          disabled={isProcessing || pcaSelectedElements.length < 2}
+          disabled={isProcessing || pcaSelectedElements.length < 2 || (useFilteredData && visibleCount < 2)}
         >
-          {isProcessing ? <CircularProgress size={24} /> : 'Run PCA'}
+          {isProcessing ? <CircularProgress size={24} /> : useFilteredData ? `Run PCA (${effectiveSampleCount.toLocaleString()} samples)` : 'Run PCA'}
         </Button>
       </Box>
 
@@ -522,7 +678,8 @@ export const PCAWorkflow: React.FC = () => {
         </Alert>
       )}
     </Box>
-  );
+    );
+  };
 
   // Step 3: Results
   const renderResults = () => {

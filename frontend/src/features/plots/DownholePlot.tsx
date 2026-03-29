@@ -55,6 +55,8 @@ interface DownholeHoleViewProps {
     plotHeight: number;
     trackWidth: number;
     lockAxes: boolean;
+    lockFullExtent: boolean;
+    fullRanges: { depth: [number, number]; value: [number, number] } | null;
     displayName: (name: string) => string;
 }
 
@@ -71,6 +73,8 @@ const DownholeHoleView: React.FC<DownholeHoleViewProps> = ({
     plotHeight,
     trackWidth,
     lockAxes,
+    lockFullExtent,
+    fullRanges,
     displayName: dn,
 }) => {
     const visibleTraces = traceConfigs.filter(t => t.visible);
@@ -123,20 +127,22 @@ const DownholeHoleView: React.FC<DownholeHoleViewProps> = ({
                 side: 'top',
                 showgrid: true,
                 gridcolor: 'rgba(0,0,0,0.1)',
+                ...(lockFullExtent && fullRanges ? { range: fullRanges.value, autorange: false } : {}),
             },
             yaxis: {
                 title: { text: 'Depth', font: { size: EXPORT_FONT_SIZES.axisTitle } },
                 tickfont: { size: EXPORT_FONT_SIZES.tickLabels },
-                autorange: 'reversed',
+                autorange: lockFullExtent && fullRanges ? false : 'reversed',
+                ...(lockFullExtent && fullRanges ? { range: [fullRanges.depth[1], fullRanges.depth[0]] } : {}),
                 showgrid: true,
                 gridcolor: 'rgba(0,0,0,0.1)',
                 zeroline: false,
             },
-            uirevision: lockAxes ? 'locked' : Date.now(),
+            uirevision: (lockAxes || lockFullExtent) ? 'locked' : Date.now(),
         };
 
         return { traces, layout };
-    }, [holeData, visibleTraces, depthCol, fromCol, scalingMode, plotHeight, trackWidth, categoryField, holeName, lockAxes]);
+    }, [holeData, visibleTraces, depthCol, fromCol, scalingMode, plotHeight, trackWidth, categoryField, holeName, lockAxes, lockFullExtent, fullRanges]);
 
     // Generate lithology/category track
     const categoryTrack = useMemo(() => {
@@ -242,7 +248,7 @@ interface DownholePlotProps {
 }
 
 export const DownholePlot: React.FC<DownholePlotProps> = ({ plotId }) => {
-    const { data, columns, lockAxes, sampleIndices, columnarRowCount } = useAppStore(useShallow(s => ({ data: s.data, columns: s.columns, lockAxes: s.lockAxes, sampleIndices: s.sampleIndices, columnarRowCount: s.columnarData.rowCount })));
+    const { data, columns, lockAxes, lockFullExtent, sampleIndices, columnarRowCount } = useAppStore(useShallow(s => ({ data: s.data, columns: s.columns, lockAxes: s.lockAxes, lockFullExtent: s.lockFullExtent, sampleIndices: s.sampleIndices, columnarRowCount: s.columnarData.rowCount })));
     const getPlotSettings = useAppStore(s => s.getPlotSettings);
     const updatePlotSettings = useAppStore(s => s.updatePlotSettings);
     const getFilteredColumns = useAppStore(s => s.getFilteredColumns);
@@ -362,6 +368,26 @@ export const DownholePlot: React.FC<DownholePlotProps> = ({ plotId }) => {
         });
         return colors;
     }, [displayData, categoryField]);
+
+    // Full data ranges for lockFullExtent mode
+    const fullDownholeRanges = useMemo(() => {
+        if (!lockFullExtent || !depthCol || selectedFields.length === 0) return null;
+        const depthKey = fromCol || depthCol;
+        let depthMin = Infinity, depthMax = -Infinity;
+        let valMin = Infinity, valMax = -Infinity;
+        for (const row of data) {
+            const d = row[depthKey];
+            if (d != null && !isNaN(d)) { if (d < depthMin) depthMin = d; if (d > depthMax) depthMax = d; }
+            for (const field of selectedFields) {
+                let v = row[field];
+                if (scalingMode === 'log' && v > 0) v = Math.log10(v);
+                if (v != null && !isNaN(v)) { if (v < valMin) valMin = v; if (v > valMax) valMax = v; }
+            }
+        }
+        return depthMin < depthMax && valMin < valMax
+            ? { depth: [depthMin, depthMax] as [number, number], value: [valMin, valMax] as [number, number] }
+            : null;
+    }, [lockFullExtent, data, depthCol, fromCol, selectedFields, scalingMode]);
 
     // Get hole data with visibility filtering
     const getHoleData = useCallback((holeName: string) => {
@@ -601,6 +627,8 @@ export const DownholePlot: React.FC<DownholePlotProps> = ({ plotId }) => {
                                     plotHeight={plotHeight}
                                     trackWidth={trackWidth}
                                     lockAxes={lockAxes}
+                                    lockFullExtent={lockFullExtent}
+                                    fullRanges={fullDownholeRanges}
                                     displayName={d}
                                 />
                             </Paper>

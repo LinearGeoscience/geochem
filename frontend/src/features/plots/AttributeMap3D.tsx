@@ -28,7 +28,7 @@ interface AttributeMap3DProps {
 }
 
 export const AttributeMap3D: React.FC<AttributeMap3DProps> = ({ plotId }) => {
-    const { data, columns, lockAxes, sampleIndices, columnarRowCount } = useAppStore(useShallow(s => ({ data: s.data, columns: s.columns, lockAxes: s.lockAxes, sampleIndices: s.sampleIndices, columnarRowCount: s.columnarData.rowCount })));
+    const { data, columns, lockAxes, lockFullExtent, sampleIndices, columnarRowCount } = useAppStore(useShallow(s => ({ data: s.data, columns: s.columns, lockAxes: s.lockAxes, lockFullExtent: s.lockFullExtent, sampleIndices: s.sampleIndices, columnarRowCount: s.columnarData.rowCount })));
     const getPlotSettings = useAppStore(s => s.getPlotSettings);
     const updatePlotSettings = useAppStore(s => s.updatePlotSettings);
     const getFilteredColumns = useAppStore(s => s.getFilteredColumns);
@@ -410,22 +410,25 @@ export const AttributeMap3D: React.FC<AttributeMap3DProps> = ({ plotId }) => {
                                         aspectmode: equalAxes ? 'data' : 'auto',
                                         xaxis: {
                                             title: { text: d(xAxis), font: { size: 11 } },
-                                            range: axisRanges ? axisRanges.x : undefined,
+                                            range: lockFullExtent && dataRanges ? dataRanges.x : axisRanges ? axisRanges.x : undefined,
+                                            ...((lockFullExtent && dataRanges) || axisRanges ? { autorange: false } : {}),
                                         },
                                         yaxis: {
                                             title: { text: d(yAxis), font: { size: 11 } },
-                                            range: axisRanges ? axisRanges.y : undefined,
+                                            range: lockFullExtent && dataRanges ? dataRanges.y : axisRanges ? axisRanges.y : undefined,
+                                            ...((lockFullExtent && dataRanges) || axisRanges ? { autorange: false } : {}),
                                         },
                                         zaxis: {
                                             title: { text: d(zAxis), font: { size: 11 } },
-                                            range: axisRanges ? axisRanges.z : undefined,
+                                            range: lockFullExtent && dataRanges ? dataRanges.z : axisRanges ? axisRanges.z : undefined,
+                                            ...((lockFullExtent && dataRanges) || axisRanges ? { autorange: false } : {}),
                                         },
                                         camera: lockAxes && cameraRef.current
                                             ? cameraRef.current
                                             : { eye: { x: 1.5, y: 1.5, z: 1.3 } }
                                     },
                                     margin: { l: 0, r: 0, t: 40, b: 0 },
-                                    uirevision: lockAxes ? 'locked' : revisionRef.current
+                                    uirevision: (lockAxes || lockFullExtent) ? 'locked' : revisionRef.current
                                 }}
                                 config={getPlotConfig({ filename: `map3d_${colorAttribute || 'default'}` })}
                                 style={{ width: '100%' }}

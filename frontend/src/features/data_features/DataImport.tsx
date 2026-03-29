@@ -21,6 +21,7 @@ import {
     VantaTransformOptions,
     DEFAULT_TRANSFORM_OPTIONS,
 } from '../../utils/vantaPxrfTransform';
+import { useAuditStore } from '../../store/auditStore';
 
 interface ColumnMapping {
     [key: string]: string;
@@ -155,6 +156,15 @@ export const DataImport: React.FC = () => {
 
             console.log('[Vanta PXRF] Transformation complete:', transformed.stats);
 
+            useAuditStore.getState().recordAudit({
+                category: 'import',
+                operation: 'Vanta PXRF Import',
+                description: `Imported Vanta PXRF file "${file.name}" with ${transformed.data.length.toLocaleString()} rows and ${filteredColumnInfo.length} columns. LOD handling: ${pxrfOptions.lodHandling}.`,
+                parameters: { fileName: file.name, lodHandling: pxrfOptions.lodHandling, stats: transformed.stats },
+                outputColumns: filteredColumnInfo.map((c: any) => c.name),
+                rowsAffected: transformed.data.length,
+            });
+
         } catch (err: any) {
             console.error('[Vanta PXRF] Processing error:', err);
             useAppStore.setState({
@@ -236,6 +246,15 @@ export const DataImport: React.FC = () => {
 
             setIogasImportStats(statsLines.join('\n'));
             console.log('[ioGAS] Import complete:', result);
+
+            useAuditStore.getState().recordAudit({
+                category: 'import',
+                operation: 'ioGAS Import',
+                description: `Imported ioGAS file "${file.name}" with ${result.rows} rows and ${result.columns} columns`,
+                parameters: { fileName: file.name },
+                outputColumns: filteredIogasColumns.map((c: any) => c.name),
+                rowsAffected: result.rows,
+            });
 
         } catch (err: any) {
             console.error('[ioGAS] Processing error:', err);

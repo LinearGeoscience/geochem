@@ -4,11 +4,13 @@ import { useAppStore } from './appStore';
 import { useAttributeStore } from './attributeStore';
 import { useClassificationStore } from './classificationStore';
 import { useCustomDiagramStore } from './customDiagramStore';
+import { useAuditStore } from './auditStore';
 import { createGeochemMappings } from '../utils/calculations/elementNameNormalizer';
+import { AuditEntry } from '../types/audit';
 
 // File extension for project files
 export const PROJECT_FILE_EXTENSION = '.chem';
-export const PROJECT_VERSION = 1;
+export const PROJECT_VERSION = 2;
 
 export interface ProjectMetadata {
     name: string;
@@ -38,6 +40,7 @@ export interface ProjectData {
         activePlotId?: string | null;
         selectedIndices: number[];
         lockAxes: boolean;
+        lockFullExtent?: boolean;
         statsSelectedColumns: string[];
         correlationSelectedColumns: string[];
         geochemMappings?: any[];
@@ -60,6 +63,7 @@ export interface ProjectData {
         autosaveEnabled: boolean;
         autosaveIntervalMinutes: number;
     };
+    auditLog?: AuditEntry[];
 }
 
 interface ProjectState {
@@ -196,6 +200,7 @@ export const useProjectStore = create<ProjectState>()(
                     columnFilter: 'all',
                     availableFilters: ['all', 'raw'],
                     lockAxes: false,
+                    lockFullExtent: false,
                 });
 
                 // Reset attributes
@@ -224,6 +229,9 @@ export const useProjectStore = create<ProjectState>()(
                         fillOpacity: 0.35,
                     },
                 });
+
+                // Reset audit log
+                useAuditStore.getState().clearAudit();
 
                 // Set new project metadata and clear file handle
                 const now = new Date().toISOString();
@@ -274,6 +282,7 @@ export const useProjectStore = create<ProjectState>()(
                         activePlotId: appState.activePlotId,
                         selectedIndices: appState.selectedIndices,
                         lockAxes: appState.lockAxes,
+                        lockFullExtent: appState.lockFullExtent,
                         statsSelectedColumns: appState.statsSelectedColumns,
                         correlationSelectedColumns: appState.correlationSelectedColumns,
                         geochemMappings: appState.geochemMappings
@@ -295,7 +304,8 @@ export const useProjectStore = create<ProjectState>()(
                     settings: {
                         autosaveEnabled: projectState.autosaveEnabled,
                         autosaveIntervalMinutes: projectState.autosaveIntervalMinutes
-                    }
+                    },
+                    auditLog: useAuditStore.getState().entries
                 };
 
                 return projectData;
@@ -304,6 +314,12 @@ export const useProjectStore = create<ProjectState>()(
             importProject: (data: ProjectData) => {
                 set({ _isImporting: true });
                 try {
+                    // Migrate v1 → v2: add empty auditLog
+                    if (data.version === 1) {
+                        data.auditLog = [];
+                        data.version = 2;
+                        console.log('[Import] Migrated project v1 → v2 (added auditLog)');
+                    }
                     if (data.version !== PROJECT_VERSION) {
                         console.warn('Project version mismatch, attempting import anyway');
                     }
@@ -327,6 +343,7 @@ export const useProjectStore = create<ProjectState>()(
                         selectedIndices: data.appState.selectedIndices || [],
                         availableFilters: availableFilters as any,
                         lockAxes: data.appState.lockAxes || false,
+                        lockFullExtent: data.appState.lockFullExtent || false,
                         activePlotId: data.appState.activePlotId ?? data.appState.plots?.[0]?.id ?? null,
                         currentView: data.appState.data?.length > 0 ? 'plots' : 'import',
                         statsSelectedColumns: data.appState.statsSelectedColumns || [],
@@ -392,6 +409,9 @@ export const useProjectStore = create<ProjectState>()(
                             }
                         });
                     }
+
+                    // Restore audit log
+                    useAuditStore.getState().setEntries(data.auditLog ?? []);
 
                     // Restore settings
                     if (data.settings) {
@@ -772,7 +792,8 @@ useAppStore.subscribe((state, prevState) => {
         state.plots !== prevState.plots ||
         state.geochemMappings !== prevState.geochemMappings ||
         state.selectedIndices !== prevState.selectedIndices ||
-        state.lockAxes !== prevState.lockAxes
+        state.lockAxes !== prevState.lockAxes ||
+        state.lockFullExtent !== prevState.lockFullExtent
     ) {
         useProjectStore.getState().setDirty(true);
     }
@@ -799,6 +820,13 @@ useClassificationStore.subscribe((state, prevState) => {
         state.selectedDiagramId !== prevState.selectedDiagramId ||
         state.renderOptions !== prevState.renderOptions
     ) {
+        useProjectStore.getState().setDirty(true);
+    }
+});
+
+useAuditStore.subscribe((state, prevState) => {
+    if (useProjectStore.getState()._isImporting) return;
+    if (state.entries !== prevState.entries) {
         useProjectStore.getState().setDirty(true);
     }
 });

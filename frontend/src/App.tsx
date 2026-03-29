@@ -13,6 +13,7 @@ import { HistogramPlot } from './features/plots/HistogramPlot';
 import { CLRPlot } from './features/plots/CLRPlot';
 import { ClassificationPlot } from './features/plots/ClassificationPlot';
 import { PathfinderMap } from './features/plots/PathfinderMap';
+import { ContourMap } from './features/plots/ContourMap';
 import { DataView } from './features/data_features/DataView';
 import { ColumnManager } from './features/data_features/ColumnManager';
 import { SelectionManager } from './features/data_features/SelectionManager';
@@ -134,6 +135,7 @@ function App() {
                                                 case 'clr': return <CLRPlot key={plotId} plotId={plotId} />;
                                                 case 'classification': return <ClassificationPlot key={plotId} plotId={plotId} />;
                                                 case 'pathfinder': return <PathfinderMap key={plotId} plotId={plotId} />;
+                                                case 'contour': return <ContourMap key={plotId} plotId={plotId} />;
                                                 default: return null;
                                             }
                                         })()}

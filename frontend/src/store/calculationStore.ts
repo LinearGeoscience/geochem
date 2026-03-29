@@ -15,6 +15,7 @@ import {
     validateData,
 } from '../utils/calculations';
 import { useAppStore } from './appStore';
+import { useAuditStore } from './auditStore';
 
 interface CalculationState {
     // Available calculations
@@ -247,6 +248,22 @@ export const useCalculationStore = create<CalculationState>()(
                     set((state) => ({
                         results: [...state.results, calcResult],
                     }));
+
+                    // Record audit
+                    useAuditStore.getState().recordAudit({
+                        category: 'calculation',
+                        operation: calcDef.name || 'Custom Calculation',
+                        description: `Executed calculation "${calcDef.name || queueItem.config.calculationId}" → column "${queueItem.config.outputColumnName}"`,
+                        mathFormula: calcDef.formulaDisplay || undefined,
+                        reference: (calcDef as any).reference || undefined,
+                        parameters: {
+                            missingValueStrategy: queueItem.config.missingValueStrategy,
+                            columnMappings: queueItem.config.columnMappings.map((m: ColumnMapping) => ({ input: m.inputName, column: m.columnName })),
+                        },
+                        inputColumns: queueItem.config.columnMappings.map((m: ColumnMapping) => m.columnName),
+                        outputColumns: [queueItem.config.outputColumnName],
+                        rowsAffected: data.length,
+                    });
 
                     return calcResult;
                 } catch (error) {

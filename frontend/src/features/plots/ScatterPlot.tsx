@@ -31,7 +31,7 @@ interface ScatterPlotProps {
 }
 
 export const ScatterPlot: React.FC<ScatterPlotProps> = ({ plotId }) => {
-    const { data, columns, lockAxes, sampleIndices, geochemMappings, columnarRowCount } = useAppStore(useShallow(s => ({ data: s.data, columns: s.columns, lockAxes: s.lockAxes, sampleIndices: s.sampleIndices, geochemMappings: s.geochemMappings, columnarRowCount: s.columnarData.rowCount })));
+    const { data, columns, lockAxes, lockFullExtent, sampleIndices, geochemMappings, columnarRowCount } = useAppStore(useShallow(s => ({ data: s.data, columns: s.columns, lockAxes: s.lockAxes, lockFullExtent: s.lockFullExtent, sampleIndices: s.sampleIndices, geochemMappings: s.geochemMappings, columnarRowCount: s.columnarData.rowCount })));
     const getPlotSettings = useAppStore(s => s.getPlotSettings);
     const updatePlotSettings = useAppStore(s => s.updatePlotSettings);
     const getFilteredColumns = useAppStore(s => s.getFilteredColumns);
@@ -45,6 +45,7 @@ export const ScatterPlot: React.FC<ScatterPlotProps> = ({ plotId }) => {
     const d = (name: string) => getColumnDisplayName(columns, name);
     const displayData = useMemo(() => getDisplayData(), [data, sampleIndices]);
     const displayIndices = useMemo(() => getDisplayIndices(), [data, sampleIndices]);
+    const getColumn = useAppStore(s => s.getColumn);
     // Subscribe to attribute state that affects styling
     const { color, shape: _shape, size: _size, filter: _filter, customEntries: _customEntries, emphasis: _emphasis, globalOpacity: _globalOpacity } = useAttributeStore(useShallow(s => ({
         color: s.color, shape: s.shape, size: s.size, filter: s.filter,
@@ -75,7 +76,51 @@ export const ScatterPlot: React.FC<ScatterPlotProps> = ({ plotId }) => {
     const [logScaleX, setLogScaleXLocal] = useState<boolean>(storedSettings.logScaleX || false);
     const [logScaleY, setLogScaleYLocal] = useState<boolean>(storedSettings.logScaleY || false);
     const [presentationMode, setPresentationModeLocal] = useState<boolean>(storedSettings.presentationMode || false);
+    const [equalAxes, setEqualAxesLocal] = useState<boolean>(storedSettings.equalAxes || false);
     const [sortOrder, setSortOrderLocal] = useState<string>(storedSettings.sortOrder || 'default');
+
+    // Full data ranges for lockFullExtent mode
+    const fullXRange = useMemo(() => {
+        if (!lockFullExtent || !xAxis) return null;
+        const col = getColumn(xAxis);
+        if (!col) return null;
+        let min = Infinity, max = -Infinity;
+        if (col instanceof Float64Array) {
+            for (let i = 0; i < col.length; i++) {
+                const v = col[i];
+                if (!isNaN(v) && isFinite(v)) { if (v < min) min = v; if (v > max) max = v; }
+            }
+        } else {
+            for (let i = 0; i < col.length; i++) {
+                const v = Number(col[i]);
+                if (!isNaN(v) && isFinite(v)) { if (v < min) min = v; if (v > max) max = v; }
+            }
+        }
+        return min < max ? [min, max] as [number, number] : null;
+    }, [lockFullExtent, xAxis, data]);
+
+    const fullYRanges = useMemo(() => {
+        if (!lockFullExtent || yAxes.length === 0) return {} as Record<string, [number, number]>;
+        const ranges: Record<string, [number, number]> = {};
+        for (const yName of yAxes) {
+            const col = getColumn(yName);
+            if (!col) continue;
+            let min = Infinity, max = -Infinity;
+            if (col instanceof Float64Array) {
+                for (let i = 0; i < col.length; i++) {
+                    const v = col[i];
+                    if (!isNaN(v) && isFinite(v)) { if (v < min) min = v; if (v > max) max = v; }
+                }
+            } else {
+                for (let i = 0; i < col.length; i++) {
+                    const v = Number(col[i]);
+                    if (!isNaN(v) && isFinite(v)) { if (v < min) min = v; if (v > max) max = v; }
+                }
+            }
+            if (min < max) ranges[yName] = [min, max];
+        }
+        return ranges;
+    }, [lockFullExtent, yAxes, data]);
 
     // Pre-computed density results per yAxis (keyed by displayData index)
     const [densityResults, setDensityResults] = useState<Record<string, number[] | null>>({});
@@ -191,6 +236,10 @@ export const ScatterPlot: React.FC<ScatterPlotProps> = ({ plotId }) => {
     const setPresentationMode = (mode: boolean) => {
         setPresentationModeLocal(mode);
         updatePlotSettings(plotId, { presentationMode: mode });
+    };
+    const setEqualAxes = (eq: boolean) => {
+        setEqualAxesLocal(eq);
+        updatePlotSettings(plotId, { equalAxes: eq });
     };
     const setSortOrder = (order: string) => {
         setSortOrderLocal(order);
@@ -611,6 +660,20 @@ export const ScatterPlot: React.FC<ScatterPlotProps> = ({ plotId }) => {
                     />
                 </Tooltip>
 
+                {/* Equal Axes Toggle */}
+                <Tooltip title="Lock 1:1 aspect ratio between axes (use for spatial data like East vs North)">
+                    <FormControlLabel
+                        control={
+                            <Checkbox
+                                checked={equalAxes}
+                                onChange={(e) => setEqualAxes(e.target.checked)}
+                                size="small"
+                            />
+                        }
+                        label={<Typography variant="body2">Equal Axes</Typography>}
+                    />
+                </Tooltip>
+
                 {yAxes.length > 1 && (
                     <FormControl sx={{ minWidth: 170 }} size="small">
                         <InputLabel>Sort Plots</InputLabel>
@@ -676,9 +739,12 @@ export const ScatterPlot: React.FC<ScatterPlotProps> = ({ plotId }) => {
                                                     },
                                                     tickfont: { size: presentationMode ? PRESENTATION_FONT_SIZES.tickLabels : EXPORT_FONT_SIZES.tickLabels },
                                                     type: logScaleX ? 'log' : 'linear',
-                                                    ...(lockAxes && axisRangesRef.current[yAxisName]?.xRange
-                                                        ? { range: axisRangesRef.current[yAxisName].xRange, autorange: false }
-                                                        : {})
+                                                    ...(equalAxes ? { scaleanchor: 'y' as const, scaleratio: 1 } : {}),
+                                                    ...(lockFullExtent && fullXRange
+                                                        ? { range: fullXRange, autorange: false }
+                                                        : lockAxes && axisRangesRef.current[yAxisName]?.xRange
+                                                            ? { range: axisRangesRef.current[yAxisName].xRange, autorange: false }
+                                                            : {})
                                                 },
                                                 yaxis: {
                                                     title: {
@@ -687,15 +753,17 @@ export const ScatterPlot: React.FC<ScatterPlotProps> = ({ plotId }) => {
                                                     },
                                                     tickfont: { size: presentationMode ? PRESENTATION_FONT_SIZES.tickLabels : EXPORT_FONT_SIZES.tickLabels },
                                                     type: logScaleY ? 'log' : 'linear',
-                                                    ...(lockAxes && axisRangesRef.current[yAxisName]?.yRange
-                                                        ? { range: axisRangesRef.current[yAxisName].yRange, autorange: false }
-                                                        : {})
+                                                    ...(lockFullExtent && fullYRanges[yAxisName]
+                                                        ? { range: fullYRanges[yAxisName], autorange: false }
+                                                        : lockAxes && axisRangesRef.current[yAxisName]?.yRange
+                                                            ? { range: axisRangesRef.current[yAxisName].yRange, autorange: false }
+                                                            : {})
                                                 },
                                                 showlegend: false,
                                                 margin: presentationMode
                                                     ? { l: 100, r: 50, t: 80, b: 100 }
                                                     : { l: 70, r: 40, t: 60, b: 70 },
-                                                uirevision: lockAxes ? 'locked' : Date.now()
+                                                uirevision: (lockAxes || lockFullExtent) ? 'locked' : Date.now()
                                             }}
                                             config={getPlotConfig({ filename: `scatter_${xAxis}_${yAxisName}` })}
                                             style={{ width: '100%' }}

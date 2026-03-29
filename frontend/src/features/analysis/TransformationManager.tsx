@@ -18,6 +18,10 @@ import { useShallow } from 'zustand/react/shallow';
 import { useTransformationStore } from '../../store/transformationStore';
 import { TransformationResult } from '../../types/compositional';
 import { TransformationType, ZeroHandlingStrategy } from '../../types/compositional';
+import { useAuditStore } from '../../store/auditStore';
+import { TRANSFORMATION_METADATA } from '../../types/transformationMetadata';
+import { ExpandablePlotWrapper } from '../../components/ExpandablePlotWrapper';
+import { GroupedElementSelector } from '../../components/GroupedElementSelector';
 
 // ============================================================================
 // TYPES
@@ -70,9 +74,10 @@ const InfoTooltip: React.FC<{ text: string }> = ({ text }) => (
 // ============================================================================
 
 export const TransformationManager: React.FC = () => {
-  const { data, columns } = useAppStore(useShallow(s => ({
+  const { data, columns, geochemMappings } = useAppStore(useShallow(s => ({
     data: s.data,
     columns: s.columns,
+    geochemMappings: s.geochemMappings,
   })));
   const getFilteredColumns = useAppStore(s => s.getFilteredColumns);
   const getColumn = useAppStore(s => s.getColumn);
@@ -118,7 +123,9 @@ export const TransformationManager: React.FC = () => {
     setLogAdditiveSelectedColumns,
     setLogAdditiveIndexName,
     createLogAdditiveIndex,
-    suggestLogAdditiveIndexName
+    suggestLogAdditiveIndexName,
+    // Custom associations (for PCA auto-select)
+    customAssociations
   } = useTransformationStore();
 
   const [activeTab, setActiveTab] = useState<'transform' | 'variance' | 'pca' | 'zeros' | 'logindex'>('transform');
@@ -201,6 +208,27 @@ export const TransformationManager: React.FC = () => {
     addTransformedColumnsToStore(pendingResult, groupId);
     setColumnFilter(`group:${groupId}`);
     setShowNameDialog(false);
+
+    // Audit: formula descriptions from single-source-of-truth registry
+    const meta = TRANSFORMATION_METADATA[transformType];
+    useAuditStore.getState().recordAudit({
+      category: 'transform',
+      operation: `${suffix} (${meta?.name || suffix}) Transformation`,
+      description: `Applied ${suffix} to ${pendingResult.config.columns.length} columns, producing ${colNames.length} output columns. Zero handling: ${pendingResult.config.zeroStrategy}. Zeros replaced: ${pendingResult.zerosReplaced}.`,
+      mathFormula: meta?.formulaDisplay,
+      reference: meta?.references.join('; '),
+      parameters: {
+        zeroStrategy: pendingResult.config.zeroStrategy,
+        zerosReplaced: pendingResult.zerosReplaced,
+        ...(pendingResult.config.alrReference ? { alrReference: pendingResult.config.alrReference } : {}),
+        ...(pendingResult.config.slrNumeratorGroup ? { numeratorGroup: pendingResult.config.slrNumeratorGroup, denominatorGroup: pendingResult.config.slrDenominatorGroup } : {}),
+        ...(pendingResult.config.chiPowerLambda != null ? { lambda: pendingResult.config.chiPowerLambda } : {}),
+      },
+      inputColumns: pendingResult.config.columns,
+      outputColumns: colNames,
+      rowsAffected: pendingResult.values.length,
+    });
+
     setPendingResult(null);
   };
 
@@ -246,6 +274,19 @@ export const TransformationManager: React.FC = () => {
     if (result) {
       // Add the index column to the main data store
       addColumn(result.name, result.values, 'numeric', 'Index', 'log-additive');
+
+      const laiMeta = TRANSFORMATION_METADATA['log-additive'];
+      useAuditStore.getState().recordAudit({
+        category: 'transform',
+        operation: 'Log Additive Index',
+        description: `Created log additive index "${result.name}" from ${logAdditiveSelectedColumns.length} columns`,
+        mathFormula: laiMeta?.formulaDisplay,
+        reference: laiMeta?.references.join('; '),
+        inputColumns: logAdditiveSelectedColumns,
+        outputColumns: [result.name],
+        rowsAffected: result.values.length,
+      });
+
       // Clear the name field for next index
       setLogAdditiveIndexName('');
     }
@@ -799,6 +840,7 @@ export const TransformationManager: React.FC = () => {
                 Cumulative: {pcaResult.cumulativeVariance[1]?.toFixed(1)}%
               </div>
 
+              <ExpandablePlotWrapper>
               <Plot
                 data={[
                   // Samples
@@ -834,6 +876,7 @@ export const TransformationManager: React.FC = () => {
                 config={{ responsive: true }}
                 style={{ width: '100%' }}
               />
+              </ExpandablePlotWrapper>
             </div>
           )}
         </div>
@@ -965,75 +1008,14 @@ export const TransformationManager: React.FC = () => {
             </div>
           </div>
 
-          {/* Column Selection */}
-          <div style={{ marginBottom: '16px' }}>
-            <label style={{ display: 'block', marginBottom: '8px', fontWeight: 500 }}>
-              Select Elements ({logAdditiveSelectedColumns.length} selected)
-              <InfoTooltip text="Select the element columns to combine into the index. Minimum 2 required." />
-            </label>
-            <div style={{
-              maxHeight: '200px',
-              overflow: 'auto',
-              border: '1px solid #d1d5db',
-              borderRadius: '4px',
-              padding: '8px'
-            }}>
-              {numericColumns.map(col => (
-                <label
-                  key={col}
-                  style={{
-                    display: 'inline-flex',
-                    alignItems: 'center',
-                    padding: '4px 8px',
-                    cursor: 'pointer',
-                    minWidth: '120px'
-                  }}
-                >
-                  <input
-                    type="checkbox"
-                    checked={logAdditiveSelectedColumns.includes(col)}
-                    onChange={(e) => {
-                      if (e.target.checked) {
-                        setLogAdditiveSelectedColumns([...logAdditiveSelectedColumns, col]);
-                      } else {
-                        setLogAdditiveSelectedColumns(logAdditiveSelectedColumns.filter(c => c !== col));
-                      }
-                    }}
-                    style={{ marginRight: '6px' }}
-                  />
-                  <span style={{ fontSize: '13px' }}>{col}</span>
-                </label>
-              ))}
-            </div>
-            <div style={{ marginTop: '8px', display: 'flex', gap: '8px' }}>
-              <button
-                onClick={() => setLogAdditiveSelectedColumns(numericColumns)}
-                style={{
-                  padding: '4px 8px',
-                  fontSize: '12px',
-                  borderRadius: '4px',
-                  border: '1px solid #d1d5db',
-                  background: 'white',
-                  cursor: 'pointer'
-                }}
-              >
-                Select All
-              </button>
-              <button
-                onClick={() => setLogAdditiveSelectedColumns([])}
-                style={{
-                  padding: '4px 8px',
-                  fontSize: '12px',
-                  borderRadius: '4px',
-                  border: '1px solid #d1d5db',
-                  background: 'white',
-                  cursor: 'pointer'
-                }}
-              >
-                Clear All
-              </button>
-            </div>
-          </div>
+          {/* Column Selection - Grouped by category with PCA auto-select */}
+          <GroupedElementSelector
+            numericColumns={numericColumns}
+            geochemMappings={geochemMappings}
+            selectedColumns={logAdditiveSelectedColumns}
+            onSelectionChange={setLogAdditiveSelectedColumns}
+            customAssociations={customAssociations}
+          />
 
           {/* Zero Handling */}
           <div style={{ marginBottom: '16px' }}>

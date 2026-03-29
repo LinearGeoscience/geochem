@@ -44,6 +44,7 @@ import { getSortedLoadings } from '../../../utils/calculations/pcaAnalysis';
 import { CATEGORY_INFO } from '../../../data/elementAssociationPatterns';
 import { detectElementFromColumnName } from '../../../utils/calculations/elementNameNormalizer';
 import { useTransformationStore } from '../../../store/transformationStore';
+import { ExpandablePlotWrapper } from '../../../components/ExpandablePlotWrapper';
 import { useAppStore } from '../../../store/appStore';
 import { getColumnDisplayName } from '../../../utils/attributeUtils';
 import { CreateCustomAssociationDialog } from './CreateCustomAssociationDialog';
@@ -537,6 +538,7 @@ const SinglePCPlot: React.FC<SinglePCPlotProps> = ({
 
   return (
     <Box>
+      <ExpandablePlotWrapper>
       <Plot
         data={[
           {
@@ -596,6 +598,7 @@ const SinglePCPlot: React.FC<SinglePCPlotProps> = ({
         style={{ width: '100%', cursor: selectionMode ? 'pointer' : 'default' }}
         onClick={handlePlotClick}
       />
+      </ExpandablePlotWrapper>
     </Box>
   );
 };
