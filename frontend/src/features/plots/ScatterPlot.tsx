@@ -8,7 +8,7 @@ import { TAS_DIAGRAM } from './classifications';
 import { ExpandablePlotWrapper } from '../../components/ExpandablePlotWrapper';
 import { useAttributeStore } from '../../store/attributeStore';
 import { getStyleArrays, getStyleArraysColumnar, shapeToPlotlySymbol, applyOpacityToColor, getSortedIndices, sortColumnsByPriority, getColumnDisplayName, getSelectionHighlightArrays, buildSelectionOverlayTrace } from '../../utils/attributeUtils';
-import { calculateLinearRegression } from '../../utils/regressionUtils';
+import { calculateLinearRegression, formatRegressionEquation } from '../../utils/regressionUtils';
 import { buildCustomData, buildCustomDataColumnar, buildScatterHoverTemplate } from '../../utils/tooltipUtils';
 import { isNumericColumn } from '../../types/columnarData';
 import { getPlotConfig, EXPORT_FONT_SIZES, PRESENTATION_FONT_SIZES } from '../../utils/plotConfig';
@@ -439,10 +439,10 @@ export const ScatterPlot: React.FC<ScatterPlotProps> = ({ plotId }) => {
         if (showRegression) {
             if (regressionMode === 'global') {
                 // Global regression - single line for all visible data
-                const xValues = (xDisplayCol ? sortedIndices.map(i => Number(xDisplayCol[i])) : sortedIndices.map(i => Number(displayData[i][xAxis]))).filter(v => !isNaN(v) && isFinite(v));
-                const yValues = (yDisplayCol ? sortedIndices.map(i => Number(yDisplayCol[i])) : sortedIndices.map(i => Number(displayData[i][yAxisName]))).filter(v => !isNaN(v) && isFinite(v));
+                const xRaw = xDisplayCol ? sortedIndices.map(i => Number(xDisplayCol[i])) : sortedIndices.map(i => Number(displayData[i][xAxis]));
+                const yRaw = yDisplayCol ? sortedIndices.map(i => Number(yDisplayCol[i])) : sortedIndices.map(i => Number(displayData[i][yAxisName]));
 
-                const regression = calculateLinearRegression(xValues, yValues);
+                const regression = calculateLinearRegression(xRaw, yRaw, { logX: logScaleX, logY: logScaleY });
                 if (regression) {
                     traces.push({
                         x: regression.xValues,
@@ -451,7 +451,7 @@ export const ScatterPlot: React.FC<ScatterPlotProps> = ({ plotId }) => {
                         type: 'scatter',
                         name: `Regression (R²=${regression.rSquared.toFixed(3)})`,
                         line: { color: 'red', width: presentationMode ? 4 : 2, dash: 'dash' },
-                        hovertemplate: `y = ${regression.slope.toFixed(4)}x + ${regression.intercept.toFixed(4)}<br>R² = ${regression.rSquared.toFixed(4)}<extra></extra>`
+                        hovertemplate: `${formatRegressionEquation(regression)}<br>R² = ${regression.rSquared.toFixed(4)}<extra></extra>`
                     });
                 }
             } else if (regressionMode === 'per-category' && color.field) {
@@ -475,7 +475,7 @@ export const ScatterPlot: React.FC<ScatterPlotProps> = ({ plotId }) => {
                 // Calculate regression for each category
                 categoryGroups.forEach(({ xVals: xValues, yVals: yValues, color: lineColor }, category) => {
 
-                    const regression = calculateLinearRegression(xValues, yValues);
+                    const regression = calculateLinearRegression(xValues, yValues, { logX: logScaleX, logY: logScaleY });
                     if (regression) {
                         traces.push({
                             x: regression.xValues,
@@ -484,7 +484,7 @@ export const ScatterPlot: React.FC<ScatterPlotProps> = ({ plotId }) => {
                             type: 'scatter',
                             name: `${category} (R²=${regression.rSquared.toFixed(3)})`,
                             line: { color: lineColor, width: presentationMode ? 4 : 2, dash: 'dash' },
-                            hovertemplate: `${category}<br>y = ${regression.slope.toFixed(4)}x + ${regression.intercept.toFixed(4)}<br>R² = ${regression.rSquared.toFixed(4)}<extra></extra>`,
+                            hovertemplate: `${category}<br>${formatRegressionEquation(regression)}<br>R² = ${regression.rSquared.toFixed(4)}<extra></extra>`,
                             showlegend: true
                         });
                     }
@@ -506,9 +506,9 @@ export const ScatterPlot: React.FC<ScatterPlotProps> = ({ plotId }) => {
             for (const yName of yAxes) {
                 const xFullCol = getColumn(xAxis);
                 const yFullCol = getColumn(yName);
-                const xValues = (xFullCol && isNumericColumn(xFullCol) ? Array.from(xFullCol) : data.map(d => Number(d[xAxis]))).filter(v => !isNaN(v) && isFinite(v));
-                const yValues = (yFullCol && isNumericColumn(yFullCol) ? Array.from(yFullCol) : data.map(d => Number(d[yName]))).filter(v => !isNaN(v) && isFinite(v));
-                const regression = calculateLinearRegression(xValues, yValues);
+                const xValues = xFullCol && isNumericColumn(xFullCol) ? Array.from(xFullCol) : data.map(d => Number(d[xAxis]));
+                const yValues = yFullCol && isNumericColumn(yFullCol) ? Array.from(yFullCol) : data.map(d => Number(d[yName]));
+                const regression = calculateLinearRegression(xValues, yValues, { logX: logScaleX, logY: logScaleY });
                 r2Map.set(yName, regression?.rSquared ?? -1);
                 const sign = regression && regression.slope >= 0 ? 1 : -1;
                 signedR2Map.set(yName, (regression?.rSquared ?? 0) * sign);

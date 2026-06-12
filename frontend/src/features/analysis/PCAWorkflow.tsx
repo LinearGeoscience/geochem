@@ -49,6 +49,7 @@ import {
   buildMappingMap,
   getMappingSummary,
   isNonElementColumn,
+  detectElementFromColumnName,
 } from '../../utils/calculations/elementNameNormalizer';
 
 // Import visualization components
@@ -124,8 +125,9 @@ export const PCAWorkflow: React.FC = () => {
   const [expandedRow, setExpandedRow] = useState<number | null>(null);
   const [useFilteredData, setUseFilteredData] = useState(false);
 
-  // Track which original indices were used in the last PCA run (for score mapping)
-  const pcaIndicesRef = useRef<number[] | null>(null);
+  // Original-data indices for each row passed to runFullPCA (so PC scores can be mapped back).
+  // Always populated (filtered or not) — length matches the array passed to runFullPCA.
+  const pcaInputIndicesRef = useRef<number[] | null>(null);
 
   // Compute columns per row based on breakpoint for row-based expansion
   const theme = useTheme();
@@ -170,6 +172,34 @@ export const PCAWorkflow: React.FC = () => {
     }
     return count;
   }, [styleArrays.visible]);
+
+  // Resolve unit-stripped display names for the selected elements.
+  // Prefer user's chemistry-dialog mappings (userOverride > detectedElement), fall back to auto-detect.
+  const resolveDisplayName = useCallback((col: string): string => {
+    const mapping = geochemMappings.find(m => m.originalName === col);
+    const fromMapping = mapping?.userOverride ?? mapping?.detectedElement ?? null;
+    if (fromMapping) return fromMapping;
+    return detectElementFromColumnName(col) ?? col;
+  }, [geochemMappings]);
+
+  // Preview: how many rows have a finite numeric value for EVERY selected element?
+  // Computed against the candidate set the user is about to feed to PCA.
+  const effectiveCompleteCount = useMemo(() => {
+    if (pcaSelectedElements.length === 0) return 0;
+    const candidates = useFilteredData
+      ? displayData.filter((_, i) => styleArrays.visible[i])
+      : displayData;
+    let count = 0;
+    for (const row of candidates) {
+      let complete = true;
+      for (const col of pcaSelectedElements) {
+        const val = row[col];
+        if (typeof val !== 'number' || !isFinite(val)) { complete = false; break; }
+      }
+      if (complete) count++;
+    }
+    return count;
+  }, [displayData, styleArrays.visible, pcaSelectedElements, useFilteredData]);
 
   const hasActiveFilters = useMemo(() => {
     const descriptions: string[] = [];
@@ -232,6 +262,55 @@ export const PCAWorkflow: React.FC = () => {
     return elementQualityInfo.filter(info => numericNames.has(info.element));
   }, [elementQualityInfo, numericColumns]);
 
+  // Step 1 always counts against displayData (no visibility filter) — this is the candidate set
+  // for which the per-element coverage chip's denominator is `displayData.length`.
+  const step1CompleteCount = useMemo(() => {
+    if (pcaSelectedElements.length === 0) return 0;
+    let count = 0;
+    for (let i = 0; i < displayData.length; i++) {
+      const row = displayData[i];
+      let complete = true;
+      for (const col of pcaSelectedElements) {
+        const val = row[col];
+        if (typeof val !== 'number' || !isFinite(val)) { complete = false; break; }
+      }
+      if (complete) count++;
+    }
+    return count;
+  }, [displayData, pcaSelectedElements]);
+
+  // For each unselected element, how many complete cases would survive if added?
+  // Uses a precomputed completeness mask for the current selection — O(N_rows × N_columns).
+  const wouldDropToByElement = useMemo(() => {
+    const map = new Map<string, number>();
+    if (pcaSelectedElements.length === 0) return map;
+
+    const completeMask = new Uint8Array(displayData.length);
+    for (let i = 0; i < displayData.length; i++) {
+      let complete = true;
+      for (const col of pcaSelectedElements) {
+        const val = displayData[i][col];
+        if (typeof val !== 'number' || !isFinite(val)) { complete = false; break; }
+      }
+      completeMask[i] = complete ? 1 : 0;
+    }
+
+    for (const col of numericColumns) {
+      if (pcaSelectedElements.includes(col.name)) continue;
+      if (nonElementColumns.has(col.name)) continue;
+
+      let count = 0;
+      for (let i = 0; i < displayData.length; i++) {
+        if (!completeMask[i]) continue;
+        const val = displayData[i][col.name];
+        if (typeof val === 'number' && isFinite(val)) count++;
+      }
+      map.set(col.name, count);
+    }
+
+    return map;
+  }, [displayData, pcaSelectedElements, numericColumns, nonElementColumns]);
+
   // After quality assessment auto-selects elements, filter out non-element columns
   useEffect(() => {
     if (elementQualityInfo.length > 0 && nonElementColumns.size > 0) {
@@ -289,11 +368,11 @@ export const PCAWorkflow: React.FC = () => {
     setAssociationAnalyses([]);
   };
 
-  // Element selection handlers
+  // Element selection handlers — use displayData so counts/BLD match what PCA will actually consume
   const handleAssessQuality = useCallback(() => {
     const columnNames = numericColumns.map((c) => c.name);
-    runElementQualityAssessment(data, columnNames);
-  }, [data, numericColumns, runElementQualityAssessment]);
+    runElementQualityAssessment(displayData, columnNames);
+  }, [displayData, numericColumns, runElementQualityAssessment]);
 
   const handleToggleElement = useCallback(
     (element: string) => {
@@ -372,48 +451,59 @@ export const PCAWorkflow: React.FC = () => {
       return;
     }
 
+    const displayNames = pcaSelectedElements.map(resolveDisplayName);
+
     if (useFilteredData) {
-      // Build filtered data and track original indices
-      const indices: number[] = [];
+      // Build filtered data and track original-data indices for each row passed to PCA
+      const inputIndices: number[] = [];
       const filtered: Record<string, any>[] = [];
       for (let i = 0; i < displayData.length; i++) {
         if (styleArrays.visible[i]) {
-          const originalIdx = displayIndices ? displayIndices[i] : i;
-          indices.push(originalIdx);
+          inputIndices.push(displayIndices ? displayIndices[i] : i);
           filtered.push(displayData[i]);
         }
       }
-      pcaIndicesRef.current = indices;
-      runFullPCA(filtered, pcaSelectedElements, nComponents);
+      pcaInputIndicesRef.current = inputIndices;
+      runFullPCA(filtered, pcaSelectedElements, nComponents, displayNames);
     } else {
-      pcaIndicesRef.current = null;
-      runFullPCA(displayData, pcaSelectedElements, nComponents);
+      // Unfiltered — but displayData may still be a sample of `data`, so map through displayIndices
+      const inputIndices: number[] = displayIndices
+        ? Array.from(displayIndices)
+        : displayData.map((_, i) => i);
+      pcaInputIndicesRef.current = inputIndices;
+      runFullPCA(displayData, pcaSelectedElements, nComponents, displayNames);
     }
-  }, [displayData, displayIndices, pcaSelectedElements, nComponents, runFullPCA, useFilteredData, styleArrays.visible]);
+  }, [displayData, displayIndices, pcaSelectedElements, nComponents, runFullPCA, useFilteredData, styleArrays.visible, resolveDisplayName]);
 
   // Add PC scores to data
   const handleAddPCScores = useCallback(() => {
     if (!fullPcaResult) return;
 
     const numPCs = Math.min(nComponents, fullPcaResult.eigenvalues.length);
-    const indices = pcaIndicesRef.current;
+    const inputIndices = pcaInputIndicesRef.current;
+    const { keptIndices, scores } = fullPcaResult;
+
+    if (!inputIndices || keptIndices.length !== scores.length) {
+      // Defensive: refuse to write misaligned scores
+      setSnackbar({
+        open: true,
+        message: 'Could not add PC scores — row mapping is inconsistent. Please re-run PCA.',
+        severity: 'warning',
+      });
+      return;
+    }
 
     for (let i = 0; i < numPCs; i++) {
-      let pcValues: (number | null)[];
-      let negPcValues: (number | null)[];
+      const pcValues: (number | null)[] = new Array(data.length).fill(NaN);
+      const negPcValues: (number | null)[] = new Array(data.length).fill(NaN);
 
-      if (indices) {
-        // Filtered PCA: map scores back to original row positions, NaN for excluded rows
-        pcValues = new Array(data.length).fill(NaN);
-        negPcValues = new Array(data.length).fill(NaN);
-        for (let j = 0; j < indices.length; j++) {
-          pcValues[indices[j]] = fullPcaResult.scores[j][i];
-          negPcValues[indices[j]] = -fullPcaResult.scores[j][i];
-        }
-      } else {
-        // Full dataset: 1:1 mapping
-        pcValues = fullPcaResult.scores.map((row) => row[i]);
-        negPcValues = fullPcaResult.scores.map((row) => -row[i]);
+      // For each CLR row j, the global data index is inputIndices[keptIndices[j]].
+      // Rows excluded by complete-case filter or visibility filter remain NaN.
+      for (let j = 0; j < scores.length; j++) {
+        const globalIdx = inputIndices[keptIndices[j]];
+        if (globalIdx == null || globalIdx < 0 || globalIdx >= data.length) continue;
+        pcValues[globalIdx] = scores[j][i];
+        negPcValues[globalIdx] = -scores[j][i];
       }
 
       const pcName = `PC${i + 1}`;
@@ -423,10 +513,9 @@ export const PCAWorkflow: React.FC = () => {
       addColumn(negPcName, negPcValues, 'numeric', 'PCA', 'pca' as any);
     }
 
-    const filterNote = indices ? ` (${indices.length} of ${data.length} samples)` : '';
     setSnackbar({
       open: true,
-      message: `Added ${numPCs * 2} columns (PC1-PC${numPCs} and negPC1-negPC${numPCs}) to the dataset${filterNote}`,
+      message: `Added ${numPCs * 2} columns (PC1-PC${numPCs} and negPC1-negPC${numPCs}) to the dataset (${scores.length} of ${data.length} samples populated)`,
       severity: 'success',
     });
   }, [fullPcaResult, nComponents, addColumn, data.length]);
@@ -503,6 +592,20 @@ export const PCAWorkflow: React.FC = () => {
               color="primary"
               variant="outlined"
             />
+            {pcaSelectedElements.length >= 2 && displayData.length > 0 && (() => {
+              const ratio = step1CompleteCount / displayData.length;
+              const color: 'success' | 'warning' | 'error' = ratio >= 0.5 ? 'success' : ratio >= 0.2 ? 'warning' : 'error';
+              return (
+                <Tooltip title={`After complete-case filtering, ${step1CompleteCount.toLocaleString()} of ${displayData.length.toLocaleString()} candidate samples will be used by PCA.`}>
+                  <Chip
+                    label={`Complete cases: ${step1CompleteCount.toLocaleString()} of ${displayData.length.toLocaleString()}`}
+                    color={color}
+                    variant="filled"
+                    size="small"
+                  />
+                </Tooltip>
+              );
+            })()}
           </Box>
 
           <Grid container spacing={1}>
@@ -528,6 +631,10 @@ export const PCAWorkflow: React.FC = () => {
                   isExpanded={isExpanded}
                   onExpandToggle={(el) => handleExpandToggle(el, index)}
                   isNonElement={nonElementColumns.has(info.element)}
+                  totalCount={info.totalCount}
+                  totalSamples={displayData.length}
+                  wouldDropTo={wouldDropToByElement.get(info.element) ?? null}
+                  currentCompleteCases={step1CompleteCount}
                 />
               </Grid>
             );
@@ -546,7 +653,9 @@ export const PCAWorkflow: React.FC = () => {
 
   // Step 2: PCA Execution
   const renderPCAExecution = () => {
-    const effectiveSampleCount = useFilteredData ? visibleCount : displayData.length;
+    const candidateCount = useFilteredData ? visibleCount : displayData.length;
+    const droppedPreview = candidateCount - effectiveCompleteCount;
+    const dropFraction = candidateCount > 0 ? droppedPreview / candidateCount : 0;
 
     return (
     <Box>
@@ -641,11 +750,22 @@ export const PCAWorkflow: React.FC = () => {
                 <strong>Variables:</strong> {pcaSelectedElements.length}
               </div>
               <div>
-                <strong>Samples:</strong>{' '}
+                <strong>Candidate samples:</strong>{' '}
                 {useFilteredData
-                  ? <>{visibleCount.toLocaleString()} <Typography component="span" variant="body2" color="text.secondary">(of {displayData.length.toLocaleString()})</Typography></>
+                  ? <>{visibleCount.toLocaleString()} <Typography component="span" variant="body2" color="text.secondary">(of {displayData.length.toLocaleString()} visible)</Typography></>
                   : displayData.length.toLocaleString()
                 }
+              </div>
+              <div>
+                <strong>Complete cases:</strong>{' '}
+                <Typography component="span" sx={{ color: dropFraction > 0.3 ? 'warning.main' : 'success.main', fontWeight: 600 }}>
+                  {effectiveCompleteCount.toLocaleString()}
+                </Typography>
+                {droppedPreview > 0 && (
+                  <Typography component="span" variant="body2" color="text.secondary">
+                    {' '}({droppedPreview.toLocaleString()} dropped — at least one selected element is null)
+                  </Typography>
+                )}
               </div>
               <div>
                 <strong>Components:</strong> {nComponents}
@@ -654,6 +774,11 @@ export const PCAWorkflow: React.FC = () => {
                 <strong>Transform:</strong> CLR (Centered Log-Ratio)
               </div>
             </Box>
+            {dropFraction > 0.3 && (
+              <Alert severity="warning" sx={{ mt: 1 }}>
+                Over {Math.round(dropFraction * 100)}% of candidate samples will be dropped for missing data. Consider deselecting elements with limited coverage.
+              </Alert>
+            )}
           </Paper>
         </Grid>
       </Grid>
@@ -663,16 +788,19 @@ export const PCAWorkflow: React.FC = () => {
           variant="contained"
           size="large"
           onClick={handleRunPCA}
-          disabled={isProcessing || pcaSelectedElements.length < 2 || (useFilteredData && visibleCount < 2)}
+          disabled={isProcessing || pcaSelectedElements.length < 2 || effectiveCompleteCount < 2}
         >
-          {isProcessing ? <CircularProgress size={24} /> : useFilteredData ? `Run PCA (${effectiveSampleCount.toLocaleString()} samples)` : 'Run PCA'}
+          {isProcessing
+            ? <CircularProgress size={24} />
+            : `Run PCA (${effectiveCompleteCount.toLocaleString()} complete cases)`}
         </Button>
       </Box>
 
       {fullPcaResult && (
         <Alert severity="success" sx={{ mt: 2 }}>
-          PCA completed! {fullPcaResult.nSamples} samples analyzed.
-          {fullPcaResult.zerosReplaced > 0 && ` ${fullPcaResult.zerosReplaced} zeros replaced.`}
+          PCA completed: {fullPcaResult.nSamples.toLocaleString()} complete cases analysed.
+          {fullPcaResult.nDropped > 0 && ` ${fullPcaResult.nDropped.toLocaleString()} rows dropped for missing elements.`}
+          {fullPcaResult.zerosReplaced > 0 && ` ${fullPcaResult.zerosReplaced.toLocaleString()} BLD zeros replaced.`}
           <br />
           PC1 explains {fullPcaResult.varianceExplained[0]?.toFixed(1)}% of variance.
         </Alert>

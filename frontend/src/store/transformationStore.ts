@@ -28,6 +28,7 @@ import {
   assessAllElementQuality,
   filterQualityElements,
 } from '../utils/calculations/pcaAnalysis';
+import { detectElementFromColumnName } from '../utils/calculations/elementNameNormalizer';
 import {
   plrTransform,
   alrTransform,
@@ -133,7 +134,7 @@ interface TransformationState {
   // Full PCA workflow
   setPcaSelectedElements: (elements: string[]) => void;
   runElementQualityAssessment: (data: Record<string, any>[], columns: string[], detectionLimits?: Record<string, number>) => void;
-  runFullPCA: (data: Record<string, any>[], columns: string[], nComponents?: number) => void;
+  runFullPCA: (data: Record<string, any>[], columns: string[], nComponents?: number, displayNames?: string[]) => void;
   clearFullPcaResult: () => void;
 
   // Log Additive Index
@@ -532,7 +533,8 @@ export const useTransformationStore = create<TransformationState>()(
               eigenvalues: result.variance.map(v => v * result.totalVariance),
               varianceExplained: result.variance.map(v => v * 100),
               cumulativeVariance: cumulativeVariance.map(v => v * 100),
-              columns: result.columns
+              columns: result.columns,
+              displayColumns: result.columns.map(c => detectElementFromColumnName(c) ?? c)
             },
             isProcessing: false
           });
@@ -612,12 +614,12 @@ export const useTransformationStore = create<TransformationState>()(
         }
       },
 
-      runFullPCA: (data, columns, nComponents = 8) => {
+      runFullPCA: (data, columns, nComponents = 8, displayNames) => {
         const state = get();
         set({ isProcessing: true, error: null });
 
         try {
-          const result = fullPCA(data, columns, nComponents, state.zeroStrategy as any);
+          const result = fullPCA(data, columns, nComponents, state.zeroStrategy as any, displayNames);
 
           set({
             fullPcaResult: result,

@@ -2,7 +2,7 @@
 name=GeoChem Integration
 qgisMinimumVersion=3.16
 description=Real-time integration with GeoChem geochemical analysis application. Sync data, classifications, and export styled geopackages.
-version=1.0.0
+version=2.0.0
 author=Linear Geoscience
 email=support@lineargeoscience.com
 
@@ -22,15 +22,17 @@ repository=https://github.com/lineargeoscience/geochem-qgis-plugin
 hasProcessingProvider=no
 
 changelog=
-    1.0.0 - Initial release
-        - Connection manager with REST and WebSocket support
-        - Data synchronization from GeoChem
-        - Classification-based styling
-        - Graduated styling for numeric columns
-        - High-grade highlighting
-        - Cluster visualization
+    2.0.0 - Complete rewrite (modeled after ioGAS plugin architecture)
+        - Modular architecture: comms, data, layer, client, UI packages
+        - Dual data source: fetches from main data API + QGIS cache fallback
+        - Thread-safe Qt signal bridge for all cross-module communication
+        - WebSocket live link with JSON protocol
+        - Intermediate GeochemData objects decouple protocol from QGIS
+        - Consolidated symbology (categorical, graduated, rule-based)
+        - Pathfinder element layers with Scott Halley anomaly thresholds
+        - Bidirectional selection sync via feature index mapping
         - GeoPackage export with embedded styles
-        - Bidirectional selection sync
+    1.0.0 - Initial release
 
 tags=geochemistry,analysis,geopackage,styling,exploration,mining
 

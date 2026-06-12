@@ -5,10 +5,10 @@ Real-time integration with GeoChem geochemical analysis application
 
 def classFactory(iface):
     """
-    Load the GeochemProPlugin class.
+    Load the GeochemPlugin class.
 
     :param iface: A QGIS interface instance.
     :type iface: QgsInterface
     """
-    from .geochem_pro import GeochemProPlugin
-    return GeochemProPlugin(iface)
+    from .geochem_plugin import GeochemPlugin
+    return GeochemPlugin(iface)

@@ -143,7 +143,8 @@ export interface PCAResult {
   eigenvalues: number[];        // Eigenvalues
   varianceExplained: number[];  // % variance per component
   cumulativeVariance: number[]; // Cumulative % variance
-  columns: string[];            // Column names
+  columns: string[];            // Original column names (with units, for traceability)
+  displayColumns?: string[];    // Unit-stripped element symbols for plot labels (optional)
 }
 
 /**
@@ -165,14 +166,20 @@ export interface FullPCAResult {
   cumulativeVariance: number[];
   /** Correlation matrix of CLR-transformed data */
   correlationMatrix: number[][];
-  /** Column/variable names */
+  /** Original column/variable names (e.g. "Cu_ppm") preserved for traceability/export */
   columns: string[];
+  /** Unit-stripped element symbols (e.g. "Cu") for plot labels — CLR output is dimensionless */
+  displayColumns: string[];
   /** Column means (for centering) */
   means: number[];
-  /** Number of samples used in analysis */
+  /** Number of samples used in analysis (after complete-case filtering) */
   nSamples: number;
-  /** Number of zeros replaced during CLR transformation */
+  /** Number of true BLD zeros replaced during CLR transformation */
   zerosReplaced: number;
+  /** Original input row indices used after complete-case filter (length === scores.length) */
+  keptIndices: number[];
+  /** Number of rows excluded because at least one selected element was null/missing */
+  nDropped: number;
 }
 
 /**

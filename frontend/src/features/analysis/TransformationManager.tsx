@@ -852,14 +852,14 @@ export const TransformationManager: React.FC = () => {
                     name: 'Samples',
                     marker: { size: 6, color: '#3b82f6', opacity: 0.6 }
                   },
-                  // Loadings (scaled)
+                  // Loadings (scaled) — show unit-stripped element symbols (CLR is dimensionless)
                   {
                     x: pcaResult.loadings.map(l => l[0] * 3),
                     y: pcaResult.loadings.map(l => l[1] * 3),
                     mode: 'markers+text' as any,
                     type: 'scatter',
                     name: 'Variables',
-                    text: pcaResult.columns,
+                    text: pcaResult.displayColumns ?? pcaResult.columns,
                     textposition: 'top center' as any,
                     marker: { size: 8, color: '#dc2626', symbol: 'diamond' }
                   }

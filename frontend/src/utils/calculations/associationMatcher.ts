@@ -688,17 +688,20 @@ export function matchAssociations(
   const elementMapping = options.elementMapping;
 
   // Build set of all available elements in the dataset
-  // This ensures patterns aren't penalized for unmeasured elements
+  // This ensures patterns aren't penalized for unmeasured elements.
+  // Prefer the clean displayColumns (e.g. "Cu") over raw originals ("Cu_ppm") since
+  // pattern definitions use bare element symbols.
+  const labels = pcaResult.displayColumns ?? pcaResult.columns;
   const availableElements = new Set<string>();
-  for (const column of pcaResult.columns) {
-    // Use element mapping if available, otherwise use column name
-    const element = elementMapping?.get(column) ?? column;
+  for (let i = 0; i < pcaResult.columns.length; i++) {
+    const column = pcaResult.columns[i];
+    const element = elementMapping?.get(column) ?? labels[i] ?? column;
     availableElements.add(element);
   }
 
   for (let pc = 0; pc < pcaResult.eigenvalues.length; pc++) {
-    // Get sorted loadings for this PC
-    const sortedLoadings: SortedLoading[] = pcaResult.columns.map((element, i) => ({
+    // Get sorted loadings for this PC — use clean symbols so they match pattern definitions
+    const sortedLoadings: SortedLoading[] = labels.map((element, i) => ({
       element,
       loading: pcaResult.loadings[i]?.[pc] ?? 0
     })).sort((a, b) => b.loading - a.loading);

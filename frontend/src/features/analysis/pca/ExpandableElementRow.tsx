@@ -45,6 +45,14 @@ interface ExpandableElementRowProps {
   isExpanded: boolean;
   onExpandToggle: (element: string) => void;
   isNonElement?: boolean;
+  /** Number of samples in the candidate set with a non-null value for this element */
+  totalCount?: number;
+  /** Total candidate sample count (denominator for coverage) */
+  totalSamples?: number;
+  /** If this element were added to the current selection, the resulting complete-case count */
+  wouldDropTo?: number | null;
+  /** Current complete-case count given the current selection (for tooltips) */
+  currentCompleteCases?: number;
 }
 
 export const ExpandableElementRow: React.FC<ExpandableElementRowProps> = ({
@@ -58,6 +66,10 @@ export const ExpandableElementRow: React.FC<ExpandableElementRowProps> = ({
   isExpanded,
   onExpandToggle,
   isNonElement = false,
+  totalCount,
+  totalSamples,
+  wouldDropTo,
+  currentCompleteCases,
 }) => {
   const { columns } = useAppStore();
   const displayElement = getColumnDisplayName(columns, element);
@@ -68,6 +80,24 @@ export const ExpandableElementRow: React.FC<ExpandableElementRowProps> = ({
     e.stopPropagation();
     onExpandToggle(element);
   };
+
+  // Coverage colour: green ≥ 80 %, amber 50-79 %, red < 50 %
+  const coverageRatio = totalSamples && totalSamples > 0 && totalCount != null
+    ? totalCount / totalSamples
+    : null;
+  const coverageColor: 'success' | 'warning' | 'error' | 'default' =
+    coverageRatio == null ? 'default'
+      : coverageRatio >= 0.8 ? 'success'
+      : coverageRatio >= 0.5 ? 'warning'
+      : 'error';
+
+  // What-if delta — only meaningful for unselected elements with a current selection in place
+  const showWhatIf = !isSelected
+    && !isNonElement
+    && wouldDropTo != null
+    && currentCompleteCases != null
+    && currentCompleteCases > 0;
+  const whatIfDelta = showWhatIf ? (currentCompleteCases! - wouldDropTo!) : 0;
 
   // Only compute plot data when expanded (lazy loading)
   const plotData = isExpanded ? getPlotData() : null;
@@ -105,6 +135,31 @@ export const ExpandableElementRow: React.FC<ExpandableElementRowProps> = ({
           }
         />
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+          {!isNonElement && coverageRatio != null && totalSamples != null && (
+            <Tooltip
+              title={`${totalCount} of ${totalSamples} candidate samples have a value for ${displayElement} (${(coverageRatio * 100).toFixed(0)}%). Selecting this element drops samples without it from the analysis.`}
+            >
+              <Chip
+                label={`${totalCount}/${totalSamples}`}
+                size="small"
+                color={coverageColor}
+                variant="outlined"
+              />
+            </Tooltip>
+          )}
+          {showWhatIf && (
+            <Tooltip
+              title={`Adding ${displayElement} would reduce complete cases from ${currentCompleteCases} to ${wouldDropTo} (${whatIfDelta > 0 ? '−' : ''}${whatIfDelta}).`}
+            >
+              <Chip
+                label={whatIfDelta > 0 ? `−${whatIfDelta}` : '='}
+                size="small"
+                color={whatIfDelta === 0 ? 'success' : whatIfDelta < 50 ? 'default' : 'warning'}
+                variant="filled"
+                sx={{ fontVariantNumeric: 'tabular-nums' }}
+              />
+            </Tooltip>
+          )}
           {isNonElement ? (
             <Chip
               label="Non-element"

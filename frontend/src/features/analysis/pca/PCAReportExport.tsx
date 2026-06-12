@@ -73,7 +73,8 @@ export const PCAReportExport: React.FC<PCAReportExportProps> = ({ pcaResult }) =
     setAnchorEl(null);
   };
 
-  // Export correlation matrix
+  // Export correlation matrix — labels use original column names so they round-trip
+  // unambiguously back to the source dataset.
   const exportCorrelationMatrix = useCallback(() => {
     const { correlationMatrix, columns } = pcaResult;
 
@@ -101,10 +102,13 @@ export const PCAReportExport: React.FC<PCAReportExportProps> = ({ pcaResult }) =
 
   // Export loadings (scaled eigenvectors)
   const exportLoadings = useCallback(() => {
-    const { loadings, columns, eigenvalues } = pcaResult;
+    const { loadings, columns, displayColumns, eigenvalues } = pcaResult;
+    const labels = displayColumns ?? columns;
 
-    const header = ['Element', ...eigenvalues.map((_, i) => `PC${i + 1}`)].join(',');
-    const rows = columns.map((col, i) => [col, ...loadings[i].map((l) => l.toFixed(6))].join(','));
+    const header = ['Element', 'DisplayName', ...eigenvalues.map((_, i) => `PC${i + 1}`)].join(',');
+    const rows = columns.map((col, i) =>
+      [col, labels[i] ?? col, ...loadings[i].map((l) => l.toFixed(6))].join(',')
+    );
 
     const csv = [header, ...rows].join('\n');
     downloadCSV(csv, 'pca_loadings.csv');
@@ -250,9 +254,18 @@ export const PCAReportExport: React.FC<PCAReportExportProps> = ({ pcaResult }) =
     lines.push('');
     lines.push(`Generated: ${new Date().toISOString()}`);
     lines.push(`Loading Threshold: ${threshold}`);
-    lines.push(`Number of Samples: ${pcaResult.nSamples}`);
+    lines.push(`Number of Complete Samples: ${pcaResult.nSamples}`);
+    if (pcaResult.nDropped > 0) {
+      lines.push(`Samples Dropped (missing data): ${pcaResult.nDropped}`);
+    }
+    if (pcaResult.zerosReplaced > 0) {
+      lines.push(`BLD Zeros Replaced: ${pcaResult.zerosReplaced}`);
+    }
     lines.push(`Number of Elements: ${pcaResult.columns.length}`);
-    lines.push(`Elements: ${pcaResult.columns.join(', ')}`);
+    lines.push(`Elements (original): ${pcaResult.columns.join(', ')}`);
+    if (pcaResult.displayColumns && pcaResult.displayColumns.length > 0) {
+      lines.push(`Elements (display): ${pcaResult.displayColumns.join(', ')}`);
+    }
     lines.push('');
 
     // Eigenvalues summary

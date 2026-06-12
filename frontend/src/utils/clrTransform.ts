@@ -12,8 +12,6 @@
  * - Aitchison (1986) - The Statistical Analysis of Compositional Data
  */
 
-import { extractRawNumericMatrix } from './columnarHelpers';
-
 export type ZeroHandlingStrategy = 'half-min' | 'small-constant' | 'multiplicative' | 'custom';
 
 export interface CLROptions {
@@ -30,10 +28,14 @@ export interface CLRResult {
     transformed: number[][];
     /** Column names corresponding to the transformed data */
     columns: string[];
-    /** Number of rows with zeros that were replaced */
+    /** Number of true zero values (BLD) that were replaced — does NOT include nulls/missing */
     zerosReplaced: number;
     /** Geometric means for each row */
     geometricMeans: number[];
+    /** Original input row indices kept after complete-case filtering (length === transformed.length) */
+    keptIndices: number[];
+    /** Number of rows excluded because at least one selected column was null/NaN/non-numeric */
+    nDropped: number;
 }
 
 /**
@@ -185,19 +187,49 @@ export function clrTransform(
             transformed: [],
             columns,
             zerosReplaced: 0,
-            geometricMeans: []
+            geometricMeans: [],
+            keptIndices: [],
+            nDropped: 0
         };
     }
 
-    // Extract numeric values from data
-    const rawMatrix: number[][] = data.map(row =>
-        columns.map(col => {
-            const val = row[col];
-            return typeof val === 'number' && !isNaN(val) ? val : 0;
-        })
-    );
+    // Complete-case filter: keep only rows where every selected column has a finite numeric value.
+    // Missing values (null/undefined/NaN/non-numeric) cause the whole row to be dropped — they are
+    // NOT silently replaced with zero, which would fabricate data and inflate the sample count.
+    const keptIndices: number[] = [];
+    const rawMatrix: number[][] = [];
+    for (let i = 0; i < data.length; i++) {
+        const row = data[i];
+        const numericRow: number[] = new Array(columns.length);
+        let complete = true;
+        for (let j = 0; j < columns.length; j++) {
+            const val = row[columns[j]];
+            if (typeof val !== 'number' || !isFinite(val)) {
+                complete = false;
+                break;
+            }
+            numericRow[j] = val;
+        }
+        if (complete) {
+            keptIndices.push(i);
+            rawMatrix.push(numericRow);
+        }
+    }
 
-    // Replace zeros
+    const nDropped = data.length - keptIndices.length;
+
+    if (rawMatrix.length === 0) {
+        return {
+            transformed: [],
+            columns,
+            zerosReplaced: 0,
+            geometricMeans: [],
+            keptIndices: [],
+            nDropped
+        };
+    }
+
+    // Replace true zeros (BLD) — at this point all values are finite numbers, so any zero is a real zero
     const { replaced, count } = replaceZeros(rawMatrix, options.zeroStrategy, {
         customValue: options.customZeroValue,
         smallConstant: options.smallConstant
@@ -217,12 +249,15 @@ export function clrTransform(
         transformed,
         columns,
         zerosReplaced: count,
-        geometricMeans
+        geometricMeans,
+        keptIndices,
+        nDropped
     };
 }
 
 /**
  * Columnar version of clrTransform - reads directly from Float64Array columns.
+ * Applies the same complete-case filter as the row-based variant.
  */
 export function clrTransformColumnar(
     getCol: (name: string) => Float64Array | undefined,
@@ -231,10 +266,42 @@ export function clrTransformColumnar(
     options: CLROptions = { zeroStrategy: 'half-min' }
 ): CLRResult {
     if (rowCount === 0 || columns.length === 0) {
-        return { transformed: [], columns, zerosReplaced: 0, geometricMeans: [] };
+        return { transformed: [], columns, zerosReplaced: 0, geometricMeans: [], keptIndices: [], nDropped: 0 };
     }
 
-    const rawMatrix = extractRawNumericMatrix(columns, getCol, rowCount);
+    // Pre-fetch column arrays once
+    const cols = columns.map(c => getCol(c));
+
+    // Complete-case filter — drop any row where any selected column is missing (NaN) or absent
+    const keptIndices: number[] = [];
+    const rawMatrix: number[][] = [];
+    for (let i = 0; i < rowCount; i++) {
+        const numericRow: number[] = new Array(columns.length);
+        let complete = true;
+        for (let j = 0; j < columns.length; j++) {
+            const col = cols[j];
+            if (!col) {
+                complete = false;
+                break;
+            }
+            const val = col[i];
+            if (!isFinite(val)) {
+                complete = false;
+                break;
+            }
+            numericRow[j] = val;
+        }
+        if (complete) {
+            keptIndices.push(i);
+            rawMatrix.push(numericRow);
+        }
+    }
+
+    const nDropped = rowCount - keptIndices.length;
+
+    if (rawMatrix.length === 0) {
+        return { transformed: [], columns, zerosReplaced: 0, geometricMeans: [], keptIndices: [], nDropped };
+    }
 
     const { replaced, count } = replaceZeros(rawMatrix, options.zeroStrategy, {
         customValue: options.customZeroValue,
@@ -250,7 +317,7 @@ export function clrTransformColumnar(
         transformed.push(clrTransformRow(row));
     }
 
-    return { transformed, columns, zerosReplaced: count, geometricMeans };
+    return { transformed, columns, zerosReplaced: count, geometricMeans, keptIndices, nDropped };
 }
 
 /**

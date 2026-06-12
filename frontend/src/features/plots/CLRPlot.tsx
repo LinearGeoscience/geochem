@@ -3,13 +3,14 @@ import Plot from 'react-plotly.js';
 import { useAppStore } from '../../store/appStore';
 import { useShallow } from 'zustand/react/shallow';
 import { useAttributeStore } from '../../store/attributeStore';
-import { getStyleArrays, getStyleArraysColumnar, applyOpacityToColor, getSortedIndices, sortColumnsByPriority, getColumnDisplayName } from '../../utils/attributeUtils';
+import { getStyleArrays, getStyleArraysColumnar, applyOpacityToColor, getSortedIndices, sortColumnsByPriority } from '../../utils/attributeUtils';
 import {
     clrTransform,
     simplePCA,
     clrCorrelationMatrix,
     ZeroHandlingStrategy,
 } from '../../utils/clrTransform';
+import { detectElementFromColumnName } from '../../utils/calculations/elementNameNormalizer';
 import { getPlotConfig, EXPORT_FONT_SIZES } from '../../utils/plotConfig';
 import { ExpandablePlotWrapper } from '../../components/ExpandablePlotWrapper';
 import {
@@ -54,7 +55,7 @@ interface CLRPlotProps {
 }
 
 export const CLRPlot: React.FC<CLRPlotProps> = ({ plotId }) => {
-    const { data, columns, sampleIndices, columnarRowCount } = useAppStore(useShallow(s => ({ data: s.data, columns: s.columns, sampleIndices: s.sampleIndices, columnarRowCount: s.columnarData.rowCount })));
+    const { data, columns, sampleIndices, columnarRowCount, geochemMappings } = useAppStore(useShallow(s => ({ data: s.data, columns: s.columns, sampleIndices: s.sampleIndices, columnarRowCount: s.columnarData.rowCount, geochemMappings: s.geochemMappings })));
     const getPlotSettings = useAppStore(s => s.getPlotSettings);
     const updatePlotSettings = useAppStore(s => s.updatePlotSettings);
     const getFilteredColumns = useAppStore(s => s.getFilteredColumns);
@@ -63,7 +64,13 @@ export const CLRPlot: React.FC<CLRPlotProps> = ({ plotId }) => {
     const getDisplayIndices = useAppStore(s => s.getDisplayIndices);
     const getDisplayColumn = useAppStore(s => s.getDisplayColumn);
     const filteredColumns = useMemo(() => getFilteredColumns(), [columns, columnFilter, getFilteredColumns]);
-    const d = (name: string) => getColumnDisplayName(columns, name);
+    // Unit-stripped element symbol (CLR is dimensionless, so axis labels and arrow tags shouldn't carry units)
+    const d = (name: string): string => {
+        const mapping = geochemMappings.find(m => m.originalName === name);
+        const fromMapping = mapping?.userOverride ?? mapping?.detectedElement ?? null;
+        if (fromMapping) return fromMapping;
+        return detectElementFromColumnName(name) ?? name;
+    };
     const displayData = useMemo(() => getDisplayData(), [data, sampleIndices]);
     const displayIndices = useMemo(() => getDisplayIndices(), [data, sampleIndices]);
     useAttributeStore(useShallow(s => ({
@@ -185,10 +192,14 @@ export const CLRPlot: React.FC<CLRPlotProps> = ({ plotId }) => {
             const sortedVisibleIndices = getSortedIndices(styleArrays)
                 .filter(i => styleArrays.visible[i]);
 
-            // Map original indices to CLR result indices
+            // Map original (displayData) indices to CLR row indices.
+            // After the complete-case filter, only rows where every selected element is non-null
+            // make it into the CLR matrix — clrResult.keptIndices[j] is the position WITHIN
+            // visibleData that produced CLR row j.
             const visibleIndexToClrIndex = new Map<number, number>();
-            visibleIndices.forEach((origIdx, clrIdx) => {
-                visibleIndexToClrIndex.set(origIdx, clrIdx);
+            clrResult.keptIndices.forEach((visiblePos, clrIdx) => {
+                const origIdx = visibleIndices[visiblePos];
+                if (origIdx !== undefined) visibleIndexToClrIndex.set(origIdx, clrIdx);
             });
 
             // Sample points
@@ -258,9 +269,11 @@ export const CLRPlot: React.FC<CLRPlotProps> = ({ plotId }) => {
             const sortedVisibleIndices = getSortedIndices(styleArrays)
                 .filter(i => styleArrays.visible[i]);
 
+            // Same mapping logic as the biplot — account for complete-case filtering
             const visibleIndexToClrIndex = new Map<number, number>();
-            visibleIndices.forEach((origIdx, clrIdx) => {
-                visibleIndexToClrIndex.set(origIdx, clrIdx);
+            clrResult.keptIndices.forEach((visiblePos, clrIdx) => {
+                const origIdx = visibleIndices[visiblePos];
+                if (origIdx !== undefined) visibleIndexToClrIndex.set(origIdx, clrIdx);
             });
 
             const x: number[] = [];
@@ -495,6 +508,12 @@ export const CLRPlot: React.FC<CLRPlotProps> = ({ plotId }) => {
                 </Alert>
             )}
 
+            {clrResult && clrResult.nDropped > 0 && (
+                <Alert severity="warning" sx={{ mb: 2 }}>
+                    {clrResult.nDropped} sample{clrResult.nDropped === 1 ? '' : 's'} dropped from the plot — at least one selected element was missing/null.
+                </Alert>
+            )}
+
             {clrResult && clrResult.zerosReplaced > 0 && (
                 <Alert severity="warning" sx={{ mb: 2 }}>
                     {clrResult.zerosReplaced} zero values were replaced using {zeroStrategy} strategy
@@ -517,7 +536,7 @@ export const CLRPlot: React.FC<CLRPlotProps> = ({ plotId }) => {
                     {/* Summary info */}
                     <Box sx={{ mt: 2, display: 'flex', gap: 2, flexWrap: 'wrap' }}>
                         <Typography variant="caption" color="text.secondary">
-                            Variables: {selectedColumns.length} | Samples: {visibleData.length}
+                            Variables: {selectedColumns.length} | Samples used: {clrResult?.transformed.length ?? 0} of {visibleData.length}
                         </Typography>
                         {plotType === 'biplot' && biplotData && (
                             <Typography variant="caption" color="text.secondary">

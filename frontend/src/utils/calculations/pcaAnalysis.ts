@@ -8,6 +8,7 @@
  */
 
 import { clrTransform, ZeroHandlingStrategy } from '../clrTransform';
+import { detectElementFromColumnName } from './elementNameNormalizer';
 
 // ============================================================================
 // TYPES
@@ -28,14 +29,20 @@ export interface FullPCAResult {
   cumulativeVariance: number[];
   /** Correlation matrix of CLR-transformed data */
   correlationMatrix: number[][];
-  /** Column/variable names */
+  /** Original column/variable names (e.g. "Cu_ppm") preserved for traceability/export */
   columns: string[];
+  /** Unit-stripped element symbols (e.g. "Cu") for plot labels — CLR output is dimensionless */
+  displayColumns: string[];
   /** Column means (for centering) */
   means: number[];
-  /** Number of samples used in analysis */
+  /** Number of samples used in analysis (after complete-case filtering) */
   nSamples: number;
-  /** Number of zeros replaced during CLR transformation */
+  /** Number of true BLD zeros replaced during CLR transformation */
   zerosReplaced: number;
+  /** Original input row indices used after complete-case filter (length === scores.length) */
+  keptIndices: number[];
+  /** Number of rows excluded because at least one selected element was null/missing */
+  nDropped: number;
 }
 
 export interface SortedLoading {
@@ -232,6 +239,16 @@ export function calculateCorrelationMatrix(data: number[][]): number[][] {
 // ============================================================================
 
 /**
+ * Build unit-stripped display names from raw column names.
+ * Caller can supply a precomputed list (e.g. derived from geochemMappings) to override.
+ * Falls back to the auto-detector and then to the raw name.
+ */
+function buildDisplayColumns(columns: string[], displayNames?: string[]): string[] {
+  if (displayNames && displayNames.length === columns.length) return displayNames;
+  return columns.map(col => detectElementFromColumnName(col) ?? col);
+}
+
+/**
  * Perform full PCA on CLR-transformed data
  *
  * This follows the manual's workflow:
@@ -245,13 +262,18 @@ export function calculateCorrelationMatrix(data: number[][]): number[][] {
  * @param columns - Column names to include in PCA
  * @param nComponents - Number of components to return (default: 8)
  * @param zeroStrategy - Strategy for handling zeros in CLR transformation
+ * @param displayNames - Optional unit-stripped names (e.g. ["Cu","Au"]) parallel to `columns`.
+ *                      If omitted, names are auto-detected from the column strings.
  */
 export function fullPCA(
   data: Record<string, any>[],
   columns: string[],
   nComponents: number = 8,
-  zeroStrategy: ZeroHandlingStrategy = 'half-min'
+  zeroStrategy: ZeroHandlingStrategy = 'half-min',
+  displayNames?: string[]
 ): FullPCAResult {
+  const displayColumns = buildDisplayColumns(columns, displayNames);
+
   if (data.length === 0 || columns.length === 0) {
     return {
       scores: [],
@@ -262,13 +284,16 @@ export function fullPCA(
       cumulativeVariance: [],
       correlationMatrix: [],
       columns: [],
+      displayColumns: [],
       means: [],
       nSamples: 0,
-      zerosReplaced: 0
+      zerosReplaced: 0,
+      keptIndices: [],
+      nDropped: 0
     };
   }
 
-  // Step 1: Apply CLR transformation
+  // Step 1: Apply CLR transformation (also performs complete-case filter)
   const clrResult = clrTransform(data, columns, { zeroStrategy });
   const clrData = clrResult.transformed;
 
@@ -282,9 +307,12 @@ export function fullPCA(
       cumulativeVariance: [],
       correlationMatrix: [],
       columns,
+      displayColumns,
       means: [],
       nSamples: 0,
-      zerosReplaced: clrResult.zerosReplaced
+      zerosReplaced: clrResult.zerosReplaced,
+      keptIndices: clrResult.keptIndices,
+      nDropped: clrResult.nDropped
     };
   }
 
@@ -359,9 +387,12 @@ export function fullPCA(
     cumulativeVariance,
     correlationMatrix,
     columns,
+    displayColumns,
     means,
     nSamples: n,
-    zerosReplaced: clrResult.zerosReplaced
+    zerosReplaced: clrResult.zerosReplaced,
+    keptIndices: clrResult.keptIndices,
+    nDropped: clrResult.nDropped
   };
 }
 
@@ -371,8 +402,11 @@ export function fullPCA(
 export function fullPCAFromCLR(
   clrData: number[][],
   columns: string[],
-  nComponents: number = 8
+  nComponents: number = 8,
+  displayNames?: string[]
 ): FullPCAResult {
+  const displayColumns = buildDisplayColumns(columns, displayNames);
+
   if (clrData.length === 0 || columns.length === 0) {
     return {
       scores: [],
@@ -383,9 +417,12 @@ export function fullPCAFromCLR(
       cumulativeVariance: [],
       correlationMatrix: [],
       columns: [],
+      displayColumns: [],
       means: [],
       nSamples: 0,
-      zerosReplaced: 0
+      zerosReplaced: 0,
+      keptIndices: [],
+      nDropped: 0
     };
   }
 
@@ -456,9 +493,12 @@ export function fullPCAFromCLR(
     cumulativeVariance,
     correlationMatrix,
     columns,
+    displayColumns,
     means,
     nSamples: n,
-    zerosReplaced: 0
+    zerosReplaced: 0,
+    keptIndices: clrData.map((_, i) => i),
+    nDropped: 0
   };
 }
 
@@ -478,7 +518,9 @@ export function getSortedLoadings(
     return [];
   }
 
-  const loadingsWithNames: SortedLoading[] = pcaResult.columns.map((element, i) => ({
+  // Use unit-stripped display names — CLR loadings are dimensionless
+  const labels = pcaResult.displayColumns ?? pcaResult.columns;
+  const loadingsWithNames: SortedLoading[] = labels.map((element, i) => ({
     element,
     loading: pcaResult.loadings[i]?.[componentIndex] ?? 0
   }));

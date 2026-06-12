@@ -89,11 +89,16 @@ async def qgis_websocket_endpoint(websocket: WebSocket):
     """WebSocket endpoint for QGIS plugin"""
     await manager.connect_qgis(websocket)
     try:
-        # Send current state on connect
+        # Send current state on connect (including data availability)
+        from app.api.data import data_manager
+        df = data_manager.get_data()
+        has_data = df is not None and len(df) > 0
         await websocket.send_json({
             'type': 'state_sync',
             'selection': manager.current_selection,
-            'classifications': manager.classifications
+            'classifications': manager.classifications,
+            'data_available': has_data,
+            'data_rows': len(df) if has_data else 0,
         })
 
         while True:
@@ -160,6 +165,45 @@ async def handle_qgis_message(websocket: WebSocket, message: Dict[str, Any]):
             'type': 'state_sync',
             'selection': manager.current_selection,
             'classifications': manager.classifications
+        })
+
+    elif msg_type == 'request_data':
+        # QGIS requesting data directly from data manager
+        from app.api.data import data_manager, clean_for_json
+        WS_ROW_LIMIT = 50000  # Max rows to send via WebSocket
+        df = data_manager.get_data()
+        if df is not None:
+            columns = data_manager.get_column_info()
+            if len(df) > WS_ROW_LIMIT:
+                # Dataset too large for WebSocket, tell plugin to use REST
+                await websocket.send_json({
+                    'type': 'data_response',
+                    'data': [],
+                    'columns': columns,
+                    'use_rest': True,
+                    'total_rows': len(df),
+                })
+            else:
+                data = clean_for_json(df)
+                await websocket.send_json({
+                    'type': 'data_response',
+                    'data': data,
+                    'columns': columns
+                })
+        else:
+            await websocket.send_json({
+                'type': 'data_response',
+                'data': [],
+                'columns': []
+            })
+
+    elif msg_type == 'request_columns':
+        # QGIS requesting column metadata
+        from app.api.data import data_manager
+        columns = data_manager.get_column_info()
+        await websocket.send_json({
+            'type': 'columns_response',
+            'columns': columns if columns else []
         })
 
 

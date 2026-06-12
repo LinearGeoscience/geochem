@@ -292,6 +292,9 @@ export function runAllTests(): { passed: number; failed: number; results: TestRe
       means: [],
       nSamples: 100,
       zerosReplaced: 0,
+      displayColumns: [],
+      keptIndices: [],
+      nDropped: 0,
     };
 
     const results = matchAssociations(mockPcaResult);
@@ -353,6 +356,9 @@ export function runAllTests(): { passed: number; failed: number; results: TestRe
       means: [],
       nSamples: 50,
       zerosReplaced: 0,
+      displayColumns: ['Pb', 'Zn', 'Al', 'Ti'],
+      keptIndices: [],
+      nDropped: 0,
     };
 
     const analyses = matchAssociations(mockPcaResult);
