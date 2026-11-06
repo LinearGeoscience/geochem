@@ -1,0 +1,45 @@
+/** Scott Halley: low-sulphidation epithermal Au-Ag from 4-acid ICP (Waihi workshop). */
+import { el, xy, tern, diag, cum, box, rules, rule, w, map, pathfinder, step, cite, workflow, ratio, calc, CALCITE, CALC_K_AL, CALC_NA_AL, DIAGRAM } from './builders';
+
+export const epithermalLS = workflow({
+    id: 'epithermal-ls',
+    name: 'Low-sulphidation epithermal (Waihi)',
+    group: 'Porphyry & epithermal',
+    summary: 'Adularia vs illite from K/Al–Na/Al, carbonate, then As-Sb-Cs-Li-Mo-W-Tl-Hg against the crust: >10× is the anomaly.',
+    steps: [
+        step('adularia', 'Adularia vs illite',
+            'K/Al vs Na/Al with the K-feldspar (adularia), albite, muscovite (illite) and paragonite nodes.',
+            'A trend from the feldspars towards illite; adularia at K/Al near 1.',
+            [diag(DIAGRAM.feldsparNaK, ['ab', 'kf', 'mu', 'pg'])]),
+        step('groups', 'Alteration groups by rule',
+            'Waihi cut-offs: Adularia K/Al >0.6; Illite (–chlorite) K/Al <0.45 and Na/Al <0.1; Less altered Na/Al >0.2. Review, then Apply.',
+            'Geothermal zoning: epidote → chlorite → illite → smectite/kaolinite outward and upward.',
+            [CALC_K_AL, CALC_NA_AL,
+                rules('Waihi alteration groups (Halley)', [
+                    rule('Adularia', '#e53935', [w(calc('K/Al molar'), 0.6)]),
+                    rule('Illite / illite-chlorite', '#43a047', [w(calc('K/Al molar'), undefined, 0.45), w(calc('Na/Al molar'), undefined, 0.1)]),
+                    rule('Less altered', '#90a4ae', [w(calc('Na/Al molar'), 0.2)]),
+                ])]),
+        step('carbonate', 'Carbonate',
+            'Ca-Fe-Mg ternary with the carbonate nodes shows which carbonate; Ca vs C against the calcite line shows how much.',
+            'Calcite in the veins, ankerite–dolomite in the wall rock.',
+            [tern(el('Ca'), el('Fe'), el('Mg'), ['cal', 'dol', 'ank', 'sid']), xy(el('Ca'), [el('C')], { refLines: [CALCITE] })]),
+        step('pathfinders', 'Pathfinders vs crust',
+            'Log box plots by group against the upper-crust line. Halley: a coherent footprint >10× average crust is significant; red on an automatic ramp is not an anomaly.',
+            'Which groups carry As, Sb, Cs, Li, Mo, W, Tl, Hg above 10× crust.',
+            [box([el('As'), el('Sb'), el('Cs'), el('Li'), el('Mo'), el('W'), el('Tl'), el('Hg')])]),
+        step('metals', 'Au, Ag and the volatile suite',
+            'Split cumulative frequency by group for Au, Ag, As, Sb, Hg, Se, Te; Au vs Ag with the 1:1 line.',
+            'Au/Ag of the veins; Se and Te with the Au.',
+            [cum([el('Au'), el('Ag'), el('As'), el('Sb'), el('Hg'), el('Se'), el('Te')]),
+                xy(el('Ag'), [el('Au')], { log: 'xy', refLines: [ratio(el('Au'), el('Ag'), 1, { label: 'Au/Ag = 1' })] })]),
+        step('zoning', 'Zoning in space',
+            'Sb, Hg, Cs and Li sit shallow with smectite; Au with adularia below. Groups on the map, multiples on the pathfinder map.',
+            'A shallow Sb–Hg–Cs–Li halo above the Au.',
+            [map(), pathfinder(['Sb', 'Cs', 'Li', 'As', 'Mo', 'W', 'Tl'])]),
+    ],
+    references: [
+        cite('Halley, S. Waihi geochemistry workshop: interpretation of 4-acid digest ICP geochemistry.'),
+        cite('Simmons, S.F., White, N.C. & John, D.A. (2005) Geological characteristics of epithermal precious and base metal deposits. Economic Geology 100th Anniversary Volume.'),
+    ],
+});
