@@ -1,0 +1,61 @@
+{
+  "name": "geochem-frontend",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc && vite build",
+    "typecheck": "tsc --noEmit",
+    "preview": "vite preview"
+  },
+  "dependencies": {
+    "@emotion/react": "^11.11.1",
+    "@emotion/styled": "^11.11.0",
+    "@fontsource/inter": "^5.2.8",
+    "@mui/icons-material": "^5.14.18",
+    "@mui/material": "^5.14.18",
+    "@mui/x-data-grid": "^8.18.0",
+    "axios": "^1.6.2",
+    "dockview-react": "8.4.1",
+    "html-to-image": "^1.11.13",
+    "html2canvas": "^1.4.1",
+    "papaparse": "^5.5.3",
+    "plotly.js": "^2.27.0",
+    "plotly.js-dist-min": "^3.3.0",
+    "proj4": "^2.20.2",
+    "react": "^18.2.0",
+    "react-colorful": "^5.6.1",
+    "react-dom": "^18.2.0",
+    "react-plotly.js": "^2.6.0",
+    "three": "0.169.0",
+    "zustand": "^4.4.6"
+  },
+  "devDependencies": {
+    "@eslint/js": "9.17.0",
+    "@testing-library/dom": "10.4.0",
+    "@testing-library/react": "16.1.0",
+    "@types/node": "^20.10.0",
+    "@types/papaparse": "^5.5.0",
+    "@types/proj4": "^2.5.6",
+    "@types/react": "^18.2.37",
+    "@types/react-dom": "^18.2.15",
+    "@types/react-plotly.js": "^2.6.3",
+    "@types/three": "0.169.0",
+    "@vitejs/plugin-react": "^4.2.0",
+    "eslint": "9.17.0",
+    "eslint-plugin-react-hooks": "5.1.0",
+    "eslint-plugin-react-refresh": "0.4.16",
+    "globals": "15.14.0",
+    "jsdom": "25.0.1",
+    "puppeteer-core": "^23.11.1",
+    "typescript": "^5.2.2",
+    "typescript-eslint": "8.18.1",
+    "vite": "^5.0.0",
+    "vitest": "^2.1.9"
+  },
+  "overrides": {
+    "dockview": "8.4.1",
+    "dockview-core": "8.4.1"
+  }
+}

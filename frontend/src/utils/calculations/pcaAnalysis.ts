@@ -1,0 +1,661 @@
+/**
+ * Principal Component Analysis (PCA) utilities for geochemical data analysis
+ *
+ * Implements full eigendecomposition using Jacobi method to support 8+ components,
+ * following the workflow from the Exploration Geochemistry Workshop Manual.
+ *
+ * The scaled eigenvectors (loadings) are key for identifying element associations.
+ */
+
+import { clrTransformCompleteCase, ZeroHandlingStrategy } from '../logratioTransforms';
+import { detectElementFromColumnName } from './elementNameNormalizer';
+
+// ============================================================================
+// TYPES
+// ============================================================================
+
+export interface FullPCAResult {
+  /** Sample scores projected onto principal components [n_samples x n_components] */
+  scores: number[][];
+  /** Scaled eigenvectors (loadings) [n_variables x n_components] - key output for element associations */
+  loadings: number[][];
+  /** Raw eigenvectors (unscaled) [n_components x n_variables] */
+  eigenvectors: number[][];
+  /** Eigenvalues for each component */
+  eigenvalues: number[];
+  /** Percentage of variance explained by each component */
+  varianceExplained: number[];
+  /** Cumulative variance explained */
+  cumulativeVariance: number[];
+  /** Correlation matrix of CLR-transformed data */
+  correlationMatrix: number[][];
+  /** Original column/variable names (e.g. "Cu_ppm") preserved for traceability/export */
+  columns: string[];
+  /** Unit-stripped element symbols (e.g. "Cu") for plot labels — CLR output is dimensionless */
+  displayColumns: string[];
+  /** Column means (for centering) */
+  means: number[];
+  /** Number of samples used in analysis (after complete-case filtering) */
+  nSamples: number;
+  /** Number of true BLD zeros replaced during CLR transformation */
+  zerosReplaced: number;
+  /** Original input row indices used after complete-case filter (length === scores.length) */
+  keptIndices: number[];
+  /** Number of rows excluded because at least one selected element was null/missing */
+  nDropped: number;
+  /** Every eigenvalue (all variables), for the full report; eigenvalues holds the first nComponents */
+  allEigenvalues?: number[];
+  /** Transform applied before PCA (PCA dialog "Transform") */
+  transform?: PCATransform;
+}
+
+/**
+ * PCA "Transform": CLR (raw element columns), None (inputs already
+ * transformed, e.g. CLR columns — applying CLR again would distort them),
+ * Log10.
+ */
+export type PCATransform = 'clr' | 'none' | 'log10';
+
+export interface SortedLoading {
+  element: string;
+  loading: number;
+}
+
+export interface ElementQualityInfo {
+  element: string;
+  /** N-score position of Below Detection Limit values (-1 threshold) */
+  bldNScore: number;
+  /** Percentage of values below detection limit */
+  percentBLD: number;
+  /** Count of BLD values */
+  countBLD: number;
+  /** Total count of values */
+  totalCount: number;
+  /** Whether element passes quality check (BLD N-score < -1) */
+  isAcceptable: boolean;
+}
+
+// ============================================================================
+// JACOBI EIGENDECOMPOSITION
+// ============================================================================
+
+import { jacobiEigendecomposition } from './eigen';
+export { jacobiEigendecomposition };
+
+// ============================================================================
+// CORRELATION MATRIX
+// ============================================================================
+
+/**
+ * Calculate correlation matrix from data matrix
+ */
+export function calculateCorrelationMatrix(data: number[][]): number[][] {
+  if (data.length === 0) return [];
+
+  const n = data.length;
+  const p = data[0].length;
+
+  // Calculate means
+  const means: number[] = new Array(p).fill(0);
+  for (const row of data) {
+    for (let j = 0; j < p; j++) {
+      means[j] += row[j];
+    }
+  }
+  for (let j = 0; j < p; j++) {
+    means[j] /= n;
+  }
+
+  // Calculate standard deviations
+  const stds: number[] = new Array(p).fill(0);
+  for (const row of data) {
+    for (let j = 0; j < p; j++) {
+      stds[j] += Math.pow(row[j] - means[j], 2);
+    }
+  }
+  for (let j = 0; j < p; j++) {
+    stds[j] = Math.sqrt(stds[j] / (n - 1));
+  }
+
+  // Calculate correlation matrix
+  const corr: number[][] = [];
+  for (let i = 0; i < p; i++) {
+    corr[i] = new Array(p).fill(0);
+    for (let j = 0; j < p; j++) {
+      if (i === j) {
+        corr[i][j] = 1;
+      } else if (stds[i] > 0 && stds[j] > 0) {
+        let sum = 0;
+        for (let k = 0; k < n; k++) {
+          sum += (data[k][i] - means[i]) * (data[k][j] - means[j]);
+        }
+        corr[i][j] = sum / ((n - 1) * stds[i] * stds[j]);
+      }
+    }
+  }
+
+  return corr;
+}
+
+// ============================================================================
+// FULL PCA
+// ============================================================================
+
+/**
+ * Sample standard deviation of each column (n - 1), as used by the correlation
+ * matrix. A zero-variance column gets 1 so its (constant) z-score stays 0.
+ */
+function columnStds(centered: number[][], p: number): number[] {
+  const n = centered.length;
+  const sums = new Array<number>(p).fill(0);
+  for (const row of centered) for (let j = 0; j < p; j++) sums[j] += row[j] * row[j];
+  return sums.map(v => {
+    const sd = n > 1 ? Math.sqrt(v / (n - 1)) : 0;
+    return sd > 0 ? sd : 1;
+  });
+}
+
+/**
+ * PC scores of a correlation-matrix PCA: the standardised data (centred and
+ * divided by each column's standard deviation) projected onto the
+ * eigenvectors, as the reference software and R prcomp(scale. = TRUE) do. Each PC's scores then
+ * have variance equal to its eigenvalue.
+ */
+function correlationScores(centered: number[][], stds: number[], eigenvectors: number[][]): number[][] {
+  return centered.map(row => eigenvectors.map(ev => {
+    let sum = 0;
+    for (let j = 0; j < row.length; j++) sum += (row[j] / stds[j]) * ev[j];
+    return sum;
+  }));
+}
+
+/**
+ * Build unit-stripped display names from raw column names.
+ * Caller can supply a precomputed list (e.g. derived from geochemMappings) to override.
+ * Falls back to the auto-detector and then to the raw name.
+ */
+function buildDisplayColumns(columns: string[], displayNames?: string[]): string[] {
+  if (displayNames && displayNames.length === columns.length) return displayNames;
+  return columns.map(col => detectElementFromColumnName(col) ?? col);
+}
+
+/**
+ * Perform full PCA on CLR-transformed data
+ *
+ * This follows the manual's workflow:
+ * 1. Data should already be CLR-transformed OR raw data provided with zeroStrategy
+ * 2. Calculate correlation matrix
+ * 3. Perform eigendecomposition
+ * 4. Calculate scaled eigenvectors (loadings) = eigenvectors × sqrt(eigenvalues)
+ * 5. Calculate scores = standardised data × eigenvectors
+ *
+ * @param data - Raw data records
+ * @param columns - Column names to include in PCA
+ * @param nComponents - Number of components to return (default: 8)
+ * @param zeroStrategy - Strategy for handling zeros in CLR transformation
+ * @param displayNames - Optional unit-stripped names (e.g. ["Cu","Au"]) parallel to `columns`.
+ *                      If omitted, names are auto-detected from the column strings.
+ */
+export function fullPCA(
+  data: Record<string, any>[],
+  columns: string[],
+  nComponents: number = 8,
+  zeroStrategy: ZeroHandlingStrategy = 'half-min',
+  displayNames?: string[]
+): FullPCAResult {
+  const displayColumns = buildDisplayColumns(columns, displayNames);
+
+  if (data.length === 0 || columns.length === 0) {
+    return {
+      scores: [],
+      loadings: [],
+      eigenvectors: [],
+      eigenvalues: [],
+      varianceExplained: [],
+      cumulativeVariance: [],
+      correlationMatrix: [],
+      columns: [],
+      displayColumns: [],
+      means: [],
+      nSamples: 0,
+      zerosReplaced: 0,
+      keptIndices: [],
+      nDropped: 0
+    };
+  }
+
+  // Step 1: Apply CLR transformation (also performs complete-case filter)
+  const clrResult = clrTransformCompleteCase(data, columns, { zeroStrategy });
+  const clrData = clrResult.transformed;
+
+  if (clrData.length === 0) {
+    return {
+      scores: [],
+      loadings: [],
+      eigenvectors: [],
+      eigenvalues: [],
+      varianceExplained: [],
+      cumulativeVariance: [],
+      correlationMatrix: [],
+      columns,
+      displayColumns,
+      means: [],
+      nSamples: 0,
+      zerosReplaced: clrResult.zerosReplaced,
+      keptIndices: clrResult.keptIndices,
+      nDropped: clrResult.nDropped
+    };
+  }
+
+  const n = clrData.length;
+  const p = columns.length;
+
+  // Step 2: Center the data and calculate means
+  const means: number[] = new Array(p).fill(0);
+  for (const row of clrData) {
+    for (let j = 0; j < p; j++) {
+      means[j] += row[j];
+    }
+  }
+  for (let j = 0; j < p; j++) {
+    means[j] /= n;
+  }
+
+  const centered: number[][] = clrData.map(row =>
+    row.map((val, j) => val - means[j])
+  );
+
+  // Step 3: Calculate correlation matrix (using CLR-transformed data)
+  const correlationMatrix = calculateCorrelationMatrix(clrData);
+
+  // Step 4: Eigendecomposition on correlation matrix
+  const { eigenvalues, eigenvectors } = jacobiEigendecomposition(correlationMatrix);
+
+  // Limit to requested number of components
+  const actualComponents = Math.min(nComponents, eigenvalues.length, p);
+  const selectedEigenvalues = eigenvalues.slice(0, actualComponents);
+  const selectedEigenvectors = eigenvectors.slice(0, actualComponents);
+
+  // Step 5: Calculate variance explained
+  const totalVariance = eigenvalues.reduce((sum, ev) => sum + Math.max(0, ev), 0);
+  const varianceExplained = selectedEigenvalues.map(ev =>
+    totalVariance > 0 ? (Math.max(0, ev) / totalVariance) * 100 : 0
+  );
+
+  // Calculate cumulative variance
+  const cumulativeVariance: number[] = [];
+  let cumSum = 0;
+  for (const v of varianceExplained) {
+    cumSum += v;
+    cumulativeVariance.push(cumSum);
+  }
+
+  // Step 6: Calculate scores (standardised data projected onto the eigenvectors
+  // of the correlation matrix)
+  const stds = columnStds(centered, p);
+  const scores = correlationScores(centered, stds, selectedEigenvectors);
+
+  // Step 7: Calculate loadings (scaled eigenvectors)
+  // loadings[j][k] = eigenvector[k][j] * sqrt(eigenvalue[k])
+  // This gives the "scaled coordinates" from the manual
+  const loadings: number[][] = [];
+  for (let j = 0; j < p; j++) {
+    loadings[j] = selectedEigenvectors.map((ev, k) => {
+      const sqrtEigenvalue = Math.sqrt(Math.max(0, selectedEigenvalues[k]));
+      return ev[j] * sqrtEigenvalue;
+    });
+  }
+
+  return {
+    scores,
+    loadings,
+    eigenvectors: selectedEigenvectors,
+    eigenvalues: selectedEigenvalues,
+    allEigenvalues: eigenvalues,
+    varianceExplained,
+    cumulativeVariance,
+    correlationMatrix,
+    columns,
+    displayColumns,
+    means,
+    nSamples: n,
+    zerosReplaced: clrResult.zerosReplaced,
+    keptIndices: clrResult.keptIndices,
+    nDropped: clrResult.nDropped
+  };
+}
+
+/**
+ * Perform PCA directly on pre-transformed CLR data
+ */
+export function fullPCAFromCLR(
+  clrData: number[][],
+  columns: string[],
+  nComponents: number = 8,
+  displayNames?: string[]
+): FullPCAResult {
+  const displayColumns = buildDisplayColumns(columns, displayNames);
+
+  if (clrData.length === 0 || columns.length === 0) {
+    return {
+      scores: [],
+      loadings: [],
+      eigenvectors: [],
+      eigenvalues: [],
+      varianceExplained: [],
+      cumulativeVariance: [],
+      correlationMatrix: [],
+      columns: [],
+      displayColumns: [],
+      means: [],
+      nSamples: 0,
+      zerosReplaced: 0,
+      keptIndices: [],
+      nDropped: 0
+    };
+  }
+
+  const n = clrData.length;
+  const p = columns.length;
+
+  // Center the data
+  const means: number[] = new Array(p).fill(0);
+  for (const row of clrData) {
+    for (let j = 0; j < p; j++) {
+      means[j] += row[j];
+    }
+  }
+  for (let j = 0; j < p; j++) {
+    means[j] /= n;
+  }
+
+  const centered: number[][] = clrData.map(row =>
+    row.map((val, j) => val - means[j])
+  );
+
+  // Calculate correlation matrix
+  const correlationMatrix = calculateCorrelationMatrix(clrData);
+
+  // Eigendecomposition
+  const { eigenvalues, eigenvectors } = jacobiEigendecomposition(correlationMatrix);
+
+  // Limit components
+  const actualComponents = Math.min(nComponents, eigenvalues.length, p);
+  const selectedEigenvalues = eigenvalues.slice(0, actualComponents);
+  const selectedEigenvectors = eigenvectors.slice(0, actualComponents);
+
+  // Variance explained
+  const totalVariance = eigenvalues.reduce((sum, ev) => sum + Math.max(0, ev), 0);
+  const varianceExplained = selectedEigenvalues.map(ev =>
+    totalVariance > 0 ? (Math.max(0, ev) / totalVariance) * 100 : 0
+  );
+
+  const cumulativeVariance: number[] = [];
+  let cumSum = 0;
+  for (const v of varianceExplained) {
+    cumSum += v;
+    cumulativeVariance.push(cumSum);
+  }
+
+  // Scores (standardised data, as the eigenvectors are of the correlation matrix)
+  const stds = columnStds(centered, p);
+  const scores = correlationScores(centered, stds, selectedEigenvectors);
+
+  // Loadings (scaled eigenvectors)
+  const loadings: number[][] = [];
+  for (let j = 0; j < p; j++) {
+    loadings[j] = selectedEigenvectors.map((ev, k) => {
+      const sqrtEigenvalue = Math.sqrt(Math.max(0, selectedEigenvalues[k]));
+      return ev[j] * sqrtEigenvalue;
+    });
+  }
+
+  return {
+    scores,
+    loadings,
+    eigenvectors: selectedEigenvectors,
+    eigenvalues: selectedEigenvalues,
+    allEigenvalues: eigenvalues,
+    varianceExplained,
+    cumulativeVariance,
+    correlationMatrix,
+    columns,
+    displayColumns,
+    means,
+    nSamples: n,
+    zerosReplaced: 0,
+    keptIndices: clrData.map((_, i) => i),
+    nDropped: 0
+  };
+}
+
+/**
+ * Classical PCA with the Transform choice. CLR goes through fullPCA
+ * (zero replacement + complete cases); None and Log10 use the values as given
+ * (Log10: values must be > 0) on complete cases.
+ */
+export function fullPCAWithTransform(
+  data: Record<string, any>[],
+  columns: string[],
+  nComponents: number = 8,
+  zeroStrategy: ZeroHandlingStrategy = 'half-min',
+  displayNames?: string[],
+  transform: PCATransform = 'clr',
+): FullPCAResult {
+  if (transform === 'clr') return { ...fullPCA(data, columns, nComponents, zeroStrategy, displayNames), transform };
+  const keptIndices: number[] = [];
+  const matrix: number[][] = [];
+  for (let i = 0; i < data.length; i++) {
+    const row = new Array<number>(columns.length);
+    let ok = true;
+    for (let j = 0; j < columns.length && ok; j++) {
+      const v = data[i][columns[j]];
+      if (typeof v !== 'number' || !Number.isFinite(v) || (transform === 'log10' && v <= 0)) ok = false;
+      else row[j] = transform === 'log10' ? Math.log10(v) : v;
+    }
+    if (ok) {
+      keptIndices.push(i);
+      matrix.push(row);
+    }
+  }
+  const result = fullPCAFromCLR(matrix, columns, nComponents, displayNames);
+  return { ...result, columns, keptIndices, nDropped: data.length - matrix.length, transform };
+}
+
+// ============================================================================
+// HELPER FUNCTIONS
+// ============================================================================
+
+/**
+ * Get loadings for a specific component, sorted by magnitude (highest to lowest)
+ * This creates the data for the sorted loading matrix visualization
+ */
+export function getSortedLoadings(
+  pcaResult: FullPCAResult,
+  componentIndex: number
+): SortedLoading[] {
+  if (componentIndex < 0 || componentIndex >= pcaResult.eigenvalues.length) {
+    return [];
+  }
+
+  // Use unit-stripped display names — CLR loadings are dimensionless
+  const labels = pcaResult.displayColumns ?? pcaResult.columns;
+  const loadingsWithNames: SortedLoading[] = labels.map((element, i) => ({
+    element,
+    loading: pcaResult.loadings[i]?.[componentIndex] ?? 0
+  }));
+
+  // Sort by loading value (highest to lowest)
+  loadingsWithNames.sort((a, b) => b.loading - a.loading);
+
+  return loadingsWithNames;
+}
+
+/**
+ * Get all sorted loadings for multiple components
+ */
+export function getAllSortedLoadings(
+  pcaResult: FullPCAResult,
+  nComponents?: number
+): SortedLoading[][] {
+  const numComponents = nComponents ?? pcaResult.eigenvalues.length;
+  const result: SortedLoading[][] = [];
+
+  for (let i = 0; i < numComponents; i++) {
+    result.push(getSortedLoadings(pcaResult, i));
+  }
+
+  return result;
+}
+
+/**
+ * Calculate element quality based on Below Detection Limit (BLD) values
+ * Elements with BLD N-score > -1 should be excluded from PCA
+ *
+ * @param data - Raw data records
+ * @param column - Column to assess
+ * @param detectionLimit - Optional detection limit value (if known)
+ */
+export function assessElementQuality(
+  data: Record<string, any>[],
+  column: string,
+  detectionLimit?: number
+): ElementQualityInfo {
+  // Collect all numeric values
+  const values: number[] = [];
+  let countBLD = 0;
+
+  for (const row of data) {
+    const val = row[column];
+    if (val == null || (typeof val === 'number' && isNaN(val))) {
+      continue; // Skip null/NaN
+    }
+
+    const numVal = Number(val);
+    if (!isNaN(numVal)) {
+      values.push(numVal);
+
+      // Count BLD values (values at or below detection limit, or zero)
+      if (detectionLimit !== undefined) {
+        if (numVal <= detectionLimit) countBLD++;
+      } else {
+        // If no detection limit provided, consider values at the minimum as BLD
+        // This will be refined after we know the minimum
+      }
+    }
+  }
+
+  if (values.length === 0) {
+    return {
+      element: column,
+      bldNScore: 0,
+      percentBLD: 100,
+      countBLD: 0,
+      totalCount: 0,
+      isAcceptable: false
+    };
+  }
+
+  // Sort values
+  values.sort((a, b) => a - b);
+  const n = values.length;
+
+  // If no detection limit, estimate from minimum value
+  // Count values equal to minimum as potential BLD
+  if (detectionLimit === undefined) {
+    const minVal = values[0];
+    countBLD = values.filter(v => v === minVal).length;
+  }
+
+  // Calculate N-score of BLD threshold
+  // Using plotting position formula: p = (i + 0.5) / n
+  // BLD values are at the lowest end, so their position is countBLD / n
+  const bldProportion = countBLD / n;
+
+  // Convert proportion to N-score using inverse normal CDF approximation
+  let bldNScore: number;
+  if (bldProportion <= 0) {
+    bldNScore = -4; // Very negative (no BLD)
+  } else if (bldProportion >= 1) {
+    bldNScore = 4; // All values are BLD
+  } else {
+    bldNScore = inverseNormalCDF(bldProportion);
+  }
+
+  const percentBLD = (countBLD / n) * 100;
+  const isAcceptable = bldNScore < -1;
+
+  return {
+    element: column,
+    bldNScore,
+    percentBLD,
+    countBLD,
+    totalCount: n,
+    isAcceptable
+  };
+}
+
+/**
+ * Inverse normal CDF using Acklam's approximation
+ * Same algorithm used in ProbabilityPlot.tsx
+ */
+function inverseNormalCDF(p: number): number {
+  const c0 = 2.515517;
+  const c1 = 0.802853;
+  const c2 = 0.010328;
+  const d1 = 1.432788;
+  const d2 = 0.189269;
+  const d3 = 0.001308;
+
+  if (p <= 0) return -4;
+  if (p >= 1) return 4;
+
+  let t: number;
+  let z: number;
+
+  if (p < 0.5) {
+    t = Math.sqrt(-2 * Math.log(p));
+    z = -(t - (c0 + c1 * t + c2 * t * t) / (1 + d1 * t + d2 * t * t + d3 * t * t * t));
+  } else {
+    t = Math.sqrt(-2 * Math.log(1 - p));
+    z = t - (c0 + c1 * t + c2 * t * t) / (1 + d1 * t + d2 * t * t + d3 * t * t * t);
+  }
+
+  return z;
+}
+
+/**
+ * Batch assess quality for multiple elements
+ */
+export function assessAllElementQuality(
+  data: Record<string, any>[],
+  columns: string[],
+  detectionLimits?: Record<string, number>
+): ElementQualityInfo[] {
+  return columns.map(col =>
+    assessElementQuality(data, col, detectionLimits?.[col])
+  );
+}
+
+/**
+ * Filter elements to only those passing quality check
+ */
+export function filterQualityElements(
+  columns: string[],
+  qualityInfo: ElementQualityInfo[]
+): string[] {
+  const qualityMap = new Map(qualityInfo.map(q => [q.element, q.isAcceptable]));
+  return columns.filter(col => qualityMap.get(col) !== false);
+}
+
+export default {
+  jacobiEigendecomposition,
+  fullPCA,
+  fullPCAFromCLR,
+  getSortedLoadings,
+  getAllSortedLoadings,
+  assessElementQuality,
+  assessAllElementQuality,
+  filterQualityElements,
+  calculateCorrelationMatrix
+};

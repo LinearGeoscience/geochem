@@ -1,0 +1,679 @@
+/**
+ * QA/QC Manager Component
+ * Main configuration and control panel for QA/QC analysis
+ */
+
+import React, { useState, useMemo, useCallback } from 'react';
+import { useShallow } from 'zustand/react/shallow';
+import {
+  Box,
+  Paper,
+  Typography,
+  FormControl,
+  InputLabel,
+  Select,
+  MenuItem,
+  Button,
+  Alert,
+  Chip,
+  TextField,
+  Grid,
+  Accordion,
+  AccordionSummary,
+  AccordionDetails,
+  Table,
+  TableBody,
+  TableCell,
+  TableContainer,
+  TableHead,
+  TableRow,
+  LinearProgress,
+} from '@mui/material';
+import {
+  ExpandMore as ExpandMoreIcon,
+  PlayArrow as PlayIcon,
+  Refresh as RefreshIcon,
+  Settings as SettingsIcon,
+  Delete as DeleteIcon,
+  CheckCircle as CheckIcon,
+  Warning as WarningIcon,
+  Error as ErrorIcon,
+} from '@mui/icons-material';
+import { useAppStore, useDatasetRows } from '../../store/appStore';
+import { useQAQCStore } from '../../store/qaqcStore';
+import { sortColumnsByPriority } from '../../utils/attributeUtils';
+import { MultiColumnSelector } from '../../components/MultiColumnSelector';
+import { QCSampleType, DEFAULT_QAQC_THRESHOLDS, StandardReference, StandardReferenceValue } from '../../types/qaqc';
+
+interface QAQCManagerProps {
+  onNavigate?: (view: 'control-chart' | 'duplicates' | 'blanks' | 'dashboard') => void;
+}
+
+export const QAQCManager: React.FC<QAQCManagerProps> = ({ onNavigate }) => {
+  const data = useDatasetRows();
+  const columns = useAppStore(s => s.columns);
+  // getFilteredColumns() reads columnFilter â€” subscribe so the list stays current
+  useAppStore(s => s.columnFilter);
+  const getFilteredColumns = useAppStore(s => s.getFilteredColumns);
+  const filteredColumns = getFilteredColumns();
+
+  const {
+      sampleIdColumn,
+      setSampleIdColumn,
+      batchColumn,
+      setBatchColumn,
+      duplicatePairColumn,
+      setDuplicatePairColumn,
+      thresholds,
+      setThresholds,
+      qcSamples,
+      duplicatePairs,
+      detectSamples,
+      runAnalysis,
+      clearAnalysis,
+      addStandardReference,
+      standardReferences,
+      elementSummaries,
+      overallGrade,
+      recommendations,
+      isAnalysisRunning,
+      lastAnalysisTimestamp,
+      selectedElements,
+      setSelectedElements,
+  } = useQAQCStore(useShallow(s => ({
+      sampleIdColumn: s.sampleIdColumn,
+      setSampleIdColumn: s.setSampleIdColumn,
+      batchColumn: s.batchColumn,
+      setBatchColumn: s.setBatchColumn,
+      duplicatePairColumn: s.duplicatePairColumn,
+      setDuplicatePairColumn: s.setDuplicatePairColumn,
+      thresholds: s.thresholds,
+      setThresholds: s.setThresholds,
+      qcSamples: s.qcSamples,
+      duplicatePairs: s.duplicatePairs,
+      detectSamples: s.detectSamples,
+      runAnalysis: s.runAnalysis,
+      clearAnalysis: s.clearAnalysis,
+      addStandardReference: s.addStandardReference,
+      standardReferences: s.standardReferences,
+      elementSummaries: s.elementSummaries,
+      overallGrade: s.overallGrade,
+      recommendations: s.recommendations,
+      isAnalysisRunning: s.isAnalysisRunning,
+      lastAnalysisTimestamp: s.lastAnalysisTimestamp,
+      selectedElements: s.selectedElements,
+      setSelectedElements: s.setSelectedElements,
+  })));
+
+  const [showThresholds, setShowThresholds] = useState(false);
+
+  // Feature 3.2: CRM certified values import
+  const handleCRMImport = useCallback((event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      try {
+        const text = e.target?.result as string;
+        const lines = text.split('\n').filter(l => l.trim());
+        if (lines.length < 2) {
+          alert('CSV must have header row and at least one data row');
+          return;
+        }
+
+        // Parse header
+        const header = lines[0].split(',').map(h => h.trim().toLowerCase());
+        const nameIdx = header.findIndex(h => h === 'standardname' || h === 'standard' || h === 'name' || h === 'crm');
+        const elementIdx = header.findIndex(h => h === 'element' || h === 'analyte');
+        const valueIdx = header.findIndex(h => h === 'certifiedvalue' || h === 'certified' || h === 'value');
+        const uncIdx = header.findIndex(h => h === 'uncertainty' || h === '2sigma' || h === 'unc');
+
+        if (nameIdx === -1 || elementIdx === -1 || valueIdx === -1) {
+          alert('CSV must have columns: StandardName, Element, CertifiedValue (and optionally Uncertainty)');
+          return;
+        }
+
+        // Parse data and group by standard name
+        const refMap = new Map<string, StandardReferenceValue[]>();
+        for (let i = 1; i < lines.length; i++) {
+          const cols = lines[i].split(',').map(c => c.trim());
+          const name = cols[nameIdx];
+          const element = cols[elementIdx];
+          const value = parseFloat(cols[valueIdx]);
+          if (!name || !element || isNaN(value)) continue;
+
+          const unc = uncIdx >= 0 ? parseFloat(cols[uncIdx]) : undefined;
+          const key = name.toUpperCase();
+          if (!refMap.has(key)) refMap.set(key, []);
+          refMap.get(key)!.push({
+            element,
+            certifiedValue: value,
+            certifiedUncertainty: unc && !isNaN(unc) ? unc : undefined,
+          });
+        }
+
+        // Create StandardReference for each
+        let imported = 0;
+        refMap.forEach((values, name) => {
+          const ref: StandardReference = {
+            id: name,
+            name,
+            values,
+          };
+          addStandardReference(ref);
+          imported++;
+        });
+
+        alert(`Imported ${imported} standard reference(s) with ${[...refMap.values()].reduce((s, v) => s + v.length, 0)} certified values`);
+      } catch (err) {
+        alert('Error parsing CSV: ' + (err instanceof Error ? err.message : String(err)));
+      }
+    };
+    reader.readAsText(file);
+    // Reset input so same file can be re-selected
+    event.target.value = '';
+  }, [addStandardReference]);
+
+  // Get column options
+  const textColumns = useMemo(() =>
+    filteredColumns.filter(c =>
+      c.type === 'string' || c.type === 'text' || c.type === 'categorical' || c.type === 'category'
+    ),
+    [filteredColumns]
+  );
+
+  const numericColumns = useMemo(() =>
+    filteredColumns.filter(c =>
+      c.type === 'numeric' || c.type === 'float' || c.type === 'integer'
+    ),
+    [filteredColumns]
+  );
+
+  const allNumericColumns = useMemo(() => sortColumnsByPriority(
+    columns.filter(c => c && c.name && (c.type === 'numeric' || c.type === 'float' || c.type === 'integer'))
+  ), [columns]);
+
+  // Count QC samples by type
+  const qcCounts = useMemo(() => {
+    const counts: Record<QCSampleType, number> = {
+      standard: 0,
+      blank: 0,
+      field_duplicate: 0,
+      pulp_duplicate: 0,
+      core_duplicate: 0,
+      unknown: 0,
+    };
+    qcSamples.forEach(s => counts[s.qcType]++);
+    return counts;
+  }, [qcSamples]);
+
+  // Handle sample detection
+  const handleDetectSamples = useCallback(() => {
+    if (!sampleIdColumn) {
+      // Try to auto-detect
+      const possibleCols = textColumns.filter(c =>
+        /sample|id|hole/i.test(c.name)
+      );
+      if (possibleCols.length > 0) {
+        setSampleIdColumn(possibleCols[0].name);
+      }
+    }
+    detectSamples(data, columns);
+  }, [sampleIdColumn, data, columns, textColumns, setSampleIdColumn, detectSamples]);
+
+  // Handle analysis
+  const handleRunAnalysis = useCallback(() => {
+    if (selectedElements.length === 0) {
+      alert('Please select at least one element to analyze');
+      return;
+    }
+    runAnalysis(data, selectedElements);
+  }, [data, selectedElements, runAnalysis]);
+
+  // Grade color
+  const getGradeColor = (grade: string | null) => {
+    switch (grade) {
+      case 'A': return 'success';
+      case 'B': return 'success';
+      case 'C': return 'warning';
+      case 'D': return 'warning';
+      case 'F': return 'error';
+      default: return 'default';
+    }
+  };
+
+  // Status icon
+  const getStatusIcon = (passRate: number) => {
+    if (passRate >= 90) return <CheckIcon color="success" fontSize="small" />;
+    if (passRate >= 70) return <WarningIcon color="warning" fontSize="small" />;
+    return <ErrorIcon color="error" fontSize="small" />;
+  };
+
+  if (!data.length) {
+    return (
+      <Box sx={{ p: 3 }}>
+        <Alert severity="info">
+          Please load data to begin QA/QC analysis.
+        </Alert>
+      </Box>
+    );
+  }
+
+  return (
+    <Box sx={{ p: 2 }}>
+      <Typography variant="h5" gutterBottom>
+        QA/QC Analysis
+      </Typography>
+
+      {/* Configuration Section */}
+      <Paper sx={{ p: 2, mb: 2 }}>
+        <Typography variant="h6" gutterBottom>
+          Configuration
+        </Typography>
+
+        <Grid container spacing={2} alignItems="flex-end">
+          <Grid item xs={12} md={4}>
+            <FormControl fullWidth size="small">
+              <InputLabel>Sample ID Column</InputLabel>
+              <Select
+                value={sampleIdColumn || ''}
+                onChange={(e) => setSampleIdColumn(e.target.value || null)}
+                label="Sample ID Column"
+              >
+                <MenuItem value="">
+                  <em>Auto-detect</em>
+                </MenuItem>
+                {textColumns.map((col) => (
+                  <MenuItem key={col.name} value={col.name}>
+                    {col.alias || col.name}
+                  </MenuItem>
+                ))}
+              </Select>
+            </FormControl>
+          </Grid>
+
+          <Grid item xs={12} md={4}>
+            <FormControl fullWidth size="small">
+              <InputLabel>Batch Column (Optional)</InputLabel>
+              <Select
+                value={batchColumn || ''}
+                onChange={(e) => setBatchColumn(e.target.value || null)}
+                label="Batch Column (Optional)"
+              >
+                <MenuItem value="">
+                  <em>Auto-assign</em>
+                </MenuItem>
+                {textColumns.map((col) => (
+                  <MenuItem key={col.name} value={col.name}>
+                    {col.alias || col.name}
+                  </MenuItem>
+                ))}
+              </Select>
+            </FormControl>
+          </Grid>
+
+          <Grid item xs={12} md={4}>
+            <Button
+              variant="contained"
+              startIcon={<RefreshIcon />}
+              onClick={handleDetectSamples}
+              fullWidth
+            >
+              Detect QC Samples
+            </Button>
+          </Grid>
+
+          {/* Feature 2.5: Duplicate pair column */}
+          <Grid item xs={12} md={4}>
+            <FormControl fullWidth size="small">
+              <InputLabel>Duplicate Pair Column (Optional)</InputLabel>
+              <Select
+                value={duplicatePairColumn || ''}
+                onChange={(e) => setDuplicatePairColumn(e.target.value || null)}
+                label="Duplicate Pair Column (Optional)"
+              >
+                <MenuItem value="">
+                  <em>Use naming convention</em>
+                </MenuItem>
+                {textColumns.map((col) => (
+                  <MenuItem key={col.name} value={col.name}>
+                    {col.alias || col.name}
+                  </MenuItem>
+                ))}
+              </Select>
+            </FormControl>
+          </Grid>
+        </Grid>
+
+        {/* Threshold Settings */}
+        <Accordion
+          expanded={showThresholds}
+          onChange={() => setShowThresholds(!showThresholds)}
+          sx={{ mt: 2 }}
+        >
+          <AccordionSummary expandIcon={<ExpandMoreIcon />}>
+            <SettingsIcon sx={{ mr: 1 }} />
+            <Typography>Threshold Settings</Typography>
+          </AccordionSummary>
+          <AccordionDetails>
+            <Grid container spacing={2}>
+              <Grid item xs={12} sm={6} md={4}>
+                <TextField
+                  label="Field Duplicate RPD (%)"
+                  type="number"
+                  size="small"
+                  fullWidth
+                  value={thresholds.fieldDuplicateRPD}
+                  onChange={(e) => setThresholds({ fieldDuplicateRPD: Number(e.target.value) })}
+                />
+              </Grid>
+              <Grid item xs={12} sm={6} md={4}>
+                <TextField
+                  label="Pulp Duplicate RPD (%)"
+                  type="number"
+                  size="small"
+                  fullWidth
+                  value={thresholds.pulpDuplicateRPD}
+                  onChange={(e) => setThresholds({ pulpDuplicateRPD: Number(e.target.value) })}
+                />
+              </Grid>
+              <Grid item xs={12} sm={6} md={4}>
+                <TextField
+                  label="Core Duplicate RPD (%)"
+                  type="number"
+                  size="small"
+                  fullWidth
+                  value={thresholds.coreDuplicateRPD}
+                  onChange={(e) => setThresholds({ coreDuplicateRPD: Number(e.target.value) })}
+                />
+              </Grid>
+              <Grid item xs={12} sm={6} md={4}>
+                <TextField
+                  label="Blank Elevated (× DL)"
+                  type="number"
+                  size="small"
+                  fullWidth
+                  value={thresholds.blankElevatedMultiple}
+                  onChange={(e) => setThresholds({ blankElevatedMultiple: Number(e.target.value) })}
+                />
+              </Grid>
+              <Grid item xs={12} sm={6} md={4}>
+                <TextField
+                  label="Blank Contaminated (× DL)"
+                  type="number"
+                  size="small"
+                  fullWidth
+                  value={thresholds.blankContaminatedMultiple}
+                  onChange={(e) => setThresholds({ blankContaminatedMultiple: Number(e.target.value) })}
+                />
+              </Grid>
+              <Grid item xs={12} sm={6} md={4}>
+                <TextField
+                  label="Min Insertion Rate (%)"
+                  type="number"
+                  size="small"
+                  fullWidth
+                  value={thresholds.minInsertionRate}
+                  onChange={(e) => setThresholds({ minInsertionRate: Number(e.target.value) })}
+                />
+              </Grid>
+              <Grid item xs={12}>
+                <Button
+                  size="small"
+                  onClick={() => setThresholds(DEFAULT_QAQC_THRESHOLDS)}
+                >
+                  Reset to Defaults
+                </Button>
+              </Grid>
+            </Grid>
+          </AccordionDetails>
+        </Accordion>
+
+        {/* Feature 3.2: CRM certified values import */}
+        <Box sx={{ mt: 2, display: 'flex', gap: 2, alignItems: 'center' }}>
+          <Button
+            variant="outlined"
+            component="label"
+            size="small"
+          >
+            Import CRM Values (CSV)
+            <input
+              type="file"
+              accept=".csv"
+              hidden
+              onChange={handleCRMImport}
+            />
+          </Button>
+          {standardReferences.length > 0 && (
+            <Typography variant="body2" color="text.secondary">
+              {standardReferences.length} standard reference(s) loaded
+            </Typography>
+          )}
+        </Box>
+      </Paper>
+
+      {/* Detection Results */}
+      {qcSamples.length > 0 && (
+        <Paper sx={{ p: 2, mb: 2 }}>
+          <Typography variant="h6" gutterBottom>
+            Detected QC Samples
+          </Typography>
+
+          <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap', mb: 2 }}>
+            <Chip
+              label={`Standards: ${qcCounts.standard}`}
+              color={qcCounts.standard > 0 ? 'primary' : 'default'}
+              size="small"
+            />
+            <Chip
+              label={`Blanks: ${qcCounts.blank}`}
+              color={qcCounts.blank > 0 ? 'info' : 'default'}
+              size="small"
+            />
+            <Chip
+              label={`Field Dups: ${qcCounts.field_duplicate}`}
+              color={qcCounts.field_duplicate > 0 ? 'success' : 'default'}
+              size="small"
+            />
+            <Chip
+              label={`Pulp Dups: ${qcCounts.pulp_duplicate}`}
+              color={qcCounts.pulp_duplicate > 0 ? 'success' : 'default'}
+              size="small"
+            />
+            <Chip
+              label={`Core Dups: ${qcCounts.core_duplicate}`}
+              color={qcCounts.core_duplicate > 0 ? 'success' : 'default'}
+              size="small"
+            />
+            <Chip
+              label={`Duplicate Pairs: ${duplicatePairs.length}`}
+              color={duplicatePairs.length > 0 ? 'secondary' : 'default'}
+              size="small"
+            />
+          </Box>
+
+          <Typography variant="body2" color="text.secondary">
+            Total: {qcSamples.length} QC samples detected ({((qcSamples.length / data.length) * 100).toFixed(1)}% insertion rate)
+          </Typography>
+        </Paper>
+      )}
+
+      {/* Analysis Section */}
+      <Paper sx={{ p: 2, mb: 2 }}>
+        <Typography variant="h6" gutterBottom>
+          Run Analysis
+        </Typography>
+
+        <Box sx={{ mb: 2 }}>
+          <MultiColumnSelector
+            columns={numericColumns}
+            allColumns={allNumericColumns}
+            selectedColumns={selectedElements}
+            onChange={setSelectedElements}
+            label="Elements to Analyze"
+          />
+        </Box>
+
+        <Box sx={{ display: 'flex', gap: 2, alignItems: 'center' }}>
+          <Button
+            variant="contained"
+            color="primary"
+            startIcon={isAnalysisRunning ? null : <PlayIcon />}
+            onClick={handleRunAnalysis}
+            disabled={isAnalysisRunning || qcSamples.length === 0 || selectedElements.length === 0}
+          >
+            {isAnalysisRunning ? 'Running...' : 'Run QA/QC Analysis'}
+          </Button>
+
+          {lastAnalysisTimestamp && (
+            <Button
+              variant="outlined"
+              color="secondary"
+              startIcon={<DeleteIcon />}
+              onClick={clearAnalysis}
+            >
+              Clear Results
+            </Button>
+          )}
+        </Box>
+
+        {isAnalysisRunning && (
+          <Box sx={{ mt: 2 }}>
+            <LinearProgress />
+          </Box>
+        )}
+      </Paper>
+
+      {/* Results Summary */}
+      {elementSummaries.length > 0 && (
+        <Paper sx={{ p: 2, mb: 2 }}>
+          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
+            <Typography variant="h6">
+              Analysis Results
+            </Typography>
+            {overallGrade && (
+              <Chip
+                label={`Overall Grade: ${overallGrade}`}
+                color={getGradeColor(overallGrade) as any}
+                size="medium"
+              />
+            )}
+          </Box>
+
+          <TableContainer>
+            <Table size="small">
+              <TableHead>
+                <TableRow>
+                  <TableCell>Element</TableCell>
+                  <TableCell align="center">Standards</TableCell>
+                  <TableCell align="center">Blanks</TableCell>
+                  <TableCell align="center">Duplicates</TableCell>
+                  <TableCell align="center">Score</TableCell>
+                  <TableCell align="center">Grade</TableCell>
+                </TableRow>
+              </TableHead>
+              <TableBody>
+                {elementSummaries.map((summary) => (
+                  <TableRow key={summary.element}>
+                    <TableCell>
+                      <Typography variant="body2" fontWeight="medium">
+                        {summary.element}
+                      </Typography>
+                    </TableCell>
+                    <TableCell align="center">
+                      {summary.hasStandards ? (
+                        <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 0.5 }}>
+                          {getStatusIcon(summary.standardsPassRate)}
+                          <Typography variant="body2">
+                            {summary.standardsPass}/{summary.standardsAnalyzed}
+                          </Typography>
+                        </Box>
+                      ) : (
+                        <Typography variant="body2" color="text.disabled">N/A</Typography>
+                      )}
+                    </TableCell>
+                    <TableCell align="center">
+                      {summary.hasBlanks ? (
+                        <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 0.5 }}>
+                          {getStatusIcon(summary.blanksPassRate)}
+                          <Typography variant="body2">
+                            {summary.blanksClean}/{summary.blanksAnalyzed}
+                          </Typography>
+                        </Box>
+                      ) : (
+                        <Typography variant="body2" color="text.disabled">N/A</Typography>
+                      )}
+                    </TableCell>
+                    <TableCell align="center">
+                      {summary.hasDuplicates ? (
+                        <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 0.5 }}>
+                          {getStatusIcon(summary.duplicatesPassRate)}
+                          <Typography variant="body2">
+                            {summary.duplicatesPass}/{summary.duplicatesAnalyzed}
+                          </Typography>
+                        </Box>
+                      ) : (
+                        <Typography variant="body2" color="text.disabled">N/A</Typography>
+                      )}
+                    </TableCell>
+                    <TableCell align="center">
+                      <Typography variant="body2">
+                        {summary.overallScore.toFixed(0)}%
+                      </Typography>
+                    </TableCell>
+                    <TableCell align="center">
+                      <Chip
+                        label={summary.grade}
+                        size="small"
+                        color={getGradeColor(summary.grade) as any}
+                      />
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </TableContainer>
+
+          {/* Recommendations */}
+          {recommendations.length > 0 && (
+            <Box sx={{ mt: 2 }}>
+              <Typography variant="subtitle2" gutterBottom>
+                Recommendations
+              </Typography>
+              {recommendations.map((rec, idx) => (
+                <Alert
+                  key={idx}
+                  severity={rec.includes('satisfactory') ? 'success' : rec.includes('failing') ? 'error' : 'warning'}
+                  sx={{ mb: 1 }}
+                >
+                  {rec}
+                </Alert>
+              ))}
+            </Box>
+          )}
+
+          {/* Navigation buttons */}
+          {onNavigate && (
+            <Box sx={{ mt: 2, display: 'flex', gap: 2, flexWrap: 'wrap' }}>
+              <Button variant="outlined" onClick={() => onNavigate('control-chart')}>
+                View Control Charts
+              </Button>
+              <Button variant="outlined" onClick={() => onNavigate('duplicates')}>
+                View Duplicate Analysis
+              </Button>
+              <Button variant="outlined" onClick={() => onNavigate('blanks')}>
+                View Blank Analysis
+              </Button>
+              <Button variant="outlined" onClick={() => onNavigate('dashboard')}>
+                View Dashboard
+              </Button>
+            </Box>
+          )}
+        </Paper>
+      )}
+    </Box>
+  );
+};
+
+export default QAQCManager;
