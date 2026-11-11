@@ -19,7 +19,8 @@ multivariate statistics.
 **Plots** (all linked: selections and colour/shape/size attributes are shared)
 - Scatter, scatter matrix, ternary, Piper, spider/normalised, histogram, box,
   probability, CLR and downhole plots.
-- Attribute, contour, pathfinder maps and a 3D viewer.
+- Attribute, contour, pathfinder maps and a 3D viewer (with wireframes from
+  Leapfrog .msh, DXF, OBJ, STL and GOCAD .ts).
 - Library of about 260 classification diagrams (TAS, discrimination, alteration
   and mineral chemistry), plus a diagram editor for your own.
 

@@ -13,6 +13,8 @@ import { CSS2DRenderer, CSS2DObject } from 'three/examples/jsm/renderers/CSS2DRe
 import { POINT_VERTEX_SHADER, POINT_FRAGMENT_SHADER } from './pointShaders';
 import { PointCloudGeometry, ClipState, niceTicks, projectToScreen } from './geometry';
 import type { ViewerStyleBuffers, DrillholeSegments } from './useViewerData';
+import type { WireframeLayer } from './wireframeStore';
+import type { WireframePart } from './wireframeParsers';
 
 export type ViewPreset = 'plan' | 'north' | 'south' | 'east' | 'west' | 'iso' | 'section';
 
@@ -60,6 +62,109 @@ function formatTick(v: number): string {
     return String(Number(v.toPrecision(4)));
 }
 
+// ---------------------------------------------------------------------------
+// Wireframes (meshes / lines loaded from Leapfrog .msh, DXF, OBJ, STL, GOCAD)
+// ---------------------------------------------------------------------------
+
+interface WireObject {
+    part: WireframePart;
+    /** Origin the float32 positions were built for */
+    originKey: string;
+    group: THREE.Group;
+    mesh: THREE.Mesh | null;
+    lines: THREE.LineSegments | null;
+    edges: THREE.LineSegments | null;
+    meshMaterial: THREE.MeshPhongMaterial;
+    lineMaterial: THREE.LineBasicMaterial;
+    edgeMaterial: THREE.LineBasicMaterial;
+}
+
+function buildWire(part: WireframePart, origin: [number, number, number], originKey: string): WireObject {
+    // Subtract the origin in float64, then store float32 (same as the points)
+    const n = part.vertices.length / 3;
+    const pos = new Float32Array(n * 3);
+    for (let i = 0; i < n * 3; i += 3) {
+        pos[i] = part.vertices[i] - origin[0];
+        pos[i + 1] = part.vertices[i + 1] - origin[1];
+        pos[i + 2] = part.vertices[i + 2] - origin[2];
+    }
+    const position = new THREE.BufferAttribute(pos, 3);
+    const group = new THREE.Group();
+    const meshMaterial = new THREE.MeshPhongMaterial({
+        side: THREE.DoubleSide, specular: 0x111111, shininess: 20,
+        // Push the surface back a little so its own edges and coincident lines stay visible
+        polygonOffset: true, polygonOffsetFactor: 1, polygonOffsetUnits: 1,
+    });
+    const lineMaterial = new THREE.LineBasicMaterial();
+    const edgeMaterial = new THREE.LineBasicMaterial({ transparent: true, opacity: 0.7 });
+
+    let mesh: THREE.Mesh | null = null;
+    if (part.triangles.length > 0) {
+        const g = new THREE.BufferGeometry();
+        g.setAttribute('position', position);
+        g.setIndex(new THREE.BufferAttribute(part.triangles, 1));
+        g.computeVertexNormals();
+        mesh = new THREE.Mesh(g, meshMaterial);
+        mesh.frustumCulled = false;
+        mesh.renderOrder = 1; // after the points, so they show through translucent shells
+        group.add(mesh);
+    }
+    let lines: THREE.LineSegments | null = null;
+    if (part.lines.length > 0) {
+        const g = new THREE.BufferGeometry();
+        g.setAttribute('position', position);
+        g.setIndex(new THREE.BufferAttribute(part.lines, 1));
+        lines = new THREE.LineSegments(g, lineMaterial);
+        lines.frustumCulled = false;
+        group.add(lines);
+    }
+    return { part, originKey, group, mesh, lines, edges: null, meshMaterial, lineMaterial, edgeMaterial };
+}
+
+/** Unique triangle edges as index pairs (shares the mesh's vertex buffer). */
+function edgeIndex(tris: Uint32Array, nVerts: number): Uint32Array {
+    const seen = new Set<number>();
+    const out: number[] = [];
+    for (let t = 0; t < tris.length; t += 3) {
+        for (let k = 0; k < 3; k++) {
+            const a = tris[t + k], b = tris[t + ((k + 1) % 3)];
+            const key = a < b ? a * nVerts + b : b * nVerts + a;
+            if (seen.has(key)) continue;
+            seen.add(key);
+            out.push(a, b);
+        }
+    }
+    return Uint32Array.from(out);
+}
+
+function styleWire(w: WireObject, layer: WireframeLayer) {
+    w.group.visible = layer.visible;
+    const color = new THREE.Color(layer.color);
+    const m = w.meshMaterial;
+    const translucent = layer.opacity < 0.999;
+    if (m.transparent !== translucent) {
+        m.transparent = translucent;
+        m.needsUpdate = true;
+    }
+    m.color.copy(color);
+    m.opacity = layer.opacity;
+    m.depthWrite = !translucent;
+    if (w.mesh) w.mesh.visible = layer.opacity > 0.001;
+    w.lineMaterial.color.copy(color);
+    // Edges darker than the surface; full colour when the surface is hidden
+    w.edgeMaterial.color.copy(color).multiplyScalar(layer.opacity > 0.001 ? 0.55 : 1);
+    if (layer.showEdges && w.mesh && !w.edges) {
+        const g = new THREE.BufferGeometry();
+        g.setAttribute('position', w.mesh.geometry.getAttribute('position'));
+        g.setIndex(new THREE.BufferAttribute(edgeIndex(w.part.triangles, w.part.vertices.length / 3), 1));
+        w.edges = new THREE.LineSegments(g, w.edgeMaterial);
+        w.edges.frustumCulled = false;
+        w.edges.renderOrder = 2;
+        w.group.add(w.edges);
+    }
+    if (w.edges) w.edges.visible = layer.showEdges;
+}
+
 export class ThreeViewport {
     private readonly container: HTMLElement;
     private readonly renderer: THREE.WebGLRenderer;
@@ -83,6 +188,12 @@ export class ThreeViewport {
     private vex = 1;
     private clip: ClipState | null = null;
     private background = '#ffffff';
+    private readonly wireGroup = new THREE.Group();
+    private readonly wires = new Map<string, WireObject>();
+    /** Local-coordinate bounds of the visible wireframes (included when fitting the view) */
+    private wireBounds: { min: number[]; max: number[] } | null = null;
+    /** Directional light that follows the camera (lights only affect wireframe surfaces) */
+    private readonly headlight = new THREE.DirectionalLight(0xffffff, 2.2);
 
     /** Called after the user finishes a camera interaction (to persist the view). */
     onCameraChangeEnd: (() => void) | null = null;
@@ -141,7 +252,8 @@ export class ThreeViewport {
         });
         this.points = new THREE.Points(this.pointGeom, this.pointMaterial);
         this.points.frustumCulled = false;
-        this.scene.add(this.points, this.traceGroup, this.axesGroup);
+        this.scene.add(this.points, this.traceGroup, this.axesGroup, this.wireGroup);
+        this.scene.add(new THREE.AmbientLight(0xffffff, 1.2), this.headlight);
 
         this.resizeObserver = new ResizeObserver(() => this.resize());
         this.resizeObserver.observe(container);
@@ -175,9 +287,17 @@ export class ThreeViewport {
         if (this.frame) return;
         this.frame = requestAnimationFrame(() => {
             this.frame = 0;
-            this.renderer.render(this.scene, this.camera);
+            this.renderNow();
             this.labelRenderer.render(this.scene, this.camera);
         });
+    }
+
+    private renderNow() {
+        // Headlight from the camera towards the orbit target
+        this.headlight.position.copy(this.camera.position);
+        this.headlight.target.position.copy(this.controls.target);
+        this.headlight.target.updateMatrixWorld();
+        this.renderer.render(this.scene, this.camera);
     }
 
     setBackground(color: string) {
@@ -238,7 +358,9 @@ export class ThreeViewport {
         u.uSelectionColor.value.set(opts.selectionColor);
         this.vex = opts.vex;
         this.traceGroup.scale.set(1, 1, opts.vex);
+        this.wireGroup.scale.set(1, 1, opts.vex);
         if (this.clip) this.traceMaterial.clippingPlanes = clipPlanes(this.clip, this.vex);
+        this.applyWireClip();
         this.requestRender();
     }
 
@@ -254,7 +376,77 @@ export class ThreeViewport {
         u.uSlabHalf.value = clip.slabHalfWidth;
         this.traceMaterial.clippingPlanes = clipPlanes(clip, this.vex);
         this.traceMaterial.needsUpdate = true;
+        this.applyWireClip();
         this.requestRender();
+    }
+
+    // --- wireframes ---------------------------------------------------------------
+
+    /**
+     * Show these wireframes (world coordinates), re-origined like the points.
+     * Geometry is rebuilt only when a layer's mesh or the origin changes;
+     * colour / opacity / edges / visibility changes just restyle.
+     */
+    setWireframes(layers: readonly WireframeLayer[], origin: [number, number, number]) {
+        const key = origin.join(',');
+        const keep = new Set<string>();
+        for (const layer of layers) {
+            keep.add(layer.id);
+            let w = this.wires.get(layer.id);
+            if (w && (w.part !== layer.part || w.originKey !== key)) {
+                this.disposeWire(w);
+                this.wires.delete(layer.id);
+                w = undefined;
+            }
+            if (!w) {
+                w = buildWire(layer.part, origin, key);
+                this.wires.set(layer.id, w);
+                this.wireGroup.add(w.group);
+            }
+            styleWire(w, layer);
+        }
+        for (const [id, w] of this.wires) {
+            if (keep.has(id)) continue;
+            this.disposeWire(w);
+            this.wires.delete(id);
+        }
+        const visible = layers.filter(l => l.visible);
+        this.wireBounds = visible.length > 0 ? {
+            min: [0, 1, 2].map(k => Math.min(...visible.map(l => l.part.bounds.min[k])) - origin[k]),
+            max: [0, 1, 2].map(k => Math.max(...visible.map(l => l.part.bounds.max[k])) - origin[k]),
+        } : null;
+        this.applyWireClip();
+        this.requestRender();
+    }
+
+    private applyWireClip() {
+        const planes = this.clip ? clipPlanes(this.clip, this.vex) : [];
+        for (const w of this.wires.values()) {
+            for (const m of [w.meshMaterial, w.lineMaterial, w.edgeMaterial]) {
+                if ((m.clippingPlanes?.length ?? 0) !== planes.length) m.needsUpdate = true;
+                m.clippingPlanes = planes;
+            }
+        }
+    }
+
+    private disposeWire(w: WireObject) {
+        this.wireGroup.remove(w.group);
+        w.mesh?.geometry.dispose();
+        w.lines?.geometry.dispose();
+        w.edges?.geometry.dispose();
+        w.meshMaterial.dispose();
+        w.lineMaterial.dispose();
+        w.edgeMaterial.dispose();
+    }
+
+    /** Point bounds grown to include the visible wireframes (local coords). */
+    private sceneBounds(points: { min: number[]; max: number[] }) {
+        const w = this.wireBounds;
+        if (!w) return points;
+        return {
+            min: points.min.map((v, k) => Math.min(v, w.min[k])),
+            max: points.max.map((v, k) => Math.max(v, w.max[k])),
+        };
     }
 
     /** Bounding box outline + tick labels in world coordinates. */
@@ -349,7 +541,7 @@ export class ThreeViewport {
     fitView(preset: ViewPreset, bounds?: { min: number[]; max: number[] }) {
         const g = this.geometry;
         if (!g) return;
-        const b = bounds ?? g.bounds;
+        const b = bounds ?? this.sceneBounds(g.bounds);
         const vex = this.vex;
         const center = new THREE.Vector3((b.min[0] + b.max[0]) / 2, (b.min[1] + b.max[1]) / 2, ((b.min[2] + b.max[2]) / 2) * vex);
         const r = Math.max(0.5 * Math.hypot(b.max[0] - b.min[0], b.max[1] - b.min[1], (b.max[2] - b.min[2]) * vex), 1);
@@ -386,7 +578,7 @@ export class ThreeViewport {
     }
 
     screenshot(): string {
-        this.renderer.render(this.scene, this.camera);
+        this.renderNow();
         return this.renderer.domElement.toDataURL('image/png');
     }
 
@@ -398,6 +590,8 @@ export class ThreeViewport {
         this.pointMaterial.dispose();
         this.traceLines?.geometry.dispose();
         this.traceMaterial.dispose();
+        for (const w of this.wires.values()) this.disposeWire(w);
+        this.wires.clear();
         const canvas = this.renderer.domElement;
         canvas.removeEventListener('webglcontextlost', this.handleContextLost);
         canvas.removeEventListener('webglcontextrestored', this.handleContextRestored);

@@ -11,6 +11,8 @@
  *   global selection, so it is linked with every other plot.
  * - Drillhole traces when HoleID + From roles exist; vertical exaggeration;
  *   perspective/orthographic; preset views; camera saved with the plot.
+ * - Wireframes (Leapfrog .msh, DXF, OBJ, STL, GOCAD .ts) drawn in the same
+ *   coordinates, clipped and exaggerated with the points (WireframePanel).
  */
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
@@ -32,6 +34,8 @@ import { ClipState, isInsideClip, selectInPolygon, sectionNormal, PointCloudGeom
 import { ColumnPicker } from '../../../components/ColumnPicker';
 import { useFillHeight } from '../../../hooks/useFillHeight';
 import { registerFigureCapture } from '../../../utils/reportCapture';
+import { useWireframeStore, NO_WIREFRAMES } from './wireframeStore';
+import { WireframeButton } from './WireframePanel';
 
 type Mode = 'orbit' | 'lasso' | 'box';
 type Preset = ViewPreset;
@@ -85,6 +89,7 @@ export const Viewer3D: React.FC<{ plotId: string }> = ({ plotId }) => {
     const styles = useViewerStyles(rowCount);
     const { flags, hasSelection } = useViewerFlags(styles.visible);
     const segments = useDrillholeSegments(geometry);
+    const wireframes = useWireframeStore(s => s.byPlot[plotId] ?? NO_WIREFRAMES);
 
     // --- clip state in local coordinates ------------------------------------
     const clip: ClipState = useMemo(() => {
@@ -190,6 +195,16 @@ export const Viewer3D: React.FC<{ plotId: string }> = ({ plotId }) => {
     useEffect(() => { if (viewportReady) viewportRef.current!.setBackground(theme.palette.background.paper); }, [viewportReady, theme.palette.background.paper]);
     useEffect(() => { if (viewportReady) viewportRef.current!.setInteractive(mode === 'orbit'); }, [viewportReady, mode]);
     useEffect(() => { if (viewportReady) viewportRef.current!.setOrthographic(ortho); }, [viewportReady, ortho]);
+    useEffect(() => {
+        if (viewportReady && geometry) viewportRef.current!.setWireframes(wireframes, geometry.origin);
+    }, [viewportReady, geometry, wireframes]);
+    // Frame everything when the first wireframe arrives (later loads keep the user's view)
+    const wireCount = useRef(wireframes.length);
+    useEffect(() => {
+        const first = wireCount.current === 0 && wireframes.length > 0;
+        wireCount.current = wireframes.length;
+        if (first && viewportReady) viewportRef.current?.fitView('iso');
+    }, [wireframes.length, viewportReady]);
 
     // Restore the saved camera (or fit) once per geometry
     const restoredFor = useRef<PointCloudGeometry | null>(null);
@@ -227,6 +242,13 @@ export const Viewer3D: React.FC<{ plotId: string }> = ({ plotId }) => {
     const zoomToSelection = () => {
         const b = selectionBounds();
         if (b) fitView('iso', b);
+    };
+
+    /** Frame world-coordinate bounds (e.g. one wireframe). */
+    const zoomToWorld = (b: { min: number[]; max: number[] }) => {
+        if (!geometry) return;
+        const o = geometry.origin;
+        fitView('iso', { min: b.min.map((v, k) => v - o[k]), max: b.max.map((v, k) => v - o[k]) });
     };
 
     const boxFromSelection = () => {
@@ -382,6 +404,7 @@ export const Viewer3D: React.FC<{ plotId: string }> = ({ plotId }) => {
                     <Tooltip title="Show only the selection"><span><Button size="small" variant={isolate ? 'contained' : 'text'} disabled={!hasSelection} onClick={() => setIsolate(!isolate)}><FilterCenterFocus fontSize="small" /></Button></span></Tooltip>
                     <Tooltip title="Clear selection"><span><Button size="small" disabled={!hasSelection} onClick={() => setSelection([])}><Clear fontSize="small" /></Button></span></Tooltip>
                     <Tooltip title="Save PNG"><Button size="small" onClick={screenshot}><PhotoCamera fontSize="small" /></Button></Tooltip>
+                    <WireframeButton plotId={plotId} dataBounds={worldBounds} onZoomTo={zoomToWorld} />
                 </>}
                 settingsActive={c.boxEnabled || c.slabEnabled || vex !== 1 || ortho}
                 summary={<>
@@ -427,7 +450,7 @@ export const Viewer3D: React.FC<{ plotId: string }> = ({ plotId }) => {
             />
 
             {!geometry ? (
-                <Typography color="text.secondary">Select numeric X and Y columns (and optionally Z) to view in 3D.</Typography>
+                <Typography color="text.secondary">Select numeric X and Y columns (and optionally Z) to view in 3D. Loaded wireframes are drawn with the data.</Typography>
             ) : (
                 <Box ref={fillRef}>
                 <Paper ref={containerRef} tabIndex={0} sx={{ position: 'relative', height: fillHeight, overflow: 'hidden', outline: 'none' }}>
