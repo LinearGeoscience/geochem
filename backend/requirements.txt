@@ -1,0 +1,13 @@
+# Runtime dependencies (Python 3.10+). Pinned to the versions the test suite
+# runs against; update deliberately.
+fastapi==0.123.9
+uvicorn==0.38.0
+# WebSocket support for uvicorn (QGIS live sync at /api/qgis/ws/qgis)
+websockets==15.0.1
+pandas==2.3.3
+numpy==2.3.5
+pydantic==2.12.5
+python-multipart==0.0.20
+openpyxl==3.1.5
+xlrd==2.0.2
+psutil==7.1.3

@@ -1,0 +1,284 @@
+/**
+ * Closed bodies: the volume a logged unit fills, as a surface round it (pure,
+ * unit-tested).
+ *
+ * A sheet is fitted about a plane; a body has none. Its field is positive
+ * inside and negative outside, and its skin is where the field is zero. It
+ * is given:
+ *  - zero at every contact (where a hole passes into or out of the unit) and
+ *    at any point placed by hand;
+ *  - in the middle of every logged stretch, inside or outside, about how far
+ *    that place is from the skin (the distance to the nearest contact),
+ *    positive inside, negative outside;
+ *  - "outside" at a ring of places well beyond the drilling, so the body
+ *    closes rather than running off where nothing was drilled.
+ * Giving distances (rather than just +1 and -1) is what keeps the body the
+ * same thickness between holes as it is in them. The logging is then checked
+ * against the result and the fit corrected, as for a surface between units
+ * (contacts.ts).
+ */
+import type { RunMiddles } from './contacts';
+import { bestFitPlane } from './plane';
+import { evaluateField, fitField, stretchPoints, type Stretch } from './rbf';
+import type { SheetFit } from './sheet';
+import { meshSurface } from './surfaceNets';
+import type { Box3, TriMesh, Vec3 } from './types';
+
+export interface BodyInput {
+    /** Places on its skin, xyz triples: the contacts, then any points placed by hand */
+    points: ArrayLike<number>;
+    /** A place in the middle of each logged stretch (xyz triples) and its side: 1 inside, -1 outside */
+    middles: { positions: ArrayLike<number>; side: ArrayLike<number> };
+    /** More places held to a value (the corrections: see contacts.ts) */
+    valued?: { positions: ArrayLike<number>; values: ArrayLike<number> } | null;
+    /** The extent of the data: the body is closed off beyond it */
+    box: Box3;
+    /** 0 = through every contact; larger = looser */
+    smoothing?: number;
+    /** Fit it in space stretched across its thickness (see `bodyStretch`) */
+    stretch?: Stretch | null;
+}
+
+/** The ring of outside places sits this share of the data's size beyond it */
+const BEYOND = 0.5;
+/** No drift: the field settles to a constant away from the data (the kernel needs no more than that) */
+const LEVEL = { normal: [0, 0, 0] as Vec3, point: [0, 0, 0] as Vec3 };
+
+/** A body is stretched across its thickness by no more than this */
+const MAX_STRETCH = 40;
+/** Thinner than this share of the gap between holes, a body may not hold together between them */
+const THIN = 0.75;
+/** Stretched until it is this many hole spacings thick */
+const THICK = 1.5;
+
+function median(values: number[]): number {
+    const sorted = values.slice().sort((a, b) => a - b);
+    const mid = sorted.length >> 1;
+    return sorted.length === 0 ? NaN : sorted.length % 2 ? sorted[mid] : (sorted[mid - 1] + sorted[mid]) / 2;
+}
+
+export interface BodyShape {
+    /** Fit it in space stretched across its thickness (null: as it is) */
+    stretch: Stretch | null;
+    /** Even so it is thin against the gaps between holes: it may come out in pieces round them */
+    thin: boolean;
+}
+
+/**
+ * A fit like this one is the same in every direction, which suits a body
+ * about as thick as the holes are far apart, or thicker. A body much thinner
+ * than that (a vein, a seam) comes out as beads round the holes with gaps
+ * between. So where the holes meet the body roughly in one plane, and it is
+ * thin against their spacing, space is stretched across that plane until it
+ * is not thin: the body then holds together from hole to hole.
+ *
+ * No stretch when too few holes meet it, they do not meet it in a plane,
+ * they run along it rather than across it, or it is thick.
+ */
+export function bodyShape(middles: RunMiddles): BodyShape {
+    const rows: number[] = [];
+    for (let i = 0; i < middles.side.length; i++) if (middles.side[i] > 0) rows.push(i);
+    // A great many: every so-many-th will do
+    const step = Math.max(1, Math.ceil(rows.length / 600));
+    const used = rows.filter((_, k) => k % step === 0);
+    const centres = used.flatMap(i => [middles.positions[i * 3], middles.positions[i * 3 + 1], middles.positions[i * 3 + 2]]);
+    /** The usual distance from where one hole meets it to where the nearest other hole does */
+    const spacingOf = (at: number[][]) => {
+        const gaps: number[] = [];
+        used.forEach((i, a) => {
+            let best = Infinity;
+            used.forEach((j, b) => {
+                if (middles.hole[i] === middles.hole[j]) return;
+                const d = Math.hypot(at[a][0] - at[b][0], at[a][1] - at[b][1], at[a][2] - at[b][2]);
+                if (d < best) best = d;
+            });
+            if (Number.isFinite(best)) gaps.push(best);
+        });
+        return median(gaps);
+    };
+    const whole = used.map((_, k) => [centres[k * 3], centres[k * 3 + 1], centres[k * 3 + 2]]);
+    // As it is: its length down the holes against their spacing (NaN with one hole: nothing to say)
+    const asItIs: BodyShape = { stretch: null, thin: median(used.map(i => middles.length[i])) < THIN * spacingOf(whole) };
+    if (used.length < 4) return asItIs;
+
+    const plane = bestFitPlane(centres);
+    if (!plane) return asItIs;
+    const [long, wide, off] = plane.spread;
+    // In a plane, and not just along one line (a single fence of holes says nothing of the plane)
+    if (!(wide > 0.15 * long) || !(off < 0.35 * wide)) return asItIs;
+    const n = plane.normal;
+
+    // How thick it is, square to the plane, where holes cross it
+    const thick: number[] = [];
+    for (const i of used) {
+        const d = [middles.along[i * 3], middles.along[i * 3 + 1], middles.along[i * 3 + 2]];
+        const known = d[0] !== 0 || d[1] !== 0 || d[2] !== 0;
+        const across = known ? Math.abs(d[0] * n[0] + d[1] * n[1] + d[2] * n[2]) : 1;
+        if (across > 0.2) thick.push(middles.length[i] * across);
+    }
+    if (thick.length < used.length / 2) return asItIs;
+    const thickness = median(thick);
+
+    // How far apart the holes are where they meet it, within the plane
+    const spacing = spacingOf(whole.map((p) => {
+        const h = (p[0] - plane.point[0]) * n[0] + (p[1] - plane.point[1]) * n[1] + (p[2] - plane.point[2]) * n[2];
+        return [p[0] - h * n[0], p[1] - h * n[1], p[2] - h * n[2]];
+    }));
+    if (!(thickness > 0) || !(spacing > 0)) return asItIs;
+    const factor = Math.min(MAX_STRETCH, THICK * spacing / thickness);
+    if (factor < 1.2) return { stretch: null, thin: false };
+    return { stretch: { normal: n, point: plane.point, factor }, thin: thickness * factor < THIN * spacing };
+}
+
+/** The stretch of `bodyShape` alone. */
+export function bodyStretch(middles: RunMiddles): Stretch | null {
+    return bodyShape(middles).stretch;
+}
+
+const EMPTY: SheetFit = { status: 'empty', trend: null, field: null, onSurface: new Float64Array(0), stats: null, lineSigns: new Int8Array(0) };
+
+/**
+ * Fit a body's field. `status` is 'body' when there is one, 'empty' when
+ * the logging does not bound it (no contact, or nothing inside, or nothing
+ * outside).
+ */
+export function fitBody(input: BodyInput): SheetFit {
+    const nSkin = Math.floor(input.points.length / 3);
+    const m = Math.min(Math.floor(input.middles.positions.length / 3), input.middles.side.length);
+    const onSurface = Float64Array.from({ length: nSkin * 3 }, (_, i) => input.points[i]);
+    // Everything below is in the space the fit is made in
+    const stretch = input.stretch ?? null;
+    const seen = (points: ArrayLike<number>): ArrayLike<number> => (stretch ? stretchPoints(points, stretch) : points);
+    const skin = seen(onSurface), middle = seen(input.middles.positions);
+    let inside = 0, outside = 0;
+    for (let i = 0; i < m; i++) {
+        if (input.middles.side[i] > 0) inside++;
+        else outside++;
+    }
+    if (nSkin === 0 || inside === 0 || outside === 0) return { ...EMPTY, onSurface };
+
+    /** Distance to the nearest place on the skin */
+    const toSkin = (x: number, y: number, z: number) => {
+        let best = Infinity;
+        for (let q = 0; q < nSkin * 3; q += 3) {
+            const d = (skin[q] - x) ** 2 + (skin[q + 1] - y) ** 2 + (skin[q + 2] - z) ** 2;
+            if (d < best) best = d;
+        }
+        return Math.sqrt(best);
+    };
+
+    const points: number[] = Array.from(skin);
+    const values: number[] = new Array(nSkin).fill(0);
+    let furthest = 0;
+    for (let i = 0; i < m; i++) {
+        const x = middle[i * 3], y = middle[i * 3 + 1], z = middle[i * 3 + 2];
+        const far = toSkin(x, y, z);
+        if (!(far > 1e-9)) continue;
+        points.push(x, y, z);
+        values.push(input.middles.side[i] > 0 ? far : -far);
+        if (far > furthest) furthest = far;
+    }
+    if (!(furthest > 0)) return { ...EMPTY, onSurface };
+    // Outside, well beyond the data: the corners and the middles of the faces of a larger box
+    const { min, max } = input.box;
+    const mid: Vec3 = [(min[0] + max[0]) / 2, (min[1] + max[1]) / 2, (min[2] + max[2]) / 2];
+    const size = Math.max(max[0] - min[0], max[1] - min[1], max[2] - min[2], furthest);
+    const half: Vec3 = [(max[0] - min[0]) / 2 + BEYOND * size, (max[1] - min[1]) / 2 + BEYOND * size, (max[2] - min[2]) / 2 + BEYOND * size];
+    for (let a = -1; a <= 1; a++) for (let b = -1; b <= 1; b++) for (let c = -1; c <= 1; c++) {
+        const zeros = (a === 0 ? 1 : 0) + (b === 0 ? 1 : 0) + (c === 0 ? 1 : 0);
+        if (zeros !== 0 && zeros !== 2) continue;
+        const p = seen([mid[0] + a * half[0], mid[1] + b * half[1], mid[2] + c * half[2]]);
+        points.push(p[0], p[1], p[2]);
+        values.push(-toSkin(p[0], p[1], p[2]));
+    }
+    // The corrections are no further from the skin than anything else is
+    const extra = input.valued ? Math.min(Math.floor(input.valued.positions.length / 3), input.valued.values.length) : 0;
+    const held = extra > 0 ? seen(input.valued!.positions) : [];
+    for (let i = 0; i < extra; i++) {
+        points.push(held[i * 3], held[i * 3 + 1], held[i * 3 + 2]);
+        values.push(Math.max(-furthest, Math.min(furthest, input.valued!.values[i])));
+    }
+
+    const fit = fitField(points, values, { drift: LEVEL, smoothing: input.smoothing });
+    if (!fit.ok) return { status: 'failed', trend: null, field: null, onSurface, stats: null, lineSigns: new Int8Array(0) };
+    if (stretch) fit.field.stretch = stretch;
+    // What it reports is how well the skin is honoured: the contacts and hand-placed points
+    let worstMiss = 0;
+    if (fit.stats.worstMiss > 0) {
+        const at = evaluateField(fit.field, onSurface);
+        for (let i = 0; i < nSkin; i++) worstMiss = Math.max(worstMiss, Math.abs(at[i]));
+    }
+    return { status: 'body', trend: null, field: fit.field, onSurface, stats: { ...fit.stats, worstMiss }, lineSigns: new Int8Array(0) };
+}
+
+export interface BodyMesh extends TriMesh {
+    cells: number;
+    truncated: boolean;
+    /** It reaches the edge of the box and was closed off flat there */
+    cut: boolean;
+}
+
+/**
+ * The skin of a fitted body as a closed mesh, facing outwards. Where the
+ * body reaches the edge of `box` it is closed off flat against it, so there
+ * is always a volume to measure. `seeds`: places on the skin to start from
+ * (default: the ones it was fitted through).
+ */
+export function meshBody(fit: SheetFit, box: Box3, cell: number, seeds?: ArrayLike<number>): BodyMesh {
+    const field = fit.field;
+    if (!field || !(cell > 0)) return { vertices: new Float64Array(0), triangles: new Uint32Array(0), cells: 0, truncated: false, cut: false };
+    /** How far inside the box a place is (negative outside it) */
+    const inBox = (x: number, y: number, z: number) =>
+        Math.min(x - box.min[0], box.max[0] - x, y - box.min[1], box.max[1] - y, z - box.min[2], box.max[2] - z);
+    const net = meshSurface({
+        // Inside the body AND inside the box: the smaller of the two
+        evaluate: (pts) => {
+            const f = evaluateField(field, pts);
+            for (let i = 0; i < f.length; i++) f[i] = Math.min(f[i], inBox(pts[i * 3], pts[i * 3 + 1], pts[i * 3 + 2]));
+            return f;
+        },
+        box: {
+            min: [box.min[0] - 2 * cell, box.min[1] - 2 * cell, box.min[2] - 2 * cell],
+            max: [box.max[0] + 2 * cell, box.max[1] + 2 * cell, box.max[2] + 2 * cell],
+        },
+        cell, seeds: seeds ?? fit.onSurface,
+    });
+    let cut = false;
+    const v = net.vertices;
+    for (let i = 0; i < v.length && !cut; i += 3) cut = inBox(v[i], v[i + 1], v[i + 2]) < 0.75 * cell;
+    // The mesher's triangles face where the field is positive (inwards): turn them to face out
+    const t = net.triangles;
+    for (let i = 0; i < t.length; i += 3) {
+        const b = t[i + 1];
+        t[i + 1] = t[i + 2];
+        t[i + 2] = b;
+    }
+    return { vertices: v, triangles: t, cells: net.cells, truncated: net.truncated, cut };
+}
+
+/**
+ * The volume a mesh encloses, or null when it is not closed (an edge with
+ * only one triangle on it).
+ */
+export function closedVolume(mesh: TriMesh): number | null {
+    const { vertices: v, triangles: t } = mesh;
+    if (t.length === 0) return null;
+    const n = v.length / 3;
+    // Each edge of a closed mesh is walked once in each direction
+    const edges = new Map<number, number>();
+    let six = 0;
+    for (let i = 0; i < t.length; i += 3) {
+        const a = t[i], b = t[i + 1], c = t[i + 2];
+        for (const [p, q] of [[a, b], [b, c], [c, a]]) {
+            const key = p < q ? p * n + q : q * n + p;
+            edges.set(key, (edges.get(key) ?? 0) + (p < q ? 1 : -1));
+        }
+        // Measured from the first vertex of the mesh, so large coordinates do not cost accuracy
+        const ax = v[a * 3] - v[0], ay = v[a * 3 + 1] - v[1], az = v[a * 3 + 2] - v[2];
+        const bx = v[b * 3] - v[0], by = v[b * 3 + 1] - v[1], bz = v[b * 3 + 2] - v[2];
+        const cx = v[c * 3] - v[0], cy = v[c * 3 + 1] - v[1], cz = v[c * 3 + 2] - v[2];
+        six += ax * (by * cz - bz * cy) + ay * (bz * cx - bx * cz) + az * (bx * cy - by * cx);
+    }
+    for (const count of edges.values()) if (count !== 0) return null;
+    return Math.abs(six) / 6;
+}
