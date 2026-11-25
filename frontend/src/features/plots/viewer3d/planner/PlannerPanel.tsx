@@ -11,7 +11,7 @@
 import React, { useRef, useState } from 'react';
 import {
     Alert, Box, Button, Checkbox, CircularProgress, Collapse, Divider, IconButton, LinearProgress, Menu, MenuItem, Paper, Stack, Switch, FormControlLabel,
-    Table, TableBody, TableCell, TableHead, TableRow, TextField, Tooltip, Typography,
+    Table, TableBody, TableCell, TableHead, TableRow, TextField, ToggleButton, ToggleButtonGroup, Tooltip, Typography,
 } from '@mui/material';
 import { Add, AccountTree, Close, ContentCopy, DeleteOutline, ErrorOutline, ExpandLess, ExpandMore, FileDownload, FileUpload, Place, VerticalSplit, WarningAmber } from '@mui/icons-material';
 import { useShallow } from 'zustand/react/shallow';
@@ -32,9 +32,33 @@ import { PadsDialog } from './PadsDialog';
 import { WedgeDialog } from './WedgeDialog';
 import { snapHolesToPads, snapReportText } from './padActions';
 import { useModelStore } from '../../../../store/modelStore';
-import type { Planner } from './usePlans';
+import { roleSetsOf, type Planner } from './usePlans';
 
 /** Settings → pads: which set collars snap to, how far and how much change from the guide; and wedges' shallowest kick-off */
+/** How the drill pads and target points are drawn: dots or crosses, per set (shown, hidden and coloured in the project tree) */
+const PointMarks: React.FC = () => {
+    const inputs = useModelStore(s => s.scene.inputs);
+    const sets = roleSetsOf(inputs);
+    if (sets.length === 0) return null;
+    return (
+        <Box sx={{ mt: 0.75 }}>
+            <Typography variant="caption" color="text.secondary" component="div">
+                Pads and target points: show, hide and colour them with their eye and colour in the project tree or the Scene list; drawn as
+            </Typography>
+            {sets.map(p => (
+                <Box key={p.id} sx={{ display: 'flex', alignItems: 'center', gap: 0.5, mt: 0.25 }}>
+                    <Box component="span" sx={{ width: 10, height: 10, bgcolor: p.color, borderRadius: '50%', ml: 0.5, flexShrink: 0 }} />
+                    <Typography variant="body2" noWrap sx={{ flex: 1, minWidth: 0 }} title={p.name}>{p.name}</Typography>
+                    <ToggleButtonGroup size="small" exclusive value={p.mark ?? 'dot'} onChange={(_, v: 'dot' | 'cross' | null) => { if (v) useModelStore.getState().setPointSetMark(p.id, v); }}>
+                        <ToggleButton value="dot" sx={{ textTransform: 'none', py: 0, px: 0.75 }}>Dots</ToggleButton>
+                        <ToggleButton value="cross" sx={{ textTransform: 'none', py: 0, px: 0.75 }}>Crosses</ToggleButton>
+                    </ToggleButtonGroup>
+                </Box>
+            ))}
+        </Box>
+    );
+};
+
 const PadSettings: React.FC<{ planner: Planner }> = ({ planner }) => {
     const settings = usePlanStore(s => s.settings);
     const set = usePlanStore(s => s.setSettings);
@@ -43,12 +67,11 @@ const PadSettings: React.FC<{ planner: Planner }> = ({ planner }) => {
         <Box sx={{ border: 1, borderColor: 'divider', borderRadius: 1, p: 0.75 }}>
             <Typography variant="caption" sx={{ fontWeight: 600 }}>Pads and wedges</Typography>
             {planner.padSets.length === 0 ? (
-                <Typography variant="caption" color="text.secondary" component="div">No pads yet: Import → Pad locations (or put a set of points in the Drill pads folder of the Modelling tree).</Typography>
+                <Typography variant="caption" color="text.secondary" component="div">No pads yet: Import → Pad locations.</Typography>
             ) : <>
                 {planner.padSets.map(p => (
                     <Box key={p.id} sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-                        <Checkbox size="small" sx={{ p: 0.25 }} checked={p.visible} onChange={e => useModelStore.getState().updateInputSet(p.id, { visible: e.target.checked })} />
-                        <Box component="span" sx={{ width: 10, height: 10, bgcolor: p.color, borderRadius: '50%' }} />
+                        <Box component="span" sx={{ width: 10, height: 10, bgcolor: p.color, borderRadius: '50%', ml: 0.5 }} />
                         <Typography variant="body2" sx={{ flex: 1 }}>{p.name} ({p.points.length}){chosen?.id === p.id ? ' · snapped to' : ''}</Typography>
                         {planner.padSets.length > 1 && chosen?.id !== p.id && <Button size="small" sx={smallButton} onClick={() => set({ padSetId: p.id })}>Use</Button>}
                         <Tooltip title="Remove this pad set from the project"><IconButton size="small" onClick={() => useModelStore.getState().removeInputSet(p.id)}><DeleteOutline fontSize="small" /></IconButton></Tooltip>
@@ -60,6 +83,7 @@ const PadSettings: React.FC<{ planner: Planner }> = ({ planner }) => {
                     <NumField label="Max azi change °" value={settings.padMaxAzi} width={120} onChange={v => v !== null && v >= 0 && set({ padMaxAzi: v })} />
                 </Box>
             </>}
+            <PointMarks />
             <Box sx={{ mt: 0.75, display: 'flex', gap: 0.75, flexWrap: 'wrap' }}>
                 <NumField label="Shallowest wedge kick-off m" value={settings.minKop} width={180} onChange={v => v !== null && v >= 0 && set({ minKop: v })} />
             </Box>

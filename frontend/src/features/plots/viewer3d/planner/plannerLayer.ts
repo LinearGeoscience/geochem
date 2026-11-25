@@ -16,7 +16,8 @@ import { CSS2DObject } from 'three/examples/jsm/renderers/CSS2DRenderer.js';
 import { stationAt } from '../../../../utils/drillholePlan';
 import { offSlice } from '../../../../utils/drillholePlanSlice';
 import type { ThreeViewport } from '../ThreeViewport';
-import { padSetsOf, type Planner } from './usePlans';
+import { roleSetsOf, type Planner } from './usePlans';
+import { keys as objectKeys } from '../../../model/objectKeys';
 import { activeSlice, OFF_SLICE, slicePlane, SliceLink } from './planSlice';
 import { usePlanStore } from './planStore';
 import { useModelStore } from '../../../../store/modelStore';
@@ -29,15 +30,24 @@ const FADED = 0.35;
 
 const sprites = new Map<string, THREE.Texture>();
 /** Round point sprites: a dot with a dark rim, or a ring */
-function sprite(kind: 'dot' | 'ring'): THREE.Texture {
+function sprite(kind: 'dot' | 'ring' | 'cross'): THREE.Texture {
     let t = sprites.get(kind);
     if (t) return t;
     const c = document.createElement('canvas');
     c.width = c.height = 64;
     const g = c.getContext('2d')!;
     g.beginPath();
-    g.arc(32, 32, kind === 'ring' ? 24 : 28, 0, Math.PI * 2);
-    if (kind === 'dot') {
+    if (kind === 'cross') {
+        // A cross, dark-edged so it shows on any background
+        for (const [w, colour] of [[14, 'rgba(0,0,0,0.65)'], [7, '#ffffff']] as const) {
+            g.beginPath();
+            g.moveTo(8, 32); g.lineTo(56, 32); g.moveTo(32, 8); g.lineTo(32, 56);
+            g.lineWidth = w; g.lineCap = 'round'; g.strokeStyle = colour; g.stroke();
+        }
+    } else g.arc(32, 32, kind === 'ring' ? 24 : 28, 0, Math.PI * 2);
+    if (kind === 'cross') {
+        // (drawn above)
+    } else if (kind === 'dot') {
         g.fillStyle = '#ffffff';
         g.fill();
         g.lineWidth = 6;
@@ -219,16 +229,17 @@ export function usePlannerLayer(
 }
 
 /**
- * The scene's point sets (drill pads) in a 3D view: round markers cut by
- * the clip box and slices like the data, so planning on a slice shows the
- * pads near it.
+ * The scene's sets of points with a role (drill pads, target points) in a 3D
+ * view: dots or crosses (the set's `mark`) a size on the screen, cut by the
+ * clip box and slices like the data, so planning on a slice shows those near
+ * it. Shown or hidden as the view's eyes say (`hidden`: the keys the view hides).
  */
-export function usePointSetLayer(viewportRef: RefObject<ThreeViewport | null>, ready: boolean, origin: [number, number, number] | null) {
+export function usePointSetLayer(viewportRef: RefObject<ThreeViewport | null>, ready: boolean, origin: [number, number, number] | null, hidden: ReadonlySet<string>) {
     const inputs = useModelStore(s => s.scene.inputs);
     useEffect(() => {
         const vp = viewportRef.current;
         if (!ready || !vp || !origin) return;
-        const shown = padSetsOf(inputs).filter(p => p.visible && p.points.length > 0);
+        const shown = roleSetsOf(inputs).filter(p => p.visible && !hidden.has(objectKeys.inputs(p.id)) && p.points.length > 0);
         if (shown.length === 0) { vp.setLayer(POINTS_LAYER_ID, null); return; }
         const group = new THREE.Group();
         for (const set of shown) {
@@ -236,7 +247,8 @@ export function usePointSetLayer(viewportRef: RefObject<ThreeViewport | null>, r
             for (const q of set.points) pos.push(q.p[0] - origin[0], q.p[1] - origin[1], q.p[2] - origin[2]);
             const geom = new THREE.BufferGeometry();
             geom.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
-            const mat = new THREE.PointsMaterial({ color: set.color, size: 9, sizeAttenuation: false, map: sprite('dot'), transparent: true, alphaTest: 0.2 });
+            const cross = set.mark === 'cross';
+            const mat = new THREE.PointsMaterial({ color: set.color, size: cross ? 13 : 9, sizeAttenuation: false, map: sprite(cross ? 'cross' : 'dot'), transparent: true, alphaTest: 0.2 });
             mat.userData.clipWithSlices = true;
             const pts = new THREE.Points(geom, mat);
             pts.frustumCulled = false;
@@ -245,5 +257,5 @@ export function usePointSetLayer(viewportRef: RefObject<ThreeViewport | null>, r
         }
         vp.setLayer(POINTS_LAYER_ID, group);
         return () => { vp.setLayer(POINTS_LAYER_ID, null); disposePlannerLayer(group); };
-    }, [viewportRef, ready, origin, inputs]);
+    }, [viewportRef, ready, origin, inputs, hidden]);
 }

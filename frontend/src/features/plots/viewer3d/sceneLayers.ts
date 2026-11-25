@@ -223,7 +223,8 @@ function allLayers(o: SceneLayerInput): readonly MeshLayer[] {
         const opened = new Set((scene.surfaces.find(s => s.id === o.editingId)?.uses ?? []).map(u => u.set));
         for (const set of scene.inputs ?? []) {
             const id = keys.inputs(set.id);
-            if (hidden.has(id) || opened.has(set.id) || setSize(set) === 0) continue;
+            // (Drill pads and target points are drawn by the drillhole planner, a size on the screen)
+            if (hidden.has(id) || opened.has(set.id) || setSize(set) === 0 || (set.kind === 'points' && set.role)) continue;
             const part = kept(set.kind === 'points' ? set.points : set.lines, size, () => {
                 const mark = setMarks(set, size);
                 return makePart(set.name, mark.vertices, new Uint32Array(0), mark.lines);

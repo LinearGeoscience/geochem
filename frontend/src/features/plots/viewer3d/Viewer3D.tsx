@@ -1525,7 +1525,7 @@ export const Viewer3D: React.FC<{ plotId: string }> = ({ plotId }) => {
         }),
     }), [liveClip, updateClip, geometry]);
     usePlannerLayer(viewportRef, viewportReady, geometry?.origin ?? null, planner, sliceLink);
-    usePointSetLayer(viewportRef, viewportReady, geometry?.origin ?? null);
+    usePointSetLayer(viewportRef, viewportReady, geometry?.origin ?? null, hidden);
     usePlannerEditing({
         containerRef, viewportRef, ready: viewportReady, origin: geometry?.origin ?? null, vex, link: sliceLink, planner,
         // Only while no other tool has the mouse

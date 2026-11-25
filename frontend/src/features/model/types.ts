@@ -137,7 +137,14 @@ interface InputSetBase {
 export interface PointSet extends InputSetBase {
     kind: 'points';
     points: ScenePoint[];
+    /** What the set is for besides shaping surfaces (drillhole planner): drill pads, or target points (absent: none) */
+    role?: PointSetRole;
+    /** How a set with a role is drawn: a round dot or a cross, a size on the screen (absent: a dot) */
+    mark?: 'dot' | 'cross';
 }
+
+/** Drill pads (collars snap to them) or target points (holes are planned to them) */
+export type PointSetRole = 'pads' | 'targets';
 
 /** A named set of lines: every surface that uses it passes along them */
 export interface LineSet extends InputSetBase {

@@ -15,6 +15,7 @@ import { FileUpload } from '@mui/icons-material';
 import { notify } from '../../../../store/notificationStore';
 import { TargetColumns, guessTargetColumns, parseCsv, readTargets } from '../../../../utils/drillholePlanIO';
 import { usePlanStore, TopoRef } from './planStore';
+import { useModelStore } from '../../../../store/modelStore';
 import { TopoSelect } from './HoleEditor';
 import { NumField, stopKeys } from './fields';
 import { snapHolesToPads, snapReportText } from './padActions';
@@ -61,6 +62,11 @@ export const ImportTargetsDialog: React.FC<{ open: boolean; onClose: () => void;
         const { added, updated } = usePlanStore.getState().importTargets(read.targets, {
             targetDip: dip, targetAzi: azi, lift: lift ?? 0, drift: drift ?? 0, extension: extension ?? 0, method: 'surface-curved',
         }, chosenTopo);
+        // The targets as one set of named points of the project tree (a file imported again replaces its set)
+        useModelStore.getState().addNamedPoints(
+            { name: `Targets: ${file!.name.replace(/\.[^.]+$/, '')}`, role: 'targets', color: '#7b1fa2' },
+            read.targets.map(t => ({ p: [t.e, t.n, t.rl], name: t.id })), { replace: true },
+        );
         // The guide set, now find the nearest pad for each
         const snapped = snapPads && planner.pads.length > 0
             ? snapHolesToPads(planner, usePlanStore.getState().holes.filter(h => added.includes(h.input.name) || updated.includes(h.input.name)).map(h => h.id))

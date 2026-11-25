@@ -9,7 +9,7 @@ import {
 } from '@mui/material';
 import { FileUpload } from '@mui/icons-material';
 import { notify } from '../../../../store/notificationStore';
-import { DRILL_PADS_FOLDER, useModelStore } from '../../../../store/modelStore';
+import { useModelStore } from '../../../../store/modelStore';
 import { TargetColumns, guessTargetColumns, parseCsv, readTargets } from '../../../../utils/drillholePlanIO';
 import { usePlanStore } from './planStore';
 import { stopKeys } from './fields';
@@ -35,9 +35,9 @@ export const PadsDialog: React.FC<{ open: boolean; onClose: () => void }> = ({ o
     const close = () => { setFile(null); onClose(); };
     const run = () => {
         if (!read || read.targets.length === 0) return;
-        // A set of named points in the "Drill pads" folder of the project tree (colour and showing from there)
+        // One set of named points with the pads role: a single object of the project tree (colour and showing from there)
         const id = useModelStore.getState().addNamedPoints(
-            { name: name.trim() || 'Pads', folder: DRILL_PADS_FOLDER, color: '#6d4c41' },
+            { name: name.trim() || 'Pads', role: 'pads', color: '#6d4c41' },
             read.targets.map(t => ({ p: [t.e, t.n, t.rl], name: t.id })),
         );
         usePlanStore.getState().setSettings({ padSetId: id });

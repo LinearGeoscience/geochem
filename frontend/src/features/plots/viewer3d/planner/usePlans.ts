@@ -20,7 +20,6 @@ import { traceFromPoints, traceFromStations } from '../../../../utils/drillholeP
 import { averageRates, planWedge } from '../../../../utils/drillholePlanWedgeRates';
 import type { Pad } from '../../../../utils/drillholePlanPads';
 import type { InputSet, PointSet } from '../../../model/types';
-import { DRILL_PADS_FOLDER } from '../../../../store/modelStore';
 import { Topography, flatTopography, meshTopography } from '../../../../utils/drillholePlanTopo';
 import type { WireframePart } from '../wireframeParsers';
 import { PlanHole, TopoRef, usePlanStore } from './planStore';
@@ -89,10 +88,13 @@ const flatTopo = (rl: number) => {
     return t;
 };
 
-/** The scene's drill pads: its sets of points in the "Drill pads" folder (or a folder in it) */
-export function padSetsOf(inputs: readonly InputSet[] | undefined): PointSet[] {
-    return (inputs ?? []).filter((s): s is PointSet => s.kind === 'points' && !!s.folder && (s.folder === DRILL_PADS_FOLDER || s.folder.startsWith(`${DRILL_PADS_FOLDER}/`)));
+/** The scene's sets of points with a role (drill pads, target points), or those of one role */
+export function roleSetsOf(inputs: readonly InputSet[] | undefined, role?: PointSet['role']): PointSet[] {
+    return (inputs ?? []).filter((s): s is PointSet => s.kind === 'points' && !!s.role && (!role || s.role === role));
 }
+
+/** The scene's drill pads */
+export const padSetsOf = (inputs: readonly InputSet[] | undefined) => roleSetsOf(inputs, 'pads');
 
 /** Each hole's last result and what it was worked out from, by its inputs (showing, hiding or recolouring a hole works nothing out) */
 const resultCache = new WeakMap<HoleInput, { deps: unknown[]; result: PlanResult }>();
@@ -345,7 +347,7 @@ export function usePlanner(columns: PlannerColumns, bounds: { min: number[]; max
         return t ? { trace: t, name: p.name, rates: averageRates(t) } : null;
     }, [computed, existingTrace]);
 
-    // Pad sets (the scene's sets of points in the "Drill pads" folder) and the pads collars are snapped to (by name)
+    // Pad sets (the scene's sets of points with the pads role) and the pads collars are snapped to (by name)
     const inputs = useModelStore(s => s.scene.inputs);
     const padSets = useMemo(() => padSetsOf(inputs), [inputs]);
     const pads = useMemo((): Pad[] => {
