@@ -25,7 +25,7 @@ import {
     Slider, Stack, SvgIcon, Switch, ToggleButton, ToggleButtonGroup, Tooltip, Typography, useTheme,
 } from '@mui/material';
 import {
-    ThreeSixty, Gesture, CropFree, CenterFocusStrong, FilterCenterFocus, PhotoCamera, Clear, ArrowDropDown, ContentCut, ManageSearch, Layers, ViewInAr, Explore, Straighten,
+    ThreeSixty, Gesture, CropFree, CenterFocusStrong, FilterCenterFocus, PhotoCamera, Clear, ArrowDropDown, ContentCut, ManageSearch, Layers, ViewInAr, Explore, Straighten, Timeline,
 } from '@mui/icons-material';
 import { useShallow } from 'zustand/react/shallow';
 import { plotById, useAppStore } from '../../../store/appStore';
@@ -101,6 +101,16 @@ import { useViewDisplay } from '../../../hooks/useViewDisplay';
 import { useViewVisibility, ViewVisibilityContext } from '../../../hooks/useViewVisibility';
 import { sceneLayers, wireframeLayers } from './sceneLayers';
 import { t, termProps } from '../../model/terms';
+// Drillhole planner (a plug-in module: planner/)
+import { usePlanStore } from './planner/planStore';
+import { usePlanner } from './planner/usePlans';
+import { usePlannerLayer, usePointSetLayer } from './planner/plannerLayer';
+import { PlannerPanel } from './planner/PlannerPanel';
+import { PlannerSplit } from './planner/PlannerSplit';
+import { PlannerSectionPane } from './planner/PlannerSectionPane';
+import { usePlannerEditing } from './planner/usePlannerEditing';
+import type { SliceLink } from './planner/planSlice';
+import { sliceThrough } from '../../../utils/drillholePlanSlice';
 
 /** A button that is an icon: as wide as the icon, not a text button's 64 px */
 const ICON_BUTTON = { minWidth: 34, px: 0.75 } as const;
@@ -1482,6 +1492,45 @@ export const Viewer3D: React.FC<{ plotId: string }> = ({ plotId }) => {
     // On a model view the selection's three buttons are one, with a menu (Phase 300: the bar in two rows)
     const [selectionMenu, setSelectionMenu] = useState<HTMLElement | null>(null);
     const box = clipOutline; // the clip box: `boxEnabled`, `box` (world coordinates)
+
+    // --- drillhole planner (planner/): holes planned on the active slice; its panel, the slice in 2D, its layer and drags in 3D ---
+    const [plannerOpen, setPlannerOpen] = usePlotSetting(plotId, 'plannerPanel3d', false);
+    const plannedCount = usePlanStore(s => s.holes.length);
+    const planner = usePlanner(viewCoords(), worldBounds, plannerOpen || plannedCount > 0);
+    const planner2d = usePlanStore(s => s.view2d.on) && plannerOpen;
+    const sliceLink = useMemo((): SliceLink => ({
+        clip: liveClip,
+        // The active slice moves along its normal through a point (a typed target, Slice through target)
+        moveThrough: p => updateClip(prev => {
+            const s = prev.slicing ? prev.slices[prev.active] : undefined;
+            if (!s) return prev;
+            const center = sliceThrough({ normal: s.normal, point: s.center }, p);
+            return { ...prev, slices: prev.slices.map((x, i) => (i === prev.active ? { ...x, on: true, center } : x)) };
+        }),
+        turnOn: () => {
+            if (!liveClip.get().slicing) sliceActions.current.toggleSlicing();
+            else updateClip(prev => ({ ...prev, slices: prev.slices.map((x, i) => (i === prev.active ? { ...x, on: true } : x)) }));
+        },
+        // The selected hole's upright plane (collar to target), through its target
+        alignTo: (p, azimuth) => updateClip(prev => {
+            const cur = prev.slices[prev.active];
+            const a = azimuth === null ? 0 : (azimuth * Math.PI) / 180;
+            const normal = (azimuth === null ? cur?.normal : canonicalNormal([Math.cos(a), -Math.sin(a), 0])) ?? [0, 1, 0];
+            const b = geometry?.bounds;
+            const width = cur?.width ?? (b ? defaultSliceWidth(Math.max(b.max[0] - b.min[0], b.max[1] - b.min[1], b.max[2] - b.min[2])) : 50);
+            const slice: Slice = { on: true, normal, center: [p[0], p[1], p[2]], width, step: cur?.step ?? null };
+            return prev.slices.length === 0
+                ? { ...prev, slicing: true, active: 0, slices: [slice] }
+                : { ...prev, slicing: true, slices: prev.slices.map((x, i) => (i === prev.active ? slice : x)) };
+        }),
+    }), [liveClip, updateClip, geometry]);
+    usePlannerLayer(viewportRef, viewportReady, geometry?.origin ?? null, planner, sliceLink);
+    usePointSetLayer(viewportRef, viewportReady, geometry?.origin ?? null);
+    usePlannerEditing({
+        containerRef, viewportRef, ready: viewportReady, origin: geometry?.origin ?? null, vex, link: sliceLink, planner,
+        // Only while no other tool has the mouse
+        active: plannerOpen && mode === 'orbit' && !placing && !drawingLine && !outlineFor && !editing.picking && !structuring,
+    });
     /** How the ground lies at the sample pointed out, by the model's direction from place to place */
     const pickedTrend = picked !== null && trendField && sceneHere && geometry && zAxis ? (() => {
         const o = geometry.origin, k = picked.index * 3;
@@ -1617,6 +1666,11 @@ export const Viewer3D: React.FC<{ plotId: string }> = ({ plotId }) => {
                             </Tooltip>
                         </ToggleButton>
                     )}
+                    <ToggleButton size="small" value="planner" selected={plannerOpen} disabled={!geometry} onChange={() => setPlannerOpen(!plannerOpen)} sx={{ textTransform: 'none', gap: 0.5 }}>
+                        <Tooltip title="Drillhole planner: plan holes on the 3D slice (by collar, target to surface, or collar to target)">
+                            <Box component="span" sx={{ display: 'inline-flex', alignItems: 'center', gap: 0.5 }}><Timeline fontSize="small" />Drillhole planner{plannedCount > 0 ? ` (${plannedCount})` : ''}</Box>
+                        </Tooltip>
+                    </ToggleButton>
                     {modelView ? (
                         <Tooltip title="The selection: zoom to it, show only it, clear it">
                             <span>
@@ -1743,6 +1797,7 @@ export const Viewer3D: React.FC<{ plotId: string }> = ({ plotId }) => {
                         onClose={() => { closeHoles(); containerRef.current?.focus({ preventScroll: true }); }}
                     />
                 )}
+                <PlannerSplit right={planner2d ? <PlannerSectionPane planner={planner} height={fillHeight} link={sliceLink} /> : null}>
                 <Paper ref={containerRef} tabIndex={0} sx={{ position: 'relative', flex: 1, minWidth: 0, height: fillHeight, overflow: 'hidden', outline: 'none' }}>
                     <Box ref={viewportEl} sx={{ position: 'absolute', inset: 0, cursor: placing?.kind === 'hole' ? 'crosshair' : undefined }} onPointerDown={onCanvasDown} onPointerUp={onCanvasUp} onPointerMove={onCanvasMove} onPointerLeave={forgetUnder} />
                     {editing.picking && <ReadingEntry />}
@@ -1866,6 +1921,7 @@ export const Viewer3D: React.FC<{ plotId: string }> = ({ plotId }) => {
                         </Paper>
                     )}
                 </Paper>
+                </PlannerSplit>
                 {surfacesOpen && !modelView && (
                     <ShownObjectsPanel
                         height={fillHeight} visibility={visibility} here={sceneHere}
@@ -1881,6 +1937,12 @@ export const Viewer3D: React.FC<{ plotId: string }> = ({ plotId }) => {
                         columns={plungeColumns} initialColumn={plungeColumn} selectedCount={selectedIndices.length}
                         blocked={plungeBlocked} gather={gatherPlunge} onKeep={keepViewLine}
                         onClose={() => { setPlungeOpen(false); containerRef.current?.focus({ preventScroll: true }); }}
+                    />
+                )}
+                {plannerOpen && (
+                    <PlannerPanel
+                        planner={planner} height={fillHeight} link={sliceLink}
+                        onClose={() => { setPlannerOpen(false); containerRef.current?.focus({ preventScroll: true }); }}
                     />
                 )}
                 </Box>

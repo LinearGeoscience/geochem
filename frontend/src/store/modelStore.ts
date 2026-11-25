@@ -239,6 +239,8 @@ interface ModelState {
     removeSurface: (id: string) => void;
     /** A new, empty set of points or lines; returns its id */
     addInputSet: (kind: InputSet['kind'], init?: { name?: string; folder?: string | null; color?: string }) => string;
+    /** A set of named points made in one step (drill pads go in `DRILL_PADS_FOLDER`); returns its id */
+    addNamedPoints: (init: { name: string; folder: string | null; color: string }, points: { p: Vec3; name: string }[]) => string;
     updateInputSet: (id: string, patch: Partial<Pick<InputSet, 'name' | 'color' | 'visible' | 'locked' | 'folder'>>) => void;
     /** Remove a set from the scene: every surface that uses it loses its points or lines. A locked set is kept */
     removeInputSet: (id: string) => void;
@@ -605,7 +607,7 @@ function readPoints(raw: unknown, taken: Set<string> = new Set()): ScenePoint[] 
         if (!p || typeof p.id !== 'string' || !isVec3(p.p) || taken.has(p.id)) continue;
         taken.add(p.id);
         const snap = p.snap && typeof p.snap.hole === 'string' && Number.isFinite(p.snap.depth) ? { hole: p.snap.hole, depth: p.snap.depth } : null;
-        points.push({ id: p.id, p: [p.p[0], p.p[1], p.p[2]], ...placed(snap, p.across, p.reading, p.direction) });
+        points.push({ id: p.id, p: [p.p[0], p.p[1], p.p[2]], ...(typeof p.name === 'string' && p.name ? { name: p.name } : {}), ...placed(snap, p.across, p.reading, p.direction) });
     }
     return points;
 }
@@ -627,6 +629,9 @@ function readLines(raw: unknown, taken: Set<string> = new Set()): ScenePolyline[
     }
     return lines;
 }
+
+/** The folder of the project tree whose sets of points are drill pads (the drillhole planner snaps collars to them) */
+export const DRILL_PADS_FOLDER = 'Drill pads';
 
 /** The scene's input sets as stored. Point and line ids are told apart across all of them. */
 function readInputs(raw: unknown): InputSet[] {
@@ -1640,6 +1645,23 @@ export const useModelStore = create<ModelState>()((put, get) => {
                     folder: normalizeFolder(init.folder),
                 };
                 const made: InputSet = kind === 'points' ? { ...base, kind: 'points', points: [] } : { ...base, kind: 'lines', lines: [] };
+                return { scene: { ...state.scene, inputs: [...sets, made] } };
+            });
+            return id;
+        },
+
+        // A set of named points in one step (drill pads, drillhole planner)
+        addNamedPoints: (init, points) => {
+            let id = '';
+            edit(state => {
+                const sets = state.scene.inputs ?? [];
+                id = `i${nextId('i', sets.map(s => s.id))}`;
+                let k = nextId('p', inputIds(sets).points);
+                const made: InputSet = {
+                    id, name: freeName(init.name.trim() || 'Points', sets), color: init.color, visible: true, locked: false,
+                    folder: normalizeFolder(init.folder), kind: 'points',
+                    points: points.map(q => ({ id: `p${k++}`, p: [q.p[0], q.p[1], q.p[2]] as Vec3, ...(q.name ? { name: q.name } : {}) })),
+                };
                 return { scene: { ...state.scene, inputs: [...sets, made] } };
             });
             return id;

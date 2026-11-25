@@ -49,6 +49,8 @@ export interface PointReading {
 export interface ScenePoint {
     id: string;
     p: Vec3;
+    /** The point's own name, e.g. a drill pad's ID (absent: none) */
+    name?: string;
     /** Where it was picked on a drillhole (kept by hole and depth: row numbers do not survive a re-import) */
     snap?: { hole: string; depth: number };
     /**
