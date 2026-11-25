@@ -1,0 +1,5 @@
+# Optional: supervised models (Analysis > Supervised Models).
+# Install into the backend venv and restart GeoChem:
+#   backend\venv\Scripts\python -m pip install -r backend\requirements-ml.txt
+scikit-learn==1.7.2
+xgboost==3.4.1
