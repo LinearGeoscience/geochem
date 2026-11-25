@@ -1,0 +1,43 @@
+/** Scott Halley: orogenic / intrusion-related Au (Golden Mile tutorial, Barcode workshop). */
+import { el, xy, tern, diag, cum, box, step, cite, workflow, ratio, note, PYRITE, CALCITE, DIAGRAM } from './builders';
+
+export const orogenicAu = workflow({
+    id: 'orogenic-au',
+    name: 'Orogenic and intrusion-related Au',
+    group: 'Gold',
+    summary: 'Host rock first, then white mica and carbonate, then S-As-Sb-W, Mo-Bi-Te and Cs-Li by group against the crust.',
+    steps: [
+        step('host', 'Host rock first',
+            'Run "Lithology from assays" and keep a Lithology column. Alteration and pathfinder backgrounds are read against the host.',
+            'Mafic Cs background ≈ 1 ppm; each lithology has its own background.',
+            [note]),
+        step('white-mica', 'White mica: paragonite or muscovite',
+            'K/Al vs Na/Al with the mica and feldspar nodes. Paragonite (SWIR <2193 nm) forms the halo around many Yilgarn deposits; muscovite–phengite nearer the ore.',
+            'Mixtures on the muscovite–albite tie-line; sericite–chlorite below muscovite.',
+            [diag(DIAGRAM.feldsparNaK, ['ab', 'kf', 'mu', 'pg', 'tie:mu|ab'])]),
+        step('carbonate', 'Carbonate and sulphidation',
+            'Ca-Fe-Mg with carbonate nodes, Ca vs C on the calcite line, Fe vs S on the pyrite line. Fe and Mg barely move: chlorite follows the protolith.',
+            'Ankerite–dolomite wall rock; Fe fully sulphidised next to the veins.',
+            [tern(el('Ca'), el('Fe'), el('Mg'), ['cal', 'dol', 'ank', 'sid']), xy(el('Ca'), [el('C')], { refLines: [CALCITE] }), xy(el('Fe'), [el('S')], { refLines: [PYRITE] })]),
+        step('pathfinders', 'Pathfinders by group',
+            'Split cumulative frequency, three suites: S, As, Sb, W; then Mo, Bi, Te; then Cs, Li. Read backgrounds at 0.5.',
+            'Which groups step above background in each suite; Te:Au ≈ 1:1.',
+            [cum([el('S'), el('As'), el('Sb'), el('W')]), cum([el('Mo'), el('Bi'), el('Te')]), cum([el('Cs'), el('Li')])]),
+        step('gold-pairs', 'Gold pairs',
+            'Au against Te (1:1 line), As, S and Bi on log axes.',
+            'Te with Au at 1:1; As and S as the sulphide vectors.',
+            [xy(el('Au'), [el('Te'), el('As'), el('S'), el('Bi')], { log: 'xy', refLines: [ratio(el('Te'), el('Au'), 1, { label: 'Te/Au = 1' })] })]),
+        step('backgrounds', 'Backgrounds vs crust',
+            'Box plots by group against the upper-crust line; 10× background is a significant anomaly.',
+            'Cs follows mica, Li follows chlorite.',
+            [box([el('As'), el('Sb'), el('W'), el('Mo'), el('Bi'), el('Te'), el('Cs'), el('Li')])]),
+        step('intrusions', 'Intrusive centres',
+            'For granites and porphyries run "Intrusion fertility": gold camps sit on hydrous diorite or alkalic centres with a Bi–Te ± Mo footprint.',
+            'Sr/Y >40 or Zr/Hf >40 intrusions near the gold.',
+            [note]),
+    ],
+    references: [
+        cite('Halley, S. (2021) Golden Mile geochemistry tutorial; Barcode workshop (Eastern Goldfields).'),
+        cite('Goldfarb, R.J. et al. (2005) Distribution, character and genesis of gold deposits in metamorphic terranes. Economic Geology 100th Anniversary Volume.'),
+    ],
+});
