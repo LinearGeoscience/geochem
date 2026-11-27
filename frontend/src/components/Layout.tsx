@@ -3,7 +3,7 @@ import { CommandFinder } from '../features/commands/CommandFinder';
 import { GisDialog } from '../features/data_features/GisDialog';
 import { RulesClassifierDialog } from '../features/classification/RulesClassifierDialog';
 import { CompareClassificationsDialog } from '../features/classification/CompareClassificationsDialog';
-import { ManageSearch } from '@mui/icons-material';
+import { ManageSearch, TrackChanges } from '@mui/icons-material';
 import { Box, Drawer, List, ListItemButton, ListItemIcon, ListItemText, AppBar, Toolbar, Typography, IconButton, Divider, Button, Tooltip, Select, MenuItem, FormControl, Chip } from '@mui/material';
 import { Home, CloudUpload, TableChart, ViewColumn, BarChart, Analytics, Settings, Menu as MenuIcon, ChevronLeft, Calculate, FilterList, Science, Biotech, Edit, Brightness4, Brightness7, Article, ViewInAr } from '@mui/icons-material';
 import Badge from '@mui/material/Badge';
@@ -92,6 +92,7 @@ export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) =>
         { id: 'columns', label: 'Columns', icon: <ViewColumn /> },
         { id: 'plots', label: 'Plots', icon: <BarChart /> },
         { id: 'modelling', label: 'Modelling', icon: <ViewInAr /> },
+        { id: 'drill-tracking', label: 'Drill tracking', icon: <TrackChanges /> },
         { id: 'analysis', label: 'Analysis', icon: <Analytics /> },
         { id: 'qaqc', label: 'QA/QC', icon: <Science /> },
         { id: 'report', label: 'Report', icon: <Article /> },

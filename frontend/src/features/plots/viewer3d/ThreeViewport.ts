@@ -1262,12 +1262,24 @@ export class ThreeViewport {
         this.markerGroup.scale.set(1, 1, opts.vex);
         this.handleGroup.scale.set(1, 1, opts.vex);
         this.layerGroup.scale.set(1, 1, opts.vex);
-        if (this.clip) this.traceMaterial.clippingPlanes = clipPlanes(this.clip, this.vex);
+        if (this.clip) this.traceMaterial.clippingPlanes = clipPlanes(this.sampleClip(this.clip), this.vex);
         this.applyWireClip();
         this.applyLayerClip();
         this.applyHandleClip();
         this.updateDepthRange();
         this.requestRender();
+    }
+
+    /** Whether the slices cut the samples (points, cylinders, logging, the traces through them); off, they cut only the rest (drill tracking) */
+    private sliceSamples = true;
+    setSliceSamples(on: boolean) {
+        if (this.sliceSamples === on) return;
+        this.sliceSamples = on;
+        if (this.clip) this.setClip(this.clip);
+    }
+    /** The clip the samples get: without the slices when they are not cut by them */
+    private sampleClip(clip: ClipState): ClipState {
+        return this.sliceSamples ? clip : { ...clip, slabs: [] };
     }
 
     setClip(clip: ClipState) {
@@ -1276,7 +1288,7 @@ export class ThreeViewport {
         u.uBoxEnabled.value = clip.boxEnabled ? 1 : 0;
         u.uBoxMin.value.set(...clip.boxMin);
         u.uBoxMax.value.set(...clip.boxMax);
-        const [a, b] = clip.slabs;
+        const [a, b] = this.sampleClip(clip).slabs;
         u.uSlabEnabled.value = a ? 1 : 0;
         if (a) {
             u.uSlabNormal.value.set(...a.normal);
@@ -1290,7 +1302,7 @@ export class ThreeViewport {
             u.uSlab2Range.value.set(b.lo, b.hi);
         }
         // Recompile only when the number of planes changes: moving a slice is then free
-        const planes = clipPlanes(clip, this.vex);
+        const planes = clipPlanes(this.sampleClip(clip), this.vex);
         if ((this.traceMaterial.clippingPlanes?.length ?? 0) !== planes.length) this.traceMaterial.needsUpdate = true;
         this.traceMaterial.clippingPlanes = planes;
         this.applyWireClip();

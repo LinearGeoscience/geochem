@@ -33,6 +33,7 @@ import { WedgeDialog } from './WedgeDialog';
 import { snapHolesToPads, snapReportText } from './padActions';
 import { useModelStore } from '../../../../store/modelStore';
 import { roleSetsOf, type Planner } from './usePlans';
+import { ProgramBar } from '../../../drilltracking/plannerPrograms';
 
 /** Settings → pads: which set collars snap to, how far and how much change from the guide; and wedges' shallowest kick-off */
 /** How the drill pads and target points are drawn: dots or crosses, per set (shown, hidden and coloured in the project tree) */
@@ -284,6 +285,8 @@ export const PlannerPanel: React.FC<{
                 </Tooltip>
                 <Tooltip title="Close this panel"><IconButton size="small" aria-label="Close the drillhole planner" onClick={onClose}><Close fontSize="small" /></IconButton></Tooltip>
             </Box>
+            {/* The program the planner has open, or "Save as program" (features/drilltracking) */}
+            <ProgramBar planner={planner} />
             <Box sx={{ flex: 1, minHeight: 0, overflowY: 'auto', px: 1, pb: 1 }}>
                 {!planner.enabled ? (
                     <Typography variant="body2" color="text.secondary">The planner needs an elevation (Z) column in this view.</Typography>

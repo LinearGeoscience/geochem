@@ -9,6 +9,7 @@ import { useGeoModelCache, type ModelResult } from '../../model/geoModelCache';
 import { useModelCache } from '../../model/modelCache';
 import { keys } from '../../model/objectKeys';
 import { buildProjectTree, type NodeStatus, type TreeNode } from '../../model/projectTree';
+import { useTrackingTreeState, withDrillTracking } from '../../drilltracking/trackingTree';
 
 /** A model's state as the tree shows it (null: built and up to date) */
 export function modelNodeStatus(state: ModelResult['state']): NodeStatus | null {
@@ -31,6 +32,7 @@ export function useProjectTree(): TreeNode[] {
     const rows = useAppStore(s => s.columnarData.rowCount);
     const columns = useAppStore(s => s.columns);
     const full = useModellingStore(s => s.treeFull);
+    const tracking = useTrackingTreeState();
     // Surfaces not ready (and why one failed), as one string, so fits that only move on do not rebuild the tree
     // (One whose fit was stopped is not as it is set now: stale, whatever it shows)
     const states = useModelCache(s => Object.entries(s.byId).filter(([, r]) => r.state !== 'ready' || r.stopped)
@@ -60,11 +62,12 @@ export function useProjectTree(): TreeNode[] {
             byKey.set(keys.surface(id), state as NodeStatus);
             if (error) said.set(keys.surface(id), error);
         }
-        return buildProjectTree(scene, db, {
+        // Drill tracking's rows under Drillholes (features/drilltracking)
+        return withDrillTracking(buildProjectTree(scene, db, {
             full,
             samples: rows > 0 ? { rows } : null, traces: columns.some(c => c.role === 'HoleID'), columns: columns.map(c => c.name),
             status: k => byKey.get(k) ?? null, statusText: k => said.get(k) ?? null,
             volume: (model, unit) => { const v = volumes.get(keys.volume(model, unit)); return v === undefined ? null : v > 0 ? formatVolume(v) : 'none of it in the model'; },
-        });
-    }, [scene, db, rows, columns, states, models, modelErrors, full]);
+        }), tracking);
+    }, [scene, db, rows, columns, states, models, modelErrors, full, tracking]);
 }

@@ -110,6 +110,7 @@ import { PlannerSplit } from './planner/PlannerSplit';
 import { PlannerSectionPane } from './planner/PlannerSectionPane';
 import { usePlannerEditing } from './planner/usePlannerEditing';
 import type { SliceLink } from './planner/planSlice';
+import { useDrillTrackingLayer } from '../../drilltracking/trackingLayer';
 import { sliceThrough } from '../../../utils/drillholePlanSlice';
 
 /** A button that is an icon: as wide as the icon, not a text button's 64 px */
@@ -230,6 +231,8 @@ export const Viewer3D: React.FC<{ plotId: string }> = ({ plotId }) => {
     const [surfacesOpen, setSurfacesOpen] = usePlotSetting(plotId, 'surfacePanel3d', false);
     // A view of the Modelling page draws the model's sets and directions as its own list says, panel or no panel
     const modelView = isModelViewId(plotId);
+    // The Drill tracking page's view looks at the holes only: no modelling or planning tools
+    const trackingView = useAppStore(s => !!plotById(s, plotId)?.settings?.trackingView);
     const modelling = surfacesOpen || modelView;
     // ... and draws lit what is picked in the project tree
     const treePicks = useModellingStore(s => (modelView ? s.selected : NO_PICKS));
@@ -1526,6 +1529,8 @@ export const Viewer3D: React.FC<{ plotId: string }> = ({ plotId }) => {
     }), [liveClip, updateClip, geometry]);
     usePlannerLayer(viewportRef, viewportReady, geometry?.origin ?? null, planner, sliceLink);
     usePointSetLayer(viewportRef, viewportReady, geometry?.origin ?? null, hidden);
+    // Planned programs and the holes being drilled (features/drilltracking)
+    useDrillTrackingLayer(viewportRef, viewportReady, geometry?.origin ?? null, hidden, plotId, sliceLink);
     usePlannerEditing({
         containerRef, viewportRef, ready: viewportReady, origin: geometry?.origin ?? null, vex, link: sliceLink, planner,
         // Only while no other tool has the mouse
@@ -1629,17 +1634,19 @@ export const Viewer3D: React.FC<{ plotId: string }> = ({ plotId }) => {
                     <ViewLineChip viewport={viewportReady && geometry ? viewportRef.current : null} vex={vex} ortho={ortho} onOrtho={setOrtho} onKeep={keepViewLine} short={modelView} />
                     {/* (A section view looks along its set: it has no way of looking of its own to keep) */}
                     {!sectionKind && <ViewsMenu disabled={!geometry} onSave={keepView} onGo={goToView} onReplace={replaceView} />}
-                    <ToggleButton size="small" value="plunge" selected={plungeOpen} disabled={!geometry} onChange={() => setPlungeOpen(!plungeOpen)} sx={{ textTransform: 'none', gap: 0.5 }}>
+                    {!trackingView && <ToggleButton size="small" value="plunge" selected={plungeOpen} disabled={!geometry} onChange={() => setPlungeOpen(!plungeOpen)} sx={{ textTransform: 'none', gap: 0.5 }}>
                         <Tooltip title="Plunge finder: the direction the highs line up along, on a stereonet"><Box component="span" sx={{ display: 'inline-flex', alignItems: 'center', gap: 0.5 }}><Explore fontSize="small" />Plunge</Box></Tooltip>
-                    </ToggleButton>
+                    </ToggleButton>}
                     <ToggleButton size="small" value="slice" selected={slicing} disabled={!geometry} onChange={toggleSlicing} sx={{ textTransform: 'none', gap: 0.5 }}>
                         <Tooltip title="Slice the data: sections, level plans, or two crossing slices"><Box component="span" sx={{ display: 'inline-flex', alignItems: 'center', gap: 0.5 }}><ContentCut fontSize="small" />Slice</Box></Tooltip>
                     </ToggleButton>
-                    <SectionsMenu
-                        disabled={!geometry} viewing={section.view?.set.id ?? null} canFromSlice={slicing}
-                        onView={id => section.enter(id)} onCreate={from => section.create(from)}
-                    />
-                    <UnitsMenu disabled={!geometry} coords={viewCoords()} selected={selectedIndices} />
+                    {!trackingView && <>
+                        <SectionsMenu
+                            disabled={!geometry} viewing={section.view?.set.id ?? null} canFromSlice={slicing}
+                            onView={id => section.enter(id)} onCreate={from => section.create(from)}
+                        />
+                        <UnitsMenu disabled={!geometry} coords={viewCoords()} selected={selectedIndices} />
+                    </>}
                     <ToggleButton
                         size="small" value="ruler" data-action="ruler" selected={rulerOn} disabled={!geometry || editing.picking || !!structuring}
                         onChange={() => { if (rulerOn) endRuler(); else { setMode('orbit'); setPlacing(null); setOutlineFor(null); setPicked(null); setRulerOn(true); } }}
@@ -1659,18 +1666,18 @@ export const Viewer3D: React.FC<{ plotId: string }> = ({ plotId }) => {
                         </Tooltip>
                     </ToggleButton>
                     {/* The Modelling page's views show the model by its tree */}
-                    {!modelView && (
+                    {!modelView && !trackingView && (
                         <ToggleButton size="small" value="surfaces" selected={surfacesOpen} disabled={!geometry} onChange={() => setSurfacesOpen(!surfacesOpen)} sx={{ textTransform: 'none', gap: 0.5 }}>
                             <Tooltip title="The surfaces, points, lines, measurements and meshes shown in this view (they are made on the Modelling page)">
                                 <Box component="span" sx={{ display: 'inline-flex', alignItems: 'center', gap: 0.5 }}><Layers fontSize="small" />Model{scene.surfaces.length > 0 ? ` (${scene.surfaces.length})` : ''}</Box>
                             </Tooltip>
                         </ToggleButton>
                     )}
-                    <ToggleButton size="small" value="planner" selected={plannerOpen} disabled={!geometry} onChange={() => setPlannerOpen(!plannerOpen)} sx={{ textTransform: 'none', gap: 0.5 }}>
+                    {!trackingView && <ToggleButton size="small" value="planner" selected={plannerOpen} disabled={!geometry} onChange={() => setPlannerOpen(!plannerOpen)} sx={{ textTransform: 'none', gap: 0.5 }}>
                         <Tooltip title="Drillhole planner: plan holes on the 3D slice (by collar, target to surface, or collar to target)">
                             <Box component="span" sx={{ display: 'inline-flex', alignItems: 'center', gap: 0.5 }}><Timeline fontSize="small" />Drillhole planner{plannedCount > 0 ? ` (${plannedCount})` : ''}</Box>
                         </Tooltip>
-                    </ToggleButton>
+                    </ToggleButton>}
                     {modelView ? (
                         <Tooltip title="The selection: zoom to it, show only it, clear it">
                             <span>
@@ -1922,7 +1929,7 @@ export const Viewer3D: React.FC<{ plotId: string }> = ({ plotId }) => {
                     )}
                 </Paper>
                 </PlannerSplit>
-                {surfacesOpen && !modelView && (
+                {surfacesOpen && !modelView && !trackingView && (
                     <ShownObjectsPanel
                         height={fillHeight} visibility={visibility} here={sceneHere}
                         sceneColumns={scene.coords ? [scene.coords.x, scene.coords.y, scene.coords.z].map(d).join(', ') : null} onUseSceneColumns={useSceneColumns}

@@ -67,7 +67,7 @@ function sprite(kind: 'dot' | 'ring' | 'cross'): THREE.Texture {
     return t;
 }
 
-function markers(positions: number[], color: string, size: number, kind: 'dot' | 'ring' = 'dot'): THREE.Points {
+export function markers(positions: number[], color: string, size: number, kind: 'dot' | 'ring' = 'dot'): THREE.Points {
     const geom = new THREE.BufferGeometry();
     geom.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
     const pts = new THREE.Points(geom, new THREE.PointsMaterial({
@@ -78,7 +78,7 @@ function markers(positions: number[], color: string, size: number, kind: 'dot' |
     return pts;
 }
 
-function label(text: string, at: ArrayLike<number>, color: string, small = false, selected = false): CSS2DObject {
+export function label(text: string, at: ArrayLike<number>, color: string, small = false, selected = false): CSS2DObject {
     const el = document.createElement('div');
     el.textContent = text;
     el.dataset.planLabel = small ? 'tick' : 'hole';
@@ -97,7 +97,7 @@ function label(text: string, at: ArrayLike<number>, color: string, small = false
 export const OFF_SLICE_OPACITY = 0.5;
 
 /** A hole's line: solid, cut by the slices; or (`ghost`) the whole line faded, cut by the clip box only */
-function wideLine(points: number[], color: string, width: number, ghost = false): Line2 {
+export function wideLine(points: number[], color: string, width: number, ghost = false): Line2 {
     const geom = new LineGeometry();
     geom.setPositions(points);
     const mat = ghost
