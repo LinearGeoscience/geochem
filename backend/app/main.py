@@ -56,8 +56,10 @@ async def api_health_check():
 
 # Include routers
 from app.api import data, drillhole, websocket, logging_interval, projects, updates, analysis
+from app.api import acquire
 app.include_router(data.router, prefix="/api/data", tags=["data"])
 app.include_router(drillhole.router, prefix="/api/drillhole", tags=["drillhole"])
+app.include_router(acquire.router, prefix="/api/acquire", tags=["acquire"])
 app.include_router(websocket.router, prefix="/api/qgis", tags=["qgis"])
 app.include_router(logging_interval.router, prefix="/api/logging", tags=["logging"])
 app.include_router(projects.router, prefix="/api/projects", tags=["projects"])

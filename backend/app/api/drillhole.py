@@ -62,32 +62,7 @@ async def preview_drillhole_columns(
         logger.debug("Survey columns: %s", list(survey_df.columns))
         logger.debug("Assay columns: %s", list(assay_df.columns))
 
-        # Analyze columns and suggest mappings
-        collar_info = analyze_columns(collar_df, "collar")
-        survey_info = analyze_columns(survey_df, "survey")
-        assay_info = analyze_columns(assay_df, "assay")
-
-        return {
-            "preview_token": preview_token,
-            "collar": {
-                "columns": collar_info,
-                "preview": clean_for_json(collar_df.head(5)),
-                "required_fields": ["hole_id", "easting", "northing", "rl"],
-                "total_rows": len(collar_df)
-            },
-            "survey": {
-                "columns": survey_info,
-                "preview": clean_for_json(survey_df.head(5)),
-                "required_fields": ["hole_id", "depth", "dip", "azimuth"],
-                "total_rows": len(survey_df)
-            },
-            "assay": {
-                "columns": assay_info,
-                "preview": clean_for_json(assay_df.head(5)),
-                "required_fields": ["hole_id", "from", "to"],
-                "total_rows": len(assay_df)
-            }
-        }
+        return preview_payload(preview_token, collar_df, survey_df, assay_df)
 
     except HTTPException:
         # Re-raise HTTP exceptions as-is (don't wrap them)
@@ -103,6 +78,34 @@ async def preview_drillhole_columns(
             raise HTTPException(status_code=500, detail="File encoding error - please save files as UTF-8 CSV")
         else:
             raise HTTPException(status_code=500, detail=f"Preview failed: {error_msg[:200]}")
+
+
+def preview_payload(preview_token: str, collar_df: pd.DataFrame, survey_df: pd.DataFrame,
+                    assay_df: pd.DataFrame) -> Dict[str, Any]:
+    """The /preview response: columns with suggested roles, samples and row counts.
+    Also used by the Acquire (SQL) import (api/acquire.py), so both return the same shape."""
+    return {
+        "preview_token": preview_token,
+        "collar": {
+            "columns": analyze_columns(collar_df, "collar"),
+            "preview": clean_for_json(collar_df.head(5)),
+            "required_fields": ["hole_id", "easting", "northing", "rl"],
+            "total_rows": len(collar_df)
+        },
+        "survey": {
+            "columns": analyze_columns(survey_df, "survey"),
+            "preview": clean_for_json(survey_df.head(5)),
+            "required_fields": ["hole_id", "depth", "dip", "azimuth"],
+            "total_rows": len(survey_df)
+        },
+        "assay": {
+            "columns": analyze_columns(assay_df, "assay"),
+            "preview": clean_for_json(assay_df.head(5)),
+            "required_fields": ["hole_id", "from", "to"],
+            "total_rows": len(assay_df)
+        }
+    }
+
 
 def analyze_columns(df: pd.DataFrame, file_type: str) -> List[Dict[str, Any]]:
     """

@@ -73,6 +73,11 @@ def replace_na(df: pd.DataFrame) -> pd.DataFrame:
     return df.replace(_NA_REPLACEMENTS)
 
 
+def is_text_dtype(dtype) -> bool:
+    """True for text columns on pandas 2 (object dtype) and pandas 3 (the default "str" dtype)."""
+    return dtype == object or isinstance(dtype, pd.StringDtype)
+
+
 def clean_for_json(df: pd.DataFrame) -> list:
     """Replace NaN/inf/NA with None and return list-of-dicts records."""
     # Dates as text: a Timestamp is not JSON serialisable (an Excel date column
