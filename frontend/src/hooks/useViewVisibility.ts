@@ -14,6 +14,8 @@ import {
     CUTS_SETTING, cutKeysOf, hasOwnList, HIDDEN_SETTING, hiddenCuts, hiddenMadeFrom, hiddenTables, legacyHidden, MADE_SETTING, madeFromKeys, showingOnly, showOnlyChange, shownChange,
     shownTablesOf, TABLES_SETTING, TRACES_SETTING,
 } from '../features/model/viewVisibility';
+// Drill tracking's objects are shown and hidden by a setting of their own
+import { isTrackingKey, TRACKING_SETTING, trackingHiddenOf, trackingShowOnly, trackingShownChange } from '../features/drilltracking/trackingVisibility';
 
 export interface ViewVisibility {
     /** The view (null: none; the objects' shared flags are shown and changed) */
@@ -62,12 +64,19 @@ export function useViewVisibility(plotId: string | null): ViewVisibility {
     // A view with no list of its own follows the flags, so it needs the scene; one with a list does not
     const seed = useModelStore(s => (hasOwnList(saved) ? '' : legacyHidden(s.scene).join('\n')));
     const listed = hasOwnList(saved) ? saved.join('\n') : null;
+    const trackingOff = useAppStore(s => (plotId ? trackingHiddenOf(plotById(s, plotId)?.settings?.[TRACKING_SETTING]).join('\n') : ''));
     const hidden = useMemo<ReadonlySet<string>>(() => {
         const split = (s: string) => s.split('\n').filter(k => k !== '');
         return new Set([...split(listed ?? seed), ...(tracesOff ? [keys.collars] : []), ...hiddenTables(split(shownTables), split(tableIds)), ...hiddenCuts(split(shownCuts), split(cutKeys)),
-            ...(plotId ? hiddenMadeFrom(split(shownMade), split(madeKeys)) : [])]);
-    }, [plotId, listed, seed, tracesOff, shownTables, tableIds, shownCuts, cutKeys, shownMade, madeKeys]);
-    const setShown = useCallback((objectKeys: readonly string[], shown: boolean) => {
+            ...(plotId ? hiddenMadeFrom(split(shownMade), split(madeKeys)) : []), ...split(trackingOff)]);
+    }, [plotId, listed, seed, tracesOff, shownTables, tableIds, shownCuts, cutKeys, shownMade, madeKeys, trackingOff]);
+    const setShown = useCallback((all: readonly string[], shown: boolean) => {
+        const objectKeys = all.filter(k => !isTrackingKey(k));
+        if (plotId && objectKeys.length < all.length) {
+            const app = useAppStore.getState();
+            app.updatePlotSettings(plotId, { [TRACKING_SETTING]: trackingShownChange(plotById(app, plotId)?.settings?.[TRACKING_SETTING], all, shown) });
+            if (!objectKeys.length) return;
+        }
         if (!plotId) { setSharedFlags(objectKeys, shown); return; }
         const app = useAppStore.getState(), scene = useModelStore.getState().scene;
         app.updatePlotSettings(plotId, shownChange(plotById(app, plotId)?.settings, scene, objectKeys, shown, madeNow(scene)));
@@ -80,7 +89,7 @@ export function useViewVisibility(plotId: string | null): ViewVisibility {
             setSharedFlags(showingOnly(scene, objectKeys).filter(k => !keep.has(k)), false);
             return;
         }
-        useAppStore.getState().updatePlotSettings(plotId, showOnlyChange(scene, objectKeys, madeNow(scene)));
+        useAppStore.getState().updatePlotSettings(plotId, { ...showOnlyChange(scene, objectKeys, madeNow(scene)), [TRACKING_SETTING]: trackingShowOnly(objectKeys) });
     }, [plotId]);
     return useMemo(() => ({ plotId, hidden, isShown: (k: string) => !hidden.has(k), setShown, showOnly }), [plotId, hidden, setShown, showOnly]);
 }

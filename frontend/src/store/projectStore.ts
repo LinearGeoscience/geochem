@@ -22,6 +22,7 @@ import { useHistoryStore } from './historyStore';
 import { EMPTY_SCENE, isFollowing, readScene, useModelStore } from './modelStore';
 import { useDrillholeStore } from './drillholeStore';
 import { readDrillholes, saveDrillholes, type SavedDrillholes } from '../features/model/drillholes';
+import { saveDrillTracking, useDrillTrackingStore, type SavedDrillTracking } from './drillTrackingStore';
 import { savedScene, type SavedScene } from '../features/model/inputs';
 import type { ModelScene } from '../features/model/types';
 // Keeps the surfaces' meshes, and the columns they fill in, in step with the scene
@@ -108,6 +109,8 @@ export interface ProjectData {
     modelVersions?: SceneVersion[];
     /** v13+: the collars and surveys the dataset was desurveyed from (absent: none kept) */
     drillholes?: SavedDrillholes;
+    /** Planned programs and drill tracking (absent: none) */
+    drillTracking?: SavedDrillTracking;
     metadata: ProjectMetadata;
     appState: {
         /** v1-v3: row objects */
@@ -613,6 +616,7 @@ export const useProjectStore = create<ProjectState>()(
                 useModelStore.getState().setScene(EMPTY_SCENE);
                 useSceneVersions.getState().setVersions([]);
                 useDrillholeStore.getState().setDrillholes(null);
+                useDrillTrackingStore.getState().load(null);
                 // Reset attributes
                 useAttributeStore.getState().removeGlobalEntries();
                 useAttributeStore.setState({
@@ -687,6 +691,7 @@ export const useProjectStore = create<ProjectState>()(
                     model: savedScene(useModelStore.getState().scene),
                     modelVersions: useSceneVersions.getState().versions,
                     drillholes: (db => (db ? saveDrillholes(db) : undefined))(useDrillholeStore.getState().db),
+                    drillTracking: saveDrillTracking(),
                     metadata: {
                         name: projectState.currentProject?.name || 'Untitled Project',
                         description: projectState.currentProject?.description || '',
@@ -863,6 +868,7 @@ export const useProjectStore = create<ProjectState>()(
                     useSceneVersions.getState().setVersions(data.modelVersions);
                     // After the dataset is in: replacing the dataset empties them
                     useDrillholeStore.getState().setDrillholes(readDrillholes(data.drillholes));
+                    useDrillTrackingStore.getState().load(data.drillTracking);
                     const modelViews = readModelViews(data.modelling?.views);
                     // A project of the model alone opens on the Modelling page (the Plots page would start it a
                     // suggested plot, and so mark it changed as it opens)
@@ -1455,6 +1461,7 @@ useAppStore.subscribe((state, prevState) => {
         state.columns !== prevState.columns ||
         state.plots !== prevState.plots ||
         state.modelViews !== prevState.modelViews ||
+        state.trackingViews !== prevState.trackingViews ||
         state.geochemMappings !== prevState.geochemMappings ||
         state.lockAxes !== prevState.lockAxes ||
         state.lockFullExtent !== prevState.lockFullExtent ||
@@ -1550,6 +1557,12 @@ useModelStore.subscribe((state, prevState) => {
 useDrillholeStore.subscribe((state, prevState) => {
     if (useProjectStore.getState()._isImporting) return;
     if (state.db !== prevState.db) useProjectStore.getState().setDirty(true);
+});
+
+// Planned programs and drill tracking
+useDrillTrackingStore.subscribe((state, prevState) => {
+    if (useProjectStore.getState()._isImporting) return;
+    if (state.programs !== prevState.programs || state.live !== prevState.live || state.tracking !== prevState.tracking) useProjectStore.getState().setDirty(true);
 });
 
 useClassificationStore.subscribe((state, prevState) => {

@@ -49,6 +49,8 @@ export interface PointReading {
 export interface ScenePoint {
     id: string;
     p: Vec3;
+    /** The point's own name, e.g. a drill pad's ID (absent: none) */
+    name?: string;
     /** Where it was picked on a drillhole (kept by hole and depth: row numbers do not survive a re-import) */
     snap?: { hole: string; depth: number };
     /**
@@ -135,7 +137,14 @@ interface InputSetBase {
 export interface PointSet extends InputSetBase {
     kind: 'points';
     points: ScenePoint[];
+    /** What the set is for besides shaping surfaces (drillhole planner): drill pads, or target points (absent: none) */
+    role?: PointSetRole;
+    /** How a set with a role is drawn: a round dot or a cross, a size on the screen (absent: a dot) */
+    mark?: 'dot' | 'cross';
 }
+
+/** Drill pads (collars snap to them) or target points (holes are planned to them) */
+export type PointSetRole = 'pads' | 'targets';
 
 /** A named set of lines: every surface that uses it passes along them */
 export interface LineSet extends InputSetBase {

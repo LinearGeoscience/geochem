@@ -27,6 +27,7 @@ import { VeinSystemEditor } from './properties/VeinSystemEditor';
 import { SolidEditor } from './properties/SolidEditor';
 import { useTargetView } from './targetView';
 import { useProjectTree } from './tree/useProjectTree';
+import { TrackingEditor } from '../drilltracking/TrackingEditors';
 
 /** The editor of one object (null: it is no longer in the project) */
 const OneEditor: React.FC<{ node: TreeNode; tree: readonly TreeNode[] }> = ({ node, tree }) => {
@@ -100,6 +101,8 @@ const OneEditor: React.FC<{ node: TreeNode; tree: readonly TreeNode[] }> = ({ no
         case 'folder': return <FolderEditor node={node} />;
         case 'root': return <GroupEditor node={node} />;
         case 'link': return <LinkEditor node={node} onGoTo={goTo} />;
+        // Drill tracking (features/drilltracking)
+        case 'plannedHoles': case 'program': case 'liveDrilling': return <TrackingEditor node={node} />;
         default: return <InfoEditor node={node} />;
     }
 };

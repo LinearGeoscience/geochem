@@ -581,6 +581,16 @@ export class ThreeViewport {
     /** Directional light that follows the camera (lights only affect wireframe surfaces) */
     private readonly headlight = new THREE.DirectionalLight(0xffffff, 2.2);
 
+    /**
+     * Layers added by plug-in modules (e.g. the drillhole planner), by id: in
+     * local coordinates, scaled with the vertical exaggeration. Materials with
+     * `userData.clipWithSlices` are cut by the clip box and slices, those with
+     * `userData.clipWithBox` by the box only; others always show. The module
+     * that adds a layer disposes of it.
+     */
+    private readonly layerGroup = new THREE.Group();
+    private readonly layers = new Map<string, THREE.Object3D>();
+
     /** Called after the user finishes a camera interaction (to persist the view). */
     onCameraChangeEnd: (() => void) | null = null;
     /** Called on every camera movement (a slice locked to the camera follows it). */
@@ -684,7 +694,7 @@ export class ThreeViewport {
                 uBackground: { value: new THREE.Color(this.background) },
             },
         });
-        this.scene.add(this.groundGroup, this.points, this.traceGroup, this.loggingGroup, this.axesGroup, this.wireGroup, this.sliceGroup, this.gridGroup, this.markerGroup, this.handleGroup);
+        this.scene.add(this.groundGroup, this.points, this.traceGroup, this.loggingGroup, this.axesGroup, this.wireGroup, this.sliceGroup, this.gridGroup, this.markerGroup, this.handleGroup, this.layerGroup);
         this.scene.add(new THREE.AmbientLight(0xffffff, 1.2), this.headlight);
 
         this.resizeObserver = new ResizeObserver(() => this.resize());
@@ -1251,11 +1261,25 @@ export class ThreeViewport {
         this.gridGroup.scale.set(1, 1, opts.vex);
         this.markerGroup.scale.set(1, 1, opts.vex);
         this.handleGroup.scale.set(1, 1, opts.vex);
-        if (this.clip) this.traceMaterial.clippingPlanes = clipPlanes(this.clip, this.vex);
+        this.layerGroup.scale.set(1, 1, opts.vex);
+        if (this.clip) this.traceMaterial.clippingPlanes = clipPlanes(this.sampleClip(this.clip), this.vex);
         this.applyWireClip();
+        this.applyLayerClip();
         this.applyHandleClip();
         this.updateDepthRange();
         this.requestRender();
+    }
+
+    /** Whether the slices cut the samples (points, cylinders, logging, the traces through them); off, they cut only the rest (drill tracking) */
+    private sliceSamples = true;
+    setSliceSamples(on: boolean) {
+        if (this.sliceSamples === on) return;
+        this.sliceSamples = on;
+        if (this.clip) this.setClip(this.clip);
+    }
+    /** The clip the samples get: without the slices when they are not cut by them */
+    private sampleClip(clip: ClipState): ClipState {
+        return this.sliceSamples ? clip : { ...clip, slabs: [] };
     }
 
     setClip(clip: ClipState) {
@@ -1264,7 +1288,7 @@ export class ThreeViewport {
         u.uBoxEnabled.value = clip.boxEnabled ? 1 : 0;
         u.uBoxMin.value.set(...clip.boxMin);
         u.uBoxMax.value.set(...clip.boxMax);
-        const [a, b] = clip.slabs;
+        const [a, b] = this.sampleClip(clip).slabs;
         u.uSlabEnabled.value = a ? 1 : 0;
         if (a) {
             u.uSlabNormal.value.set(...a.normal);
@@ -1278,12 +1302,43 @@ export class ThreeViewport {
             u.uSlab2Range.value.set(b.lo, b.hi);
         }
         // Recompile only when the number of planes changes: moving a slice is then free
-        const planes = clipPlanes(clip, this.vex);
+        const planes = clipPlanes(this.sampleClip(clip), this.vex);
         if ((this.traceMaterial.clippingPlanes?.length ?? 0) !== planes.length) this.traceMaterial.needsUpdate = true;
         this.traceMaterial.clippingPlanes = planes;
         this.applyWireClip();
         this.applyHandleClip();
+        this.applyLayerClip();
         this.requestRender();
+    }
+
+    /** Add, replace (same id) or remove (null) a plug-in layer; see `layerGroup`. */
+    setLayer(id: string, object: THREE.Object3D | null) {
+        const old = this.layers.get(id);
+        if (old) {
+            this.layerGroup.remove(old);
+            this.layers.delete(id);
+        }
+        if (object) {
+            this.layers.set(id, object);
+            this.layerGroup.add(object);
+        }
+        this.applyLayerClip();
+        this.requestRender();
+    }
+
+    private applyLayerClip() {
+        const planes = this.clip ? clipPlanes(this.clip, this.vex) : [];
+        // `clipWithBox`: cut by the clip box only (e.g. a faded copy showing what lies off the slices)
+        const boxPlanes = this.clip ? clipPlanes({ ...this.clip, slabs: [] }, this.vex) : [];
+        this.layerGroup.traverse(o => {
+            const mat = (o as THREE.Object3D & { material?: THREE.Material | THREE.Material[] }).material;
+            for (const m of Array.isArray(mat) ? mat : mat ? [mat] : []) {
+                const use = m.userData.clipWithSlices ? planes : m.userData.clipWithBox ? boxPlanes : null;
+                if (!use) continue;
+                if ((m.clippingPlanes?.length ?? 0) !== use.length) m.needsUpdate = true;
+                m.clippingPlanes = use;
+            }
+        });
     }
 
     /** Thin outlines showing where each slice's mid-plane sits (empty list: none). */
@@ -2302,6 +2357,7 @@ export class ThreeViewport {
         this.setSliceFrames([]);
         this.setPlaneGrid(null);
         this.setHoleMarkers([]);
+        for (const id of [...this.layers.keys()]) this.setLayer(id, null);
         cancelAnimationFrame(this.frame);
         this.resizeObserver.disconnect();
         this.controls.dispose();

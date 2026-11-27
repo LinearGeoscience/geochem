@@ -118,11 +118,13 @@ export interface PlotInstance {
     settings: PlotSettings;
 }
 
-export type AppView = 'welcome' | 'import' | 'data' | 'columns' | 'plots' | 'modelling' | 'analysis' | 'qaqc' | 'statistics' | 'settings' | 'diagram-editor' | 'report';
+export type AppView = 'welcome' | 'import' | 'data' | 'columns' | 'plots' | 'modelling' | 'analysis' | 'qaqc' | 'statistics' | 'settings' | 'diagram-editor' | 'report'
+    // The Drill tracking page (features/drilltracking)
+    | 'drill-tracking';
 
-/** A plot, or a view of the Modelling page, by id (settings are read and written the same way for both) */
-export function plotById(state: { plots: PlotInstance[]; modelViews: PlotInstance[] }, id: string): PlotInstance | undefined {
-    return state.plots.find(p => p.id === id) ?? state.modelViews.find(v => v.id === id);
+/** A plot, or a view of the Modelling or Drill tracking page, by id (settings are read and written the same way for all) */
+export function plotById(state: { plots: PlotInstance[]; modelViews: PlotInstance[]; trackingViews?: PlotInstance[] }, id: string): PlotInstance | undefined {
+    return state.plots.find(p => p.id === id) ?? state.modelViews.find(v => v.id === id) ?? state.trackingViews?.find(v => v.id === id);
 }
 
 export interface SetDatasetOptions {
@@ -174,6 +176,8 @@ interface AppState {
      * points at one.
      */
     modelViews: PlotInstance[];
+    /** The Drill tracking page's 3D view (store/drillTrackingStore; saved with the project there) */
+    trackingViews: PlotInstance[];
     /** Open a model view (null: MAX_MODEL_VIEWS are open already); returns its id */
     addModelView: (kind: ModelViewKind, init?: { title?: string; settings?: Record<string, any> }) => string | null;
     removeModelView: (id: string) => void;
@@ -613,6 +617,7 @@ export const useAppStore = create<AppState>()((set, get) => ({
     plots: [],
     activePlotId: null,
     modelViews: [],
+    trackingViews: [],
     selectedIndices: [],
     lockAxes: false,
     lastWorkbook: null,
@@ -736,6 +741,9 @@ export const useAppStore = create<AppState>()((set, get) => ({
         set((state) => {
             if (state.modelViews.some(v => v.id === plotId)) {
                 return { modelViews: state.modelViews.map(v => (v.id === plotId ? { ...v, settings: { ...v.settings, ...settings } } : v)) };
+            }
+            if (state.trackingViews.some(v => v.id === plotId)) {
+                return { trackingViews: state.trackingViews.map(v => (v.id === plotId ? { ...v, settings: { ...v.settings, ...settings } } : v)) };
             }
             return {
                 plots: state.plots.map(p =>

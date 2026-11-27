@@ -39,7 +39,7 @@ import { readControl } from '../features/model/contactControl';
 import { cleanLine, cleanPlane, handSetName, MAX_SET_READINGS, MAX_SETS, readSets, SET_COLOURS, type NewReadingSet } from '../features/model/structureReadings';
 import type { Suggestion } from '../features/model/suggest';
 import type {
-    BodyRule, ContactRule, InputSet, LineNode, ModelScene, OverallStructure, Plane, ReadingSet, SceneLine, SectionSet, ShellRule, PointReading, SceneCoords, ScenePoint, ScenePolyline, StructureTool, SurfaceObject,
+    BodyRule, ContactRule, InputSet, PointSetRole, LineNode, ModelScene, OverallStructure, Plane, ReadingSet, SceneLine, SectionSet, ShellRule, PointReading, SceneCoords, ScenePoint, ScenePolyline, StructureTool, SurfaceObject,
     SurfaceOutline, SurfaceParams, SurfaceRule, SurfaceUse, Vec3,
     Reassignment, UnitMap, WireframeObject,
 } from '../features/model/types';
@@ -239,6 +239,13 @@ interface ModelState {
     removeSurface: (id: string) => void;
     /** A new, empty set of points or lines; returns its id */
     addInputSet: (kind: InputSet['kind'], init?: { name?: string; folder?: string | null; color?: string }) => string;
+    /**
+     * A set of named points with a role made in one step (drill pads, target points); returns its id.
+     * `replace`: a set of the same name and role has its points replaced instead (its id, colour and showing kept).
+     */
+    addNamedPoints: (init: { name: string; role: PointSetRole; color: string }, points: { p: Vec3; name: string }[], opts?: { replace?: boolean }) => string;
+    /** How a set with a role is drawn: dots or crosses */
+    setPointSetMark: (id: string, mark: 'dot' | 'cross') => void;
     updateInputSet: (id: string, patch: Partial<Pick<InputSet, 'name' | 'color' | 'visible' | 'locked' | 'folder'>>) => void;
     /** Remove a set from the scene: every surface that uses it loses its points or lines. A locked set is kept */
     removeInputSet: (id: string) => void;
@@ -605,7 +612,7 @@ function readPoints(raw: unknown, taken: Set<string> = new Set()): ScenePoint[] 
         if (!p || typeof p.id !== 'string' || !isVec3(p.p) || taken.has(p.id)) continue;
         taken.add(p.id);
         const snap = p.snap && typeof p.snap.hole === 'string' && Number.isFinite(p.snap.depth) ? { hole: p.snap.hole, depth: p.snap.depth } : null;
-        points.push({ id: p.id, p: [p.p[0], p.p[1], p.p[2]], ...placed(snap, p.across, p.reading, p.direction) });
+        points.push({ id: p.id, p: [p.p[0], p.p[1], p.p[2]], ...(typeof p.name === 'string' && p.name ? { name: p.name } : {}), ...placed(snap, p.across, p.reading, p.direction) });
     }
     return points;
 }
@@ -643,7 +650,10 @@ function readInputs(raw: unknown): InputSet[] {
             folder: normalizeFolder(o.folder),
             ...(typeof o.owner === 'string' && o.owner ? { owner: o.owner } : {}),
         };
-        if (o.kind === 'points') sets.push({ ...base, kind: 'points', points: readPoints(o.points, points) });
+        const look = o as { role?: unknown; mark?: unknown };
+        const role = look.role === 'pads' || look.role === 'targets' ? { role: look.role as PointSetRole } : {};
+        const mark = look.mark === 'cross' || look.mark === 'dot' ? { mark: look.mark as 'dot' | 'cross' } : {};
+        if (o.kind === 'points') sets.push({ ...base, kind: 'points', points: readPoints(o.points, points), ...role, ...mark });
         else sets.push({ ...base, kind: 'lines', lines: readLines(o.lines, lines).map(({ flipped: _flipped, ...line }): SceneLine => line) });
     }
     return sets;
@@ -1644,6 +1654,31 @@ export const useModelStore = create<ModelState>()((put, get) => {
             });
             return id;
         },
+
+        // A set of named points with a role in one step (drill pads, target points: drillhole planner)
+        addNamedPoints: (init, points, opts = {}) => {
+            let id = '';
+            edit(state => {
+                const sets = state.scene.inputs ?? [];
+                const name = init.name.trim() || 'Points';
+                const old = opts.replace ? sets.find(s => s.kind === 'points' && s.role === init.role && s.name === name) : undefined;
+                const others = old ? sets.filter(s => s !== old) : sets;
+                id = old?.id ?? `i${nextId('i', sets.map(s => s.id))}`;
+                let k = nextId('p', inputIds(others).points);
+                const made: InputSet = {
+                    ...(old ?? { visible: true, locked: false, folder: null, color: init.color }), id, name: old ? old.name : freeName(name, sets),
+                    kind: 'points', role: init.role,
+                    points: points.map(q => ({ id: `p${k++}`, p: [q.p[0], q.p[1], q.p[2]] as Vec3, ...(q.name ? { name: q.name } : {}) })),
+                };
+                return { scene: { ...state.scene, inputs: old ? sets.map(s => (s === old ? made : s)) : [...sets, made] } };
+            });
+            return id;
+        },
+
+        setPointSetMark: (id, mark) => edit(state => {
+            const scene = mapSet(state.scene, id, s => (s.kind === 'points' && (s.mark ?? 'dot') !== mark ? { ...s, mark } : s));
+            return scene === state.scene ? state : { scene };
+        }),
 
         updateInputSet: (id, patch) => edit(state => {
             const scene = mapSet(state.scene, id, s => {

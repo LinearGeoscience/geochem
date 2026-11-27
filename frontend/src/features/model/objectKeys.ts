@@ -21,7 +21,9 @@ export type ObjectKind =
     | 'surface' | 'inputs' | 'readings' | 'wireframe' | 'structure'
     | 'table' | 'unitMap' | 'sectionSet' | 'collars' | 'dataset' | 'column'
     | 'model' | 'modelContact' | 'modelFault' | 'volume' | 'numericModel' | 'veinSystem'
-    | 'root' | 'folder' | 'modelGroup';
+    | 'root' | 'folder' | 'modelGroup'
+    // Drill tracking (features/drilltracking): the Planned holes group, a planned program, the drilled holes from Acquire
+    | 'plannedHoles' | 'program' | 'liveDrilling';
 
 /** The parts a geological model is laid out in, in the tree, in the order they are set up */
 export const MODEL_GROUPS = ['boundary', 'lithologies', 'faults', 'chronology', 'volumes'] as const;
@@ -31,7 +33,7 @@ export type ModelGroupPart = (typeof MODEL_GROUPS)[number];
 export type FolderRoot = 'points' | 'lines' | 'surfaces' | 'readings' | 'meshes';
 export const FOLDER_ROOTS: readonly FolderRoot[] = ['points', 'lines', 'surfaces', 'readings', 'meshes'];
 
-const WITH_ID = new Set<ObjectKind>(['surface', 'inputs', 'readings', 'wireframe', 'table', 'unitMap', 'sectionSet', 'column', 'model', 'modelContact', 'modelFault', 'volume', 'numericModel', 'veinSystem', 'root', 'folder', 'modelGroup']);
+const WITH_ID = new Set<ObjectKind>(['surface', 'inputs', 'readings', 'wireframe', 'table', 'unitMap', 'sectionSet', 'column', 'model', 'modelContact', 'modelFault', 'volume', 'numericModel', 'veinSystem', 'root', 'folder', 'modelGroup', 'program']);
 
 export const keys = {
     surface: (id: string) => `surface:${id}`,
@@ -54,11 +56,14 @@ export const keys = {
     root: (name: string) => `root:${name}`,
     modelGroup: (model: string, part: ModelGroupPart) => `modelGroup:${model}/${part}`,
     folder: (root: FolderRoot, path: string) => `folder:${root}/${path}`,
+    plannedHoles: 'plannedHoles',
+    program: (id: string) => `program:${id}`,
+    liveDrilling: 'liveDrilling',
 } as const;
 
 /** What a key names: its kind and the id (or name, or root/path) after the colon ('' for the objects of which there is one) */
 export function parseKey(key: string): { kind: ObjectKind; id: string } | null {
-    if (key === 'structure' || key === 'collars' || key === 'dataset') return { kind: key, id: '' };
+    if (key === 'structure' || key === 'collars' || key === 'dataset' || key === 'plannedHoles' || key === 'liveDrilling') return { kind: key, id: '' };
     const at = key.indexOf(':');
     if (at <= 0) return null;
     const kind = key.slice(0, at) as ObjectKind;

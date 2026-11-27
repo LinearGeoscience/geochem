@@ -26,6 +26,7 @@ const DiagramEditor = React.lazy(() =>
     import('./features/diagramEditor/DiagramEditor').then(m => ({ default: m.DiagramEditor })));
 const WelcomeView = React.lazy(() => import('./features/welcome/WelcomeView'));
 const ReportView = React.lazy(() => import('./features/report/ReportView'));
+const DrillTrackingView = React.lazy(() => import('./features/drilltracking/DrillTrackingView'));
 
 // Sidebar width constraints
 const MIN_SIDEBAR_WIDTH = 280;
@@ -105,7 +106,7 @@ function App() {
         }
 
         // (The Modelling page opens on an empty project too: its first step says to import the drillholes)
-        if (columns.length === 0 && currentView !== 'modelling') {
+        if (columns.length === 0 && currentView !== 'modelling' && currentView !== 'drill-tracking') {
             return <WelcomeView />;
         }
 
@@ -114,6 +115,8 @@ function App() {
                 return <PlotsView />;
             case 'modelling':
                 return <ModellingView />;
+            case 'drill-tracking':
+                return <DrillTrackingView />;
             case 'data':
                 return <DataView />;
             case 'columns':

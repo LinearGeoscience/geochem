@@ -17,6 +17,7 @@ import type { TreeNode, TreeRow as Row } from '../../model/projectTree';
 import { statusTip } from '../../model/treeRules';
 import { TypeIcon as ObjectTypeIcon } from '../typeIcons';
 import { STATUS } from './statusLook';
+import { TrackingIcon } from '../../drilltracking/TrackingEditors';
 
 export const ROW_HEIGHT = 24;
 const INDENT = 14;
@@ -66,6 +67,8 @@ function KindIcon({ node, open }: { node: TreeNode; open: boolean }) {
         case 'sectionSet': return <HorizontalSplit sx={icon} />;
         case 'collars': return <Place sx={icon} />;
         case 'dataset': return <Grain sx={icon} />;
+        // Drill tracking (features/drilltracking)
+        case 'plannedHoles': case 'program': case 'liveDrilling': return <TrackingIcon node={node} sx={icon} />;
         default: return null;
     }
 }
