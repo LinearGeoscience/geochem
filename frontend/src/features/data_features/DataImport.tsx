@@ -6,15 +6,13 @@ import {
 } from '@mui/material';
 import { CloudUpload, Layers, Settings, Close, Science, ExpandMore, ExpandLess, FolderOpen } from '@mui/icons-material';
 import { useAppStore } from '../../store/appStore';
-import { loadImportedDrillholes } from '../../store/drillholeStore';
 import { useShallow } from 'zustand/react/shallow';
 import { DrillholeColumnMapper } from '../../components/DrillholeColumnMapper';
-import { dataApi } from '../../services/api';
-import { notify } from '../../store/notificationStore';
-import { friendlyError } from '../../utils/friendlyError';
 import { LODHandling } from '../../utils/vantaPxrfTransform';
 import { useFlatFileUpload } from './useFlatFileUpload';
 import { VantaPromptDialog } from './VantaPromptDialog';
+import { AcquireImportPanel } from './AcquireImportPanel';
+import { processDrillholeImport } from './processDrillholeImport';
 
 interface ColumnMapping {
     [key: string]: string;
@@ -88,64 +86,12 @@ export const DataImport: React.FC = () => {
         previewToken?: string;
     }) => {
         setShowMapper(false);
-        useAppStore.setState({ error: null, isLoading: true, uploadProgress: 0 });
-
-        try {
-            const formData = new FormData();
-            if (mappings.previewToken) {
-                // Preview already uploaded and parsed the files server-side —
-                // no need to re-upload them
-                formData.append('preview_token', mappings.previewToken);
-            } else {
-                formData.append('collar', collarFile!);
-                formData.append('survey', surveyFile!);
-                formData.append('assay', assayFile!);
-            }
-            formData.append('collar_mapping', JSON.stringify(mappings.collar));
-            formData.append('survey_mapping', JSON.stringify(mappings.survey));
-            formData.append('assay_mapping', JSON.stringify(mappings.assay));
-            formData.append('negate_dip', mappings.negateDip ? 'true' : 'false');
-
-            const response = await fetch('/api/drillhole/process', {
-                method: 'POST',
-                body: formData
-            });
-
-            if (!response.ok) {
-                const error = await response.json();
-                throw new Error(error.detail || 'Processing failed');
-            }
-
-            const result = await response.json();
-            if (!result.column_info?.length) {
-                throw new Error('No column info returned from processing');
-            }
-            useAppStore.setState({ uploadProgress: 50 });
-
-            // Stream the full dataset progressively (matches the auto-upload flow)
-            const data = await dataApi.streamData((loaded, total) => {
-                useAppStore.setState({ uploadProgress: 50 + Math.round((loaded / Math.max(total, 1)) * 50) });
-            });
-
-            const filteredCols = useAppStore.getState().setDataset(data, result.column_info as any[], { showGeochemDialog: true });
-            await loadImportedDrillholes();
-            useAppStore.setState({
-                isLoading: false,
-                uploadProgress: 0,
-                currentView: 'plots'
-            });
-            console.log(`[DrillholeMapping] Streamed ${data.length} rows, ${filteredCols.length} columns`);
-            for (const w of (result.warnings ?? []) as string[]) notify(w, 'warning');
-
-        } catch (error) {
-            const message = friendlyError(error, 'Drillhole processing failed');
-            notify(message, 'error');
-            useAppStore.setState({
-                error: message,
-                isLoading: false,
-                uploadProgress: 0
-            });
-        }
+        // The load steps are shared with the Acquire tab (processDrillholeImport.ts)
+        await processDrillholeImport({
+            collar: mappings.collar, survey: mappings.survey, assay: mappings.assay,
+            negateDip: mappings.negateDip, previewToken: mappings.previewToken,
+            files: { collar: collarFile!, survey: surveyFile!, assay: assayFile! },
+        });
     };
 
     return (
@@ -158,6 +104,7 @@ export const DataImport: React.FC = () => {
                 <Tabs value={tab} onChange={(_, v) => setTab(v)} sx={{ mb: 3 }}>
                     <Tab label="Flat File (Excel/CSV)" />
                     <Tab label="Drillhole (Collar/Survey/Assay)" />
+                    <Tab label="Acquire (SQL)" />
                 </Tabs>
 
                 {tab === 0 ? (
@@ -343,6 +290,8 @@ export const DataImport: React.FC = () => {
                             </Alert>
                         )}
                     </Box>
+                ) : tab === 2 ? (
+                    <AcquireImportPanel runOrConfirm={runOrConfirm} />
                 ) : (
                     <Box sx={{ my: 3, display: 'flex', flexDirection: 'column', gap: 2 }}>
                         <Typography variant="body2" color="text.secondary">
@@ -426,7 +375,7 @@ export const DataImport: React.FC = () => {
                                     ? 'Uploading file...'
                                     : uploadProgress < 100
                                         ? 'Processing data...'
-                                        : tab === 1
+                                        : tab >= 1
                                             ? 'Processing drillhole data (desurveying)...'
                                             : 'Preparing display...'}
                         </Typography>
