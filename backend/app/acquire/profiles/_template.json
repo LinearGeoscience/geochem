@@ -1,0 +1,38 @@
+{
+  "name": "New profile",
+  "notes": [
+    "A blank Acquire connection profile. Names only: tables or views and their columns, never SQL.",
+    "server: host name or IP, optionally \\INSTANCE and ,port. database: the Acquire database. Windows sign-in only.",
+    "collar / survey: the table or view and the column for each role. Use a database view if the data needs joins.",
+    "assay.layout: 'wide' (one row per sample interval, one column per analyte), 'long' (one row per result, with element and value columns on the same table as hole / from / to), or 'long_joined' (results table joined to a samples table by sample ID).",
+    "assay.preferred: when a sample has several results for one analyte, keep the one with the 'lowest' or 'highest' value in a priority column, or the 'first'; 'none' stops the import if there are duplicates.",
+    "assay.bdl: optional below-detection flag column, the flag values, and how to write those results: 'half' (half the value), 'negative', or 'as_is'.",
+    "assay.qaqc: optional column and the values to leave out (blanks, standards, duplicates).",
+    "assay.column_rules: optional renaming of analyte columns (drop columns, drop or strip name suffixes, rename).",
+    "filters: the collar columns behind each filter; leave one empty (null) to hide that filter.",
+    "dip: 'negative_down' if downward holes have negative dips, else 'positive_down'."
+  ],
+  "server": "",
+  "database": "",
+  "driver": "ODBC Driver 18 for SQL Server",
+  "encrypt": true,
+  "trust_server_certificate": true,
+  "field_map": {
+    "schema": "dbo",
+    "date_format": "%Y-%m-%d",
+    "dip": "negative_down",
+    "collar": {"object": "", "columns": {"hole_id": "", "easting": "", "northing": "", "rl": ""}},
+    "survey": {"object": "", "columns": {"hole_id": "", "depth": "", "dip": "", "azimuth": ""}, "priority": null},
+    "assay": {
+      "layout": "wide",
+      "object": "",
+      "columns": {"hole_id": "", "from": "", "to": ""},
+      "samples": null,
+      "preferred": {"rule": "none", "column": null},
+      "bdl": null,
+      "qaqc": null,
+      "column_rules": {"drop_columns": [], "drop_suffixes": [], "strip_suffixes": [], "rename": {}}
+    },
+    "filters": {"project": null, "prospect": null, "hole_type": null, "program": null, "drilled": null, "modified": null}
+  }
+}
